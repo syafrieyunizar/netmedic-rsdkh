@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Magic SOAP & Kronologi</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-title">
+      <img class="title-icon" src="icon.png" alt="" aria-hidden="true">
+      <div>
+        <h1>Magic SOAP</h1>
+        <span class="brand-author">by Syafrie Yunizar</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span id="apiConnection" class="api-connection" role="status" aria-live="polite">
+        <span class="connection-dot" aria-hidden="true"></span>
+        <span id="apiConnectionText">API belum diatur</span>
+      </span>
+      <button id="openHistory" class="icon-button" type="button" aria-label="Buka riwayat pasien" title="Riwayat">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5m4-1v5l3 2"/></svg>
+      </button>
+      <button id="openSettings" class="icon-button" type="button" aria-label="Buka pengaturan" title="Pengaturan">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 0 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1A2 2 0 1 1 4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L4.2 7A2 2 0 1 1 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 .9-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1A2 2 0 1 1 19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5.9h.1a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <nav class="tabs" role="tablist" aria-label="Fitur" data-active-tab="soap">
+      <span class="tab-indicator" aria-hidden="true"></span>
+      <button id="soapTab" class="tab active" type="button" role="tab" aria-selected="true" aria-controls="soapPanel">Magic SOAP</button>
+      <button id="kronologiTab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="kronologiPanel">Kronologi</button>
+    </nav>
+
+    <div class="patient-toolbar">
+      <button id="newPatient" class="new-patient-button" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0m0-11v6m-3-3h6"/></svg>
+        <span>Pasien baru</span>
+      </button>
+    </div>
+
+    <section id="soapPanel" class="tab-panel" role="tabpanel" aria-labelledby="soapTab">
+      <section class="input-card" aria-labelledby="soapInputTitle">
+        <div class="card-heading">
+          <div>
+            <span class="section-kicker">MAGIC SOAP</span>
+            <h2 id="soapInputTitle">Informasi pasien & SOAP awal</h2>
+          </div>
+          <button class="help-button" type="button" data-help-type="soap" aria-label="Bantuan Magic SOAP" title="Bantuan Magic SOAP">i</button>
+        </div>
+        <div id="soapStatus" class="status" data-state="ready" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><span class="status-text">Siap</span></div>
+
+        <div class="form-grid two-column">
+          <label>Identitas anonim pasien
+            <input id="identity" type="text" placeholder="Laki-laki 45 tahun" autocomplete="off">
+          </label>
+          <label>Status pelayanan
+            <select id="serviceMode">
+              <option value="rawat_inap">Rawat inap</option>
+              <option value="rawat_jalan">Rawat jalan</option>
+              <option value="dari_poli">Dari poli</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="form-grid soap-fields">
+          <label><span>Subjektif (S) <span aria-hidden="true">*</span></span>
+            <textarea id="subjektif" rows="4" placeholder="Keluhan utama dan anamnesis singkat"></textarea>
+          </label>
+          <label>Objektif (O)
+            <textarea id="objektif" rows="4" placeholder="Tanda vital dan pemeriksaan fisik"></textarea>
+          </label>
+          <label>Assessment (A)
+            <textarea id="assessment" rows="3" placeholder="Diagnosis atau masalah klinis"></textarea>
+          </label>
+          <label>Planning (P)
+            <textarea id="planning" rows="3" placeholder="Terapi, tindakan, dan rencana"></textarea>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="generateSoap" class="button primary" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3-1.1 3.1L8 7.2l2.9 1.1L12 11.5l1.1-3.2L16 7.2l-2.9-1.1L12 3Z"/><path d="m5 13-.8 2.2L2 16l2.2.8L5 19l.8-2.2L8 16l-2.2-.8L5 13Z"/><path d="m17 13-1.4 3.6L12 18l3.6 1.4L17 23l1.4-3.6L22 18l-3.6-1.4L17 13Z"/></svg>
+            <span>Generate</span>
+          </button>
+        </div>
+      </section>
+    </section>
+
+    <section id="kronologiPanel" class="tab-panel" role="tabpanel" aria-labelledby="kronologiTab" hidden>
+      <section class="input-card" aria-labelledby="kronologiInputTitle">
+        <div class="card-heading">
+          <div><span class="section-kicker">KRONOLOGI</span><h2 id="kronologiInputTitle">Detail kejadian</h2></div>
+          <button class="help-button" type="button" data-help-type="kronologi" aria-label="Bantuan Kronologi" title="Bantuan Kronologi">i</button>
+        </div>
+        <div id="kronologiStatus" class="status" data-state="ready" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><span class="status-text">Siap</span></div>
+
+        <div class="form-grid">
+          <label><span>Skenario kejadian <span aria-hidden="true">*</span></span>
+            <textarea id="skenario" rows="6" placeholder="Ceritakan kejadian secara singkat"></textarea>
+          </label>
+          <label><span>Akibat/cedera <span aria-hidden="true">*</span></span>
+            <textarea id="akibat" rows="4" placeholder="Sebutkan akibat atau cedera"></textarea>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="generateKronologi" class="button primary" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3-1.1 3.1L8 7.2l2.9 1.1L12 11.5l1.1-3.2L16 7.2l-2.9-1.1L12 3Z"/><path d="m5 13-.8 2.2L2 16l2.2.8L5 19l.8-2.2L8 16l-2.2-.8L5 13Z"/><path d="m17 13-1.4 3.6L12 18l3.6 1.4L17 23l1.4-3.6L22 18l-3.6-1.4L17 13Z"/></svg>
+            <span>Generate</span>
+          </button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <span><span class="footer-dot" aria-hidden="true"></span>Siap digunakan</span>
+    <span>v1.0.0</span>
+  </footer>
+
+  <dialog id="historyDialog" class="history-dialog" aria-labelledby="historyTitle">
+    <div class="history-shell">
+      <header class="history-header">
+        <button id="backToHistoryList" class="icon-button" type="button" aria-label="Kembali ke daftar riwayat" title="Kembali" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <div>
+          <span class="section-kicker">PASIEN</span>
+          <h2 id="historyTitle">Riwayat</h2>
+        </div>
+        <button id="closeHistory" class="icon-button" type="button" aria-label="Tutup riwayat" title="Tutup">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </header>
+      <div id="historyListView" class="history-content">
+        <p class="history-retention">Disimpan maksimal 60 hari.</p>
+        <div id="historyEmpty" class="history-empty">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5m4-1v5l3 2"/></svg>
+          <strong>Belum ada riwayat</strong>
+          <span>Hasil generate pasien akan tersimpan di sini.</span>
+        </div>
+        <div id="historyList" class="history-list"></div>
+      </div>
+      <div id="historyDetailView" class="history-content" hidden>
+        <div id="historyDetail" class="history-detail"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="newPatientDialog" class="compact-dialog" aria-labelledby="newPatientTitle">
+    <form id="newPatientForm">
+      <div class="dialog-heading">
+        <div>
+          <span class="section-kicker">PASIEN BARU</span>
+          <h2 id="newPatientTitle">Masukkan identitas pasien baru</h2>
+        </div>
+        <button id="closeNewPatient" class="icon-button" type="button" aria-label="Tutup" title="Tutup">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <label>Identitas anonim pasien
+        <input id="newPatientIdentity" type="text" placeholder="Boss, 22 tahun" autocomplete="off" required>
+        <span class="field-hint">Form saat ini akan dibersihkan untuk memulai episode baru.</span>
+      </label>
+      <div id="newPatientStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+      <div class="dialog-actions">
+        <button id="cancelNewPatient" class="button" type="button">Batal</button>
+        <button class="button primary" type="submit"><span>Mulai pasien baru</span></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="helpDialog" class="compact-dialog" aria-labelledby="helpTitle">
+    <div class="help-dialog-content">
+      <div class="dialog-heading">
+        <div>
+          <span class="section-kicker">BANTUAN</span>
+          <h2 id="helpTitle">Cara menggunakan Magic SOAP</h2>
+        </div>
+        <button id="closeHelp" class="icon-button" type="button" aria-label="Tutup bantuan" title="Tutup">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <ol id="helpSteps" class="help-steps"></ol>
+      <div class="dialog-actions">
+        <button id="dismissHelp" class="button primary" type="button"><span>Mengerti</span></button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="resultDialog" class="result-dialog" aria-labelledby="resultDialogTitle">
+    <div class="result-shell">
+      <header class="result-header">
+        <button id="backToForm" class="back-button" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+          <span>Kembali</span>
+        </button>
+        <div class="result-title">
+          <span class="section-kicker">HASIL</span>
+          <h2 id="resultDialogTitle">Hasil Magic SOAP</h2>
+        </div>
+        <span class="editable-badge">Editable</span>
+      </header>
+
+      <div class="result-content">
+        <div id="resultStatus" class="status" data-state="success" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><span class="status-text">Hasil siap ditinjau dan diedit.</span></div>
+
+        <section class="result-panel" data-result-type="soap" aria-label="Hasil Magic SOAP">
+          <div class="form-grid">
+            <div class="field"><div class="field-heading"><label for="resultS">Subjektif hasil</label><button class="copy-field" type="button" data-copy-target="resultS" data-copy-label="Subjektif" aria-label="Salin Subjektif" title="Salin Subjektif"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg></button></div><textarea id="resultS" rows="6"></textarea></div>
+            <div class="field"><div class="field-heading"><label for="resultO">Objektif hasil</label><button class="copy-field" type="button" data-copy-target="resultO" data-copy-label="Objektif" aria-label="Salin Objektif" title="Salin Objektif"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg></button></div><textarea id="resultO" rows="10"></textarea></div>
+            <div class="field"><div class="field-heading"><label for="resultA">Assessment hasil</label><button class="copy-field" type="button" data-copy-target="resultA" data-copy-label="Assessment" aria-label="Salin Assessment" title="Salin Assessment"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg></button></div><textarea id="resultA" rows="4"></textarea></div>
+            <div class="field"><div class="field-heading"><label for="resultP">Planning hasil</label><button class="copy-field" type="button" data-copy-target="resultP" data-copy-label="Planning" aria-label="Salin Planning" title="Salin Planning"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg></button></div><textarea id="resultP" rows="5"></textarea></div>
+          </div>
+
+          <input id="requiresChronology" type="hidden" value="false">
+          <input id="chronologyReason" type="hidden">
+          <input id="chronologyEffect" type="hidden">
+          <aside id="soapChronologyAlert" class="result-alert warning-alert" aria-labelledby="soapChronologyAlertTitle" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.5 2.4 17.2A2 2 0 0 0 4.1 20h15.8a2 2 0 0 0 1.7-2.8L13.7 3.5a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4m0 3h.01"/></svg>
+            <div>
+              <strong id="soapChronologyAlertTitle">Pengingat kronologi</strong>
+              <div id="soapChronologyReasonBlock" class="alert-block">
+                <span>Alasan</span>
+                <p id="soapChronologyReasonText"></p>
+              </div>
+              <div id="soapChronologyEffectBlock" class="alert-block">
+                <span>Akibat/cedera</span>
+                <p id="soapChronologyEffectText"></p>
+              </div>
+              <div class="alert-actions">
+                <button id="createChronology" class="button alert-action-button" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/><path d="M9 3h6v4H9zM12 11v6m-3-3h6"/></svg>
+                  <span>Buat kronologi</span>
+                </button>
+              </div>
+            </div>
+          </aside>
+        </section>
+
+        <section class="result-panel" data-result-type="kronologi" aria-label="Hasil Kronologi" hidden>
+          <div class="form-grid">
+            <div class="field"><div class="field-heading"><label for="resultKronologi">Kronologi final</label><button class="copy-field" type="button" data-copy-target="resultKronologi" data-copy-label="Kronologi" aria-label="Salin Kronologi" title="Salin Kronologi"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg></button></div><textarea id="resultKronologi" rows="12"></textarea></div>
+          </div>
+          <input id="resultWarning" type="hidden">
+          <input id="resultWarningRule" type="hidden">
+          <aside id="kronologiWarningAlert" class="result-alert error-alert" aria-labelledby="kronologiWarningAlertTitle" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.5 2.4 17.2A2 2 0 0 0 4.1 20h15.8a2 2 0 0 0 1.7-2.8L13.7 3.5a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4m0 3h.01"/></svg>
+            <div>
+              <strong id="kronologiWarningAlertTitle">Warning</strong>
+              <p id="kronologiWarningText"></p>
+              <div id="kronologiWarningRuleBlock" class="alert-block">
+                <span>Aturan JKN terkait</span>
+                <p id="kronologiWarningRuleText"></p>
+              </div>
+            </div>
+          </aside>
+        </section>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="settingsDialog">
+    <form id="settingsForm">
+      <div class="dialog-heading">
+        <div>
+          <span class="section-kicker">KONFIGURASI</span>
+          <h2>Pengaturan AI</h2>
+        </div>
+        <button id="closeSettings" class="icon-button" type="button" aria-label="Tutup pengaturan" title="Tutup">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div id="activeApiKeyStatus" class="active-api-status" data-state="empty" role="status" aria-live="polite">
+        <span class="connection-dot" aria-hidden="true"></span>
+        <span id="activeApiKeyText">Tidak ada API key aktif</span>
+      </div>
+      <label>Sumber API
+        <select id="apiKeySource">
+          <option value="personal">API key pribadi</option>
+          <option value="admin">API admin</option>
+        </select>
+      </label>
+
+      <div id="personalApiFields" class="settings-group">
+        <label>Provider
+          <select id="provider">
+            <option value="gemini">Gemini (Google)</option>
+            <option value="sumopod">Sumopod</option>
+            <option value="aimurah">AImurah</option>
+            <option value="semutssh">SemutSSH</option>
+            <option value="custom">Provider lain</option>
+          </select>
+        </label>
+        <div id="customProviderFields" class="settings-group" hidden>
+          <label>Nama provider
+            <input id="customProviderLabel" type="text" placeholder="Contoh: OpenAI" autocomplete="off">
+          </label>
+          <label>Endpoint URL
+            <input id="customBaseUrl" type="url" placeholder="https://api.provider.com/v1/chat/completions" autocomplete="off" spellcheck="false">
+            <span class="field-hint">Endpoint HTTPS OpenAI-compatible chat/completions.</span>
+          </label>
+        </div>
+        <div class="field"><label id="apiKeyLabel" for="apiKey">Gemini API key</label>
+          <span class="password-control">
+            <input id="apiKey" type="password" placeholder="Masukkan API key" autocomplete="off" spellcheck="false">
+            <button id="toggleApiKey" class="input-icon-button" type="button" aria-label="Tampilkan API key" title="Tampilkan API key">
+              <svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="eye-closed" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 4.2A10.5 10.5 0 0 1 12 4c6.5 0 10 8 10 8a18 18 0 0 1-2.1 3.1M6.6 6.6C3.5 8.6 2 12 2 12s3.5 8 10 8a9.8 9.8 0 0 0 3.4-.6"/></svg>
+            </button>
+          </span>
+          <span class="field-hint">Disimpan lokal di Chrome dan dikirim hanya ke provider pilihan.</span>
+        </div>
+        <label>Model
+          <input id="model" type="text" value="gemini-2.0-flash" placeholder="Masukkan nama model" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="toggle-row">
+          <span>
+            <strong>Validasi sebelum menyimpan</strong>
+            <small>Konfigurasi lama tetap dipakai bila validasi gagal.</small>
+          </span>
+          <input id="validateBeforeSave" type="checkbox" checked>
+        </label>
+      </div>
+
+      <div id="adminApiFields" class="settings-group" hidden>
+        <div id="adminPublicStatus" class="active-api-status" data-state="empty" role="status" aria-live="polite">
+          <span class="connection-dot" aria-hidden="true"></span>
+          <span id="adminPublicStatusText">Memeriksa API admin...</span>
+        </div>
+        <div id="adminLoggedIn" class="admin-session" hidden>
+          <div><span class="field-hint">Login sebagai</span><strong id="adminSessionUsername"></strong></div>
+          <button id="logoutAdminUser" class="button" type="button">Logout</button>
+        </div>
+        <div id="adminLoginFields" class="settings-group">
+          <label>Username
+            <input id="adminUsername" type="text" autocomplete="username" placeholder="Username akses admin">
+          </label>
+          <label>Password
+            <input id="adminPassword" type="password" autocomplete="current-password" placeholder="Password akses admin">
+          </label>
+          <button id="loginAdminUser" class="button" type="button">Login API admin</button>
+        </div>
+        <span class="field-hint">API key admin tetap di server dan tidak ditampilkan pada perangkat ini.</span>
+      </div>
+
+      <details id="ownerAdminSettings" class="owner-admin-settings">
+        <summary>Panel admin</summary>
+        <div id="ownerAdminLogin" class="settings-group owner-admin-login">
+          <label>Username
+            <input id="ownerUsername" type="text" autocomplete="username" placeholder="Username admin">
+          </label>
+          <label>Password
+            <input id="ownerPassword" type="password" autocomplete="current-password" placeholder="Password admin">
+          </label>
+          <button id="loginOwnerAdmin" class="button primary" type="button"><span>Login Panel Admin</span></button>
+          <div id="ownerLoginStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+        </div>
+
+        <div id="ownerAdminPanel" class="owner-admin-panel" hidden>
+          <div class="owner-panel-header">
+            <div>
+              <span class="section-kicker">MENU KHUSUS ADMIN</span>
+              <h3>Pengaturan Admin</h3>
+            </div>
+            <button id="exitOwnerAdmin" class="button" type="button">Keluar Admin</button>
+          </div>
+          <nav class="owner-admin-tabs" role="tablist" aria-label="Pengaturan admin">
+            <button id="ownerApiTab" class="owner-admin-tab active" type="button" role="tab" aria-selected="true" data-owner-tab="apikey">API Key</button>
+            <button id="ownerUserTab" class="owner-admin-tab" type="button" role="tab" aria-selected="false" data-owner-tab="user">Pengguna</button>
+          </nav>
+
+          <section class="owner-admin-section" data-owner-panel="apikey">
+            <div class="settings-group">
+              <label>Provider admin
+                <select id="ownerProvider">
+                  <option value="gemini">Gemini (Google)</option>
+                  <option value="sumopod">Sumopod</option>
+                  <option value="aimurah">AImurah</option>
+                  <option value="semutssh">SemutSSH</option>
+                  <option value="custom">Provider lain</option>
+                </select>
+              </label>
+              <div id="ownerCustomFields" class="settings-group" hidden>
+                <label>Nama provider
+                  <input id="ownerProviderLabel" type="text" autocomplete="off">
+                </label>
+                <label>Endpoint URL
+                  <input id="ownerBaseUrl" type="url" autocomplete="off" spellcheck="false">
+                </label>
+              </div>
+              <label>API key admin
+                <input id="ownerApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Kosongkan untuk mempertahankan key tersimpan">
+              </label>
+              <label>Model admin
+                <input id="ownerModel" type="text" value="gemini-2.0-flash" autocomplete="off" spellcheck="false">
+              </label>
+              <div class="owner-admin-actions">
+                <button id="resetOwnerConfig" class="button danger" type="button">Reset API admin</button>
+                <button id="validateOwnerConfig" class="button" type="button">Validasi</button>
+                <button id="saveOwnerConfig" class="button primary" type="button"><span>Simpan API admin</span></button>
+              </div>
+            </div>
+          </section>
+
+          <section class="owner-admin-section" data-owner-panel="user" hidden>
+            <div class="owner-user-heading">
+              <div>
+                <strong>Pengguna API admin</strong>
+                <span class="field-hint">Kelola akun yang dapat menggunakan API admin.</span>
+              </div>
+              <button id="refreshAdminUsers" class="button" type="button">Muat ulang</button>
+            </div>
+            <div id="newAdminUserFields" class="settings-group">
+              <label>Username pengguna
+                <input id="newAdminUsername" type="text" autocomplete="off" placeholder="contoh: dokter.andi">
+              </label>
+              <label>Password pengguna
+                <input id="newAdminPassword" type="password" autocomplete="new-password" placeholder="Minimal 4 karakter">
+              </label>
+              <button id="createAdminUser" class="button primary" type="button"><span>Tambah pengguna</span></button>
+            </div>
+            <div id="resetAdminUserFields" class="settings-group" hidden>
+              <strong id="resetAdminUserTarget">Reset password</strong>
+              <label>Password baru
+                <input id="resetAdminUserPassword" type="password" autocomplete="new-password" placeholder="Minimal 4 karakter">
+              </label>
+              <div class="owner-admin-actions">
+                <button id="cancelResetAdminUser" class="button" type="button">Batal</button>
+                <button id="confirmResetAdminUser" class="button primary" type="button"><span>Simpan password</span></button>
+              </div>
+            </div>
+            <div id="adminUserList" class="admin-user-list" aria-live="polite"></div>
+          </section>
+
+          <div id="ownerAdminStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+        </div>
+      </details>
+      <div id="settingsStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+      <div class="dialog-actions">
+        <button id="deleteApiKey" class="button danger" type="button">Hapus key</button>
+        <button id="cancelSettings" class="button" type="button">Batal</button>
+        <button id="saveSettings" class="button primary" type="submit"><span>Simpan</span></button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

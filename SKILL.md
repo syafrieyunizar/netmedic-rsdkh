@@ -1,17 +1,17 @@
 ---
 name: netmedic-sidepanel-ui
-description: Applies the Netmedic AI light clinical dashboard system to the Magic SOAP & Kronologi Chrome Side Panel. Use when creating, modifying, or reviewing this extension's UI and UX.
+description: Applies the Netmedic AI light clinical dashboard system to the Netmedic RSDKH Chrome Side Panel. Use when creating, modifying, or reviewing this extension's UI and UX.
 ---
 
 # Netmedic AI Side Panel UI
 
 ## Source Of Truth
 
-Read `DESIGN.md` before changing any visible UI. The supplied Magic SOAP & Kronologi HTML reference defines the visual direction. `DESIGN.md` defines its approved Side Panel adaptation and tokens.
+Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTML reference defines the visual direction. `DESIGN.md` defines its approved Side Panel adaptation and tokens.
 
 ## Product Context
 
-- Product: Magic SOAP & Kronologi.
+- Product: Netmedic RSDKH.
 - Surface: Chrome MV3 Side Panel.
 - Audience: clinicians and medical reviewers.
 - Stack: vanilla HTML, CSS, and JavaScript.
@@ -38,7 +38,7 @@ Read `DESIGN.md` before changing any visible UI. The supplied Magic SOAP & Krono
 6. Prefer native controls and native `<dialog>`; do not add a framework or UI dependency.
 7. Keep font and other runtime assets local for MV3 CSP and offline use.
 8. Do not modify legacy application runtime code. A shared, idempotent database migration may be mirrored across related repositories only when the user explicitly requests it.
-9. Keep `app_id: magic-soap` on every shared backend request; never infer it from visible UI text.
+9. Keep `app_id: netmedic-rsdkh` on every shared backend request; never infer it from visible UI text.
 10. Keep provider API keys server-side in admin mode and preserve the independent personal BYOK path.
 
 ## Component Contract
@@ -74,7 +74,7 @@ Read `DESIGN.md` before changing any visible UI. The supplied Magic SOAP & Krono
 ### API Settings
 
 - `API key pribadi` uses the existing local provider fields and direct provider validation.
-- `API admin` first checks the public `magic-soap` config, then requires a registered admin-access user session bound to the current device.
+- `API admin` first checks the public `netmedic-rsdkh` config, then requires a registered admin-access user session bound to the current device.
 - The header status is green only when the selected source is ready: key/model for personal mode, or server key plus valid session for admin mode.
 - Owner validate/save/reset actions require main admin credentials and must send them only to the shared Edge Function.
 - Reset is destructive, requires confirmation, and must leave the provider inactive until a new key is saved.

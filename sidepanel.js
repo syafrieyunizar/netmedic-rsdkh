@@ -1,7 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 
 const SETTINGS_KEY = "apiSettings";
-const APP_ID = "magic-soap";
+const APP_ID = "netmedic-rsdkh";
 const KNOWLEDGE_FUNCTION_URL = "https://yvcqgwpfjoxhuyhxuiry.supabase.co/functions/v1/knowledge-admin";
 const ADMIN_DEVICE_KEY = "magicSoap.adminAccessDeviceId";
 const ADMIN_SESSION_KEY = "magicSoap.adminUserSession";

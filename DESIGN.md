@@ -2,9 +2,9 @@
 
 ## Context
 
-Magic SOAP & Kronologi is a Chrome Side Panel for clinicians and medical reviewers. The interface must feel like a compact clinical documentation dashboard: calm, legible, structured, and optimized for repeated form entry.
+Netmedic RSDKH is a Chrome Side Panel for clinicians and medical reviewers. The interface must feel like a compact clinical documentation dashboard: calm, legible, structured, and optimized for repeated form entry.
 
-The supplied `Magic SOAP & Kronologi` HTML mockup is the visual source of truth. Its desktop navigation drawer must be adapted into a compact top app bar and segmented tabs because the product runs inside a narrow Chrome Side Panel.
+The supplied `Netmedic RSDKH` HTML mockup is the visual source of truth. Its desktop navigation drawer must be adapted into a compact top app bar and segmented tabs because the product runs inside a narrow Chrome Side Panel.
 
 ## Design Direction
 
@@ -165,11 +165,11 @@ The desktop navigation drawer in the reference must not be rendered inside the S
 
 ### API Administration
 
-- The backend application identifier is always `magic-soap`.
+- The backend application identifier is always `netmedic-rsdkh`.
 - Personal BYOK continues to call the selected provider directly and stores its key only in `chrome.storage.local`.
 - Admin mode sends generation requests through the shared `knowledge-admin` Edge Function using a seven-day, device-bound user session.
 - The shared endpoint is deployed without JWT gateway verification and performs its own user-session/owner checks. No Supabase anon key, provider key, owner credential, or user password may be hardcoded.
-- The existing shared Edge Function is app-aware and must receive `app_id: magic-soap` for config, login, session, generation, validate, save, and reset operations.
+- The existing shared Edge Function is app-aware and must receive `app_id: netmedic-rsdkh` for config, login, session, generation, validate, save, and reset operations.
 - A failed admin session must clear the local session and return the user to the login state.
 
 ### Patient Episodes And History

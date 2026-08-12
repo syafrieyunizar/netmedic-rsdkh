@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Magic SOAP & Kronologi",
+  "name": "Netmedic RSDKH",
   "version": "1.0.0",
-  "description": "Side panel mandiri untuk membuat Magic SOAP dan Kronologi BPJS.",
+  "description": "Side panel mandiri RSDKH untuk Magic SOAP, Kronologi BPJS, dan modul khusus rumah sakit.",
   "permissions": ["sidePanel", "storage", "clipboardWrite"],
   "host_permissions": [
     "https://generativelanguage.googleapis.com/*",
@@ -13,7 +13,7 @@
   ],
   "optional_host_permissions": ["https://*/*"],
   "action": {
-    "default_title": "Magic SOAP & Kronologi",
+    "default_title": "Netmedic RSDKH",
     "default_icon": "icon.png"
   },
   "icons": {

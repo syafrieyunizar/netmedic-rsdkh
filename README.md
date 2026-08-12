@@ -1,8 +1,8 @@
-# Magic SOAP & Kronologi
+# Netmedic RSDKH
 
-Chrome Extension MV3 berbasis vanilla HTML/CSS/JS untuk membantu membuat draft Magic SOAP dan Kronologi BPJS dari input manual di Chrome Side Panel.
+Chrome Extension MV3 berbasis vanilla HTML/CSS/JS untuk RSDKH, diturunkan dari base Magic SOAP dan siap dikembangkan dengan menu khusus rumah sakit.
 
-Extension ini berdiri sendiri dan tidak mengambil data dari halaman eRM. Semua input, hasil generate, preview, dan riwayat berada di side panel.
+Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti upstream, sementara modul khusus RSDKH ditempatkan di repo ini.
 
 ## Fitur
 
@@ -32,6 +32,35 @@ DESIGN.md
 SKILL.md
 ```
 
+## Hubungan dengan Base Repo
+
+Repo ini adalah turunan dari:
+
+```bash
+https://github.com/syafrieyunizar/magic-soap.git
+```
+
+Remote yang dipakai:
+
+```bash
+origin   = https://github.com/syafrieyunizar/netmedic-rsdkh.git
+upstream = https://github.com/syafrieyunizar/magic-soap.git
+```
+
+Untuk mengambil update fitur umum dari base:
+
+```bash
+git fetch upstream
+git merge upstream/main
+```
+
+Perubahan khusus RSDKH sebaiknya dibuat terpisah dan terdokumentasi agar merge dari base tetap aman.
+
+## Modul Khusus RSDKH
+
+Fitur khusus RSDKH seperti auto input SOAP ke eRM, mapping selector eRM, workflow tombol kirim, atau validasi overwrite ditempatkan di folder `hospital/rsdkh/`.
+
+Base `magic-soap` tetap tidak membaca atau menulis halaman eRM. Integrasi eRM hanya dibuat di repo turunan seperti repo ini.
 ## Cara Menjalankan di Chrome
 
 1. Buka `chrome://extensions`.
@@ -54,10 +83,10 @@ API key disimpan di `chrome.storage.local` untuk mode pribadi. Tidak ada API key
 Konfigurasi admin memakai app id:
 
 ```text
-magic-soap
+netmedic-rsdkh
 ```
 
-Folder `supabase/` berisi catatan dan migration awal untuk konfigurasi admin API `magic-soap`. Shared endpoint mengikuti pola aplikasi medis lain yang sudah ada.
+Folder `supabase/` berisi catatan dan migration awal untuk konfigurasi admin API `netmedic-rsdkh`. Shared endpoint mengikuti pola aplikasi medis lain yang sudah ada.
 
 ## Validasi
 

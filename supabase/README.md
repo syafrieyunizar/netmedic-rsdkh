@@ -3,7 +3,7 @@
 The extension uses the existing shared Supabase Edge Function `knowledge-admin` with:
 
 ```text
-app_id: magic-soap
+app_id: netmedic-rsdkh
 ```
 
 The function already routes configuration, user sessions, and AI generation by `app_id`, so no function source change is required for this application.

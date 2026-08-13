@@ -105,6 +105,7 @@ The desktop navigation drawer in the reference must not be rendered inside the S
 - Focus must use teal border plus `0 0 0 2px rgba(0, 104, 116, 0.2)`.
 - Required fields must include a visible asterisk and programmatic validation message.
 - Textareas must resize vertically and never cause horizontal page overflow.
+- The Objective field may expose one compact clinical-photo upload action. Its preview shows the selected thumbnail, filename, removal action, provider disclosure, and never persists the image to extension storage.
 
 ### Contextual Help
 

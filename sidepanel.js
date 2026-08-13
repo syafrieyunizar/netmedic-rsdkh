@@ -10,14 +10,26 @@ const KRONOLOGI_DRAFT_KEY = "kronologiDraft";
 const HISTORY_KEY = "patientHistory";
 const ACTIVE_PATIENT_KEY = "activePatientEpisode";
 const HISTORY_RETENTION_MS = 60 * 24 * 60 * 60 * 1000;
+const MAX_CLINICAL_IMAGE_BYTES = 8 * 1024 * 1024;
+const CLINICAL_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const SOAP_FIELD_IDS = ["identity", "serviceMode", "subjektif", "objektif", "assessment", "planning", "resultS", "resultO", "resultA", "resultP", "requiresChronology", "chronologyReason", "chronologyEffect"];
 const KRONOLOGI_FIELD_IDS = ["skenario", "akibat", "resultKronologi", "resultWarning", "resultWarningRule"];
+const CLINICAL_VISION_PROMPT = `Anda membantu dokter mendokumentasikan temuan objektif dari foto klinis.
+
+Deskripsikan hanya temuan visual yang benar-benar tampak dan relevan untuk bagian Objektif SOAP.
+- Gunakan bahasa klinis Indonesia yang ringkas.
+- Satu temuan per baris.
+- Jangan menebak identitas pasien, diagnosis, penyebab, ukuran, lokasi anatomi, atau tingkat keparahan bila tidak jelas dari foto.
+- Jangan memberi terapi atau saran.
+- Jika kualitas foto tidak cukup atau tidak ada temuan klinis yang dapat dinilai, nyatakan bahwa foto tidak dapat dinilai dan perlu verifikasi dokter.
+
+Kembalikan teks biasa tanpa markdown atau JSON.`;
 const HELP_CONTENT = {
   soap: {
     title: "Cara menggunakan Magic SOAP",
     steps: [
       "Isi identitas anonim pasien dan pilih status pelayanan.",
-      "Masukkan catatan awal Subjektif, Objektif, Assessment, dan Planning sesuai data klinis.",
+      "Masukkan catatan awal Subjektif, Objektif, Assessment, dan Planning. Foto klinis opsional dapat ditambahkan pada Objektif.",
       "Tekan Generate, lalu tinjau dan edit hasil sebelum digunakan.",
       "Salin setiap bagian melalui tombol salin. Jika muncul pengingat kronologi, gunakan Buat kronologi."
     ]
@@ -85,6 +97,7 @@ let resultCloseTimer = null;
 let historyCloseTimer = null;
 let soapSaveTimer;
 let kronologiSaveTimer;
+let selectedClinicalImage = null;
 
 function buildMagicSoapPrompt({ identity, serviceMode, subjektif, objektif, assessment, planning }) {
   const modeText = {
@@ -792,6 +805,118 @@ async function callOpenAiCompatible(config, prompt, validationOnly = false) {
   }
 }
 
+async function callGeminiVision(config, image) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent?key=${encodeURIComponent(config.apiKey)}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{
+        role: "user",
+        parts: [
+          { text: CLINICAL_VISION_PROMPT },
+          { inlineData: { mimeType: image.mimeType, data: image.base64 } }
+        ]
+      }],
+      generationConfig: { temperature: 0.1, maxOutputTokens: 1200 }
+    })
+  });
+  const { payload } = await readResponsePayload(response);
+  if (!response.ok) throw new Error(parseApiError(payload, response.status));
+  const providerError = embeddedProviderError(payload);
+  if (providerError) throw new Error(providerError);
+  const content = contentToText(payload.candidates?.[0]?.content?.parts || payload.candidates?.[0]?.output);
+  if (!String(content || "").trim()) throw new Error("Gemini tidak menghasilkan temuan dari foto klinis.");
+  return String(content).trim();
+}
+
+async function callOpenAiCompatibleVision(config, image) {
+  const endpoint = getProviderEndpoint(config);
+  if (!endpoint) throw new Error("Endpoint provider tidak tersedia.");
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${config.apiKey}`
+    },
+    body: JSON.stringify({
+      model: config.model,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: CLINICAL_VISION_PROMPT },
+          { type: "image_url", image_url: { url: image.dataUrl, detail: "high" } }
+        ]
+      }],
+      temperature: 0.1,
+      max_tokens: 1200,
+      stream: false
+    })
+  });
+  const result = await readResponsePayload(response);
+  const error = response.ok ? embeddedProviderError(result.payload) : parseApiError(result.payload, response.status);
+  if (error) throw new Error(`${getProviderLabel(config)} API: ${error}`);
+  const content = extractOpenAiContent(result.payload);
+  if (!String(content || "").trim()) {
+    throw new Error(`${getProviderLabel(config)} tidak menghasilkan temuan dari foto klinis.`);
+  }
+  return String(content).trim();
+}
+
+async function callClinicalVision(image) {
+  if (settings.apiKeySource === "admin") return callAdminVision(image);
+  validateSettingsShape(settings);
+  await ensureCustomProviderPermission(settings);
+  if (settings.provider === "gemini") return callGeminiVision(settings, image);
+  return callOpenAiCompatibleVision(settings, image);
+}
+
+function readClinicalImage(file) {
+  if (!CLINICAL_IMAGE_TYPES.has(file.type)) throw new Error("Format foto harus JPG, PNG, atau WebP.");
+  if (file.size > MAX_CLINICAL_IMAGE_BYTES) throw new Error("Ukuran foto maksimal 8 MB.");
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      const dataUrl = String(reader.result || "");
+      const separator = dataUrl.indexOf(",");
+      const base64 = separator >= 0 ? dataUrl.slice(separator + 1) : "";
+      if (!base64) reject(new Error("Foto klinis gagal dibaca."));
+      else resolve({ name: file.name || "foto-klinis", mimeType: file.type, dataUrl, base64 });
+    });
+    reader.addEventListener("error", () => reject(new Error("Foto klinis gagal dibaca.")));
+    reader.readAsDataURL(file);
+  });
+}
+
+function clearClinicalImage() {
+  selectedClinicalImage = null;
+  $("#clinicalImageInput").value = "";
+  $("#clinicalImageThumbnail").removeAttribute("src");
+  $("#clinicalImagePreview").hidden = true;
+}
+
+async function selectClinicalImage(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    selectedClinicalImage = await readClinicalImage(file);
+    $("#clinicalImageThumbnail").src = selectedClinicalImage.dataUrl;
+    $("#clinicalImageName").textContent = selectedClinicalImage.name;
+    $("#clinicalImagePreview").hidden = false;
+    setStatus($("#soapStatus"), "ready", "Foto siap dianalisis saat Generate.");
+  } catch (error) {
+    clearClinicalImage();
+    setStatus($("#soapStatus"), "error", `Error: ${error.message}`);
+  }
+}
+
+function appendClinicalVisionToObjective(content) {
+  const field = $("#objektif");
+  const block = `Temuan foto klinis (hasil AI, verifikasi dokter):\n${content}`;
+  field.value = field.value.trim() ? `${field.value.trim()}\n\n${block}` : block;
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 async function validateApiSettings(config) {
   validateSettingsShape(config);
   await ensureCustomProviderPermission(config);
@@ -896,6 +1021,23 @@ async function callAdminAi(prompt, responseType) {
   });
   if (!String(data.text || "").trim()) throw new Error("Respons AI admin kosong.");
   return parseAiJson(data.text);
+}
+
+async function callAdminVision(image) {
+  const config = await fetchAdminPublicConfig();
+  if (!config?.hasApiKey) throw new Error("API key admin untuk Magic SOAP belum diset.");
+  const session = await validateStoredAdminSession();
+  if (!session) throw new Error("Sesi API admin tidak aktif. Buka pengaturan dan login ulang.");
+  const data = await knowledgeApi("ai_generate_vision", {
+    prompt: CLINICAL_VISION_PROMPT,
+    userPrompt: CLINICAL_VISION_PROMPT,
+    temperature: 0.1,
+    feature: "clinical_photo_objective",
+    image: { mime_type: image.mimeType, data_base64: image.base64 },
+    user_session: session
+  });
+  if (!String(data.text || "").trim()) throw new Error("Respons vision AI admin kosong.");
+  return String(data.text).trim();
 }
 
 async function callAi(prompt, responseType) {
@@ -1284,7 +1426,7 @@ function createChronologyFromSoap() {
 async function generateSoap() {
   const button = $("#generateSoap");
   const status = $("#soapStatus");
-  const draft = soapDraft();
+  let draft = soapDraft();
   if (!draft.subjektif.trim()) {
     setStatus(status, "error", "Error: Subjektif wajib diisi.");
     $("#subjektif").focus();
@@ -1292,7 +1434,18 @@ async function generateSoap() {
   }
 
   setGenerating(button, status, true);
+  $("#uploadClinicalImage").disabled = true;
+  $("#removeClinicalImage").disabled = true;
   try {
+    if (selectedClinicalImage) {
+      setStatus(status, "loading", "Menganalisis foto klinis...");
+      const visionResult = await callClinicalVision(selectedClinicalImage);
+      appendClinicalVisionToObjective(visionResult);
+      clearClinicalImage();
+      draft = soapDraft();
+      setStatus(status, "loading", "Temuan foto masuk ke Objektif. Menyusun SOAP...");
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
     const result = normalizeSoapResult(await callAi(buildMagicSoapPrompt(draft), "soap"));
     requireStrings(result, ["s", "o", "a", "p", "chronology_reason", "chronology_effect"]);
     $("#resultS").value = result.s;
@@ -1311,6 +1464,8 @@ async function generateSoap() {
     if (settings.apiKeySource === "admin" || !settings.apiKey) openSettingsDialog();
   } finally {
     setGenerating(button, status, false);
+    $("#uploadClinicalImage").disabled = false;
+    $("#removeClinicalImage").disabled = false;
   }
 }
 
@@ -1402,6 +1557,7 @@ async function startNewPatient(event) {
 
   resetFields(SOAP_FIELD_IDS);
   resetFields(KRONOLOGI_FIELD_IDS);
+  clearClinicalImage();
   $("#identity").value = identity;
   activePatientEpisode = createEpisode(identity);
   syncResultAlerts();
@@ -2015,6 +2171,12 @@ if (typeof document !== "undefined") {
   });
   $("#generateSoap").addEventListener("click", generateSoap);
   $("#generateKronologi").addEventListener("click", generateKronologi);
+  $("#uploadClinicalImage").addEventListener("click", () => $("#clinicalImageInput").click());
+  $("#clinicalImageInput").addEventListener("change", selectClinicalImage);
+  $("#removeClinicalImage").addEventListener("click", () => {
+    clearClinicalImage();
+    setStatus($("#soapStatus"), "ready", "Foto klinis dihapus.");
+  });
   $("#createChronology").addEventListener("click", createChronologyFromSoap);
   $("#backToForm").addEventListener("click", closeResultView);
   $("#resultDialog").addEventListener("cancel", (event) => {

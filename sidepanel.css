@@ -578,6 +578,68 @@ main {
   padding-top: var(--space-1);
 }
 
+.clinical-image-field .field-heading {
+  align-items: center;
+}
+
+.clinical-image-button,
+.clinical-image-remove {
+  flex-basis: 44px;
+}
+
+.clinical-image-button {
+  color: var(--primary);
+  background: var(--surface-low);
+}
+
+.clinical-image-preview {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--surface-low);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+}
+
+.clinical-image-preview img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+
+.clinical-image-meta {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.clinical-image-meta strong {
+  overflow: hidden;
+  font-size: 11.9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clinical-image-meta span,
+.clinical-image-field > .field-hint {
+  color: var(--on-surface-variant);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.clinical-image-remove {
+  color: var(--error);
+}
+
+.clinical-image-remove:hover:not(:disabled) {
+  color: var(--on-primary);
+  background: var(--error);
+  border-color: var(--error);
+}
+
 .two-column {
   grid-template-columns: 1fr;
 }

@@ -8,6 +8,7 @@ Extension ini berdiri sendiri dan tidak mengambil data dari halaman eRM. Semua i
 
 - Side Panel Chrome dengan 2 tab: Magic SOAP dan Kronologi.
 - Input manual identitas anonim pasien dan data SOAP awal.
+- Upload foto klinis opsional pada Objektif untuk dianalisis oleh model vision sebelum SOAP dibuat.
 - Generate hasil AI sebagai preview yang bisa diedit.
 - Copy hasil per form/field.
 - Draft tiap tab autosave ke `chrome.storage.local`.
@@ -47,6 +48,8 @@ Extension mendukung dua alur:
 - API pribadi: user mengisi provider dan API key sendiri di menu pengaturan.
 - API admin: admin login melalui panel admin, menyimpan konfigurasi provider/API key bersama, lalu menambahkan user yang boleh memakai API admin.
 
+Analisis foto dapat menggunakan API pribadi/BYOK atau API admin dengan model yang mendukung vision. Foto menerima format JPG, PNG, atau WebP hingga 8 MB. Mode API admin mengirim foto melalui action `ai_generate_vision` pada shared Edge Function.
+
 API key disimpan di `chrome.storage.local` untuk mode pribadi. Tidak ada API key, token, atau password yang di-hardcode di source extension.
 
 ## Backend Admin
@@ -75,5 +78,6 @@ node sidepanel.js
 
 - Extension tidak membaca atau menulis field halaman eRM.
 - Identitas pasien dianggap manual dan anonim.
+- Foto klinis hanya disimpan sementara di memori side panel, dikirim ke provider saat Generate, lalu dilepas setelah analisis berhasil.
 - Hasil AI selalu tampil sebagai preview/editable result sebelum dipakai user.
 - Admin credential hanya dipakai untuk sesi panel admin dan tidak disimpan permanen di extension.

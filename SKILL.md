@@ -63,6 +63,7 @@ Read `DESIGN.md` before changing any visible UI. The supplied Magic SOAP & Krono
 - Focus must use the teal focus ring defined in `DESIGN.md`.
 - Validation errors must appear in the nearest live status region.
 - Provider-specific settings must use progressive disclosure.
+- Keep the optional clinical-photo action attached to Objective. Store only its generated text in the draft; never persist the image itself.
 
 ### Actions
 

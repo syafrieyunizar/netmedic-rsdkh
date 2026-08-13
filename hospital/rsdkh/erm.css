@@ -1,0 +1,378 @@
+@font-face {
+  font-family: "Manrope RSDKH";
+  src: url("../../fonts/Manrope-Variable.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+.netmedic-rsdkh-soap-slot {
+  display: inline-flex;
+  margin-right: 1.25rem;
+}
+
+#netmedic-rsdkh-input-soap {
+  align-items: center;
+  appearance: none;
+  background: #006874;
+  border: 1px solid #006874;
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: "Manrope RSDKH", "Segoe UI", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 8px;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  transition: background-color 200ms ease, border-color 200ms ease, opacity 200ms ease;
+  white-space: nowrap;
+}
+
+#netmedic-rsdkh-input-soap:hover {
+  background: #005861;
+  border-color: #005861;
+}
+
+#netmedic-rsdkh-input-soap:active {
+  opacity: 0.82;
+}
+
+#netmedic-rsdkh-input-soap:focus-visible {
+  outline: 3px solid rgba(0, 104, 116, 0.28);
+  outline-offset: 3px;
+}
+
+#netmedic-rsdkh-input-soap svg {
+  height: 19px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  width: 19px;
+}
+
+.netmedic-rsdkh-soap-toast {
+  background: #d5f6e6;
+  border: 1px solid #6bbf95;
+  border-radius: 12px;
+  bottom: 24px;
+  box-shadow: 0 8px 28px rgba(26, 26, 26, 0.18);
+  color: #123c2a;
+  font: 600 14px/1.5 "Manrope RSDKH", "Segoe UI", sans-serif;
+  max-width: min(420px, calc(100vw - 32px));
+  opacity: 0;
+  padding: 14px 18px;
+  position: fixed;
+  right: 24px;
+  transform: translateY(12px);
+  transition: opacity 200ms ease, transform 200ms ease;
+  z-index: 2147483600;
+}
+
+.netmedic-rsdkh-soap-toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+:host {
+  --soap-primary: #006874;
+  --soap-primary-hover: #005861;
+  --soap-on-primary: #fff;
+  --soap-surface: #f9f9f9;
+  --soap-surface-low: #f3f3f3;
+  --soap-surface-lowest: #fff;
+  --soap-text: #1a1a1a;
+  --soap-text-secondary: #43474e;
+  --soap-outline: #74777f;
+  --soap-outline-variant: #c4c6d0;
+  --soap-success: #137547;
+  --soap-success-container: #d5f6e6;
+  --soap-error: #ba1a1a;
+  --soap-error-container: #ffdad6;
+  --soap-info-container: #dae2ff;
+  color: var(--soap-text);
+  font-family: "Manrope RSDKH", "Segoe UI", sans-serif;
+  letter-spacing: 0;
+}
+
+:host [hidden] {
+  display: none !important;
+}
+
+.soap-dialog {
+  background: transparent;
+  border: 0;
+  color: var(--soap-text);
+  max-height: calc(100dvh - 32px);
+  max-width: min(540px, calc(100vw - 32px));
+  overflow: visible;
+  padding: 0;
+  width: 100%;
+}
+
+.soap-dialog::backdrop {
+  background: rgba(26, 26, 26, 0.48);
+  backdrop-filter: blur(2px);
+}
+
+.soap-shell {
+  background: var(--soap-surface-lowest);
+  border: 1px solid var(--soap-outline-variant);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(26, 26, 26, 0.22);
+  box-sizing: border-box;
+  display: grid;
+  gap: 20px;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 24px;
+}
+
+.soap-header {
+  align-items: center;
+  border-bottom: 1px solid var(--soap-outline-variant);
+  display: flex;
+  gap: 12px;
+  padding-bottom: 16px;
+}
+
+.soap-header p,
+.soap-header h2,
+.soap-form p,
+.soap-progress p,
+.soap-progress small,
+.soap-status,
+.soap-error {
+  margin: 0;
+}
+
+.soap-header p {
+  color: var(--soap-primary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.soap-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.soap-icon {
+  align-items: center;
+  background: var(--soap-info-container);
+  border-radius: 12px;
+  color: var(--soap-primary);
+  display: inline-flex;
+  flex: 0 0 44px;
+  height: 44px;
+  justify-content: center;
+}
+
+.soap-icon svg,
+.soap-generate svg {
+  height: 22px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  width: 22px;
+}
+
+.soap-form {
+  display: grid;
+  gap: 8px;
+}
+
+.soap-form label {
+  color: var(--soap-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.soap-form textarea {
+  background: var(--soap-surface);
+  border: 1px solid var(--soap-outline-variant);
+  border-radius: 12px;
+  box-sizing: border-box;
+  color: var(--soap-text);
+  font: 400 15px/1.55 "Manrope RSDKH", "Segoe UI", sans-serif;
+  min-height: 220px;
+  padding: 14px;
+  resize: vertical;
+  width: 100%;
+}
+
+.soap-form textarea:focus {
+  border-color: var(--soap-primary);
+  box-shadow: 0 0 0 2px rgba(0, 104, 116, 0.2);
+  outline: 0;
+}
+
+.soap-form textarea::placeholder {
+  color: var(--soap-outline);
+}
+
+.soap-privacy {
+  color: var(--soap-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.soap-progress ol {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.soap-progress li {
+  align-items: center;
+  display: grid;
+  gap: 0 12px;
+  grid-template-columns: 32px 1fr auto;
+  min-height: 40px;
+}
+
+.soap-progress li > span {
+  align-items: center;
+  background: var(--soap-surface-low);
+  border: 1px solid var(--soap-outline-variant);
+  border-radius: 50%;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 700;
+  grid-row: 1 / span 2;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.soap-progress li p {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.soap-progress li small {
+  color: var(--soap-text-secondary);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.soap-progress li[data-state="active"] > span {
+  background: var(--soap-info-container);
+  border-color: var(--soap-primary);
+  color: var(--soap-primary);
+}
+
+.soap-progress li[data-state="done"] > span {
+  background: var(--soap-success-container);
+  border-color: var(--soap-success);
+  color: var(--soap-success);
+}
+
+.soap-progress li[data-state="error"] > span {
+  background: var(--soap-error-container);
+  border-color: var(--soap-error);
+  color: var(--soap-error);
+}
+
+.soap-status,
+.soap-error {
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+}
+
+.soap-status {
+  background: var(--soap-info-container);
+  color: #263b73;
+}
+
+.soap-error {
+  background: var(--soap-error-container);
+  color: #76000a;
+}
+
+.soap-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.soap-actions button {
+  align-items: center;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  font: 600 14px/1 "Manrope RSDKH", "Segoe UI", sans-serif;
+  gap: 8px;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  transition: background-color 200ms ease, border-color 200ms ease, opacity 200ms ease;
+}
+
+.soap-actions .secondary {
+  background: transparent;
+  border: 1px solid var(--soap-outline-variant);
+  color: var(--soap-text);
+}
+
+.soap-actions .secondary:hover {
+  background: var(--soap-surface-low);
+}
+
+.soap-actions .primary {
+  background: var(--soap-primary);
+  border: 1px solid var(--soap-primary);
+  color: var(--soap-on-primary);
+}
+
+.soap-actions .primary:hover {
+  background: var(--soap-primary-hover);
+  border-color: var(--soap-primary-hover);
+}
+
+.soap-actions button:active {
+  opacity: 0.82;
+}
+
+.soap-actions button:focus-visible {
+  outline: 3px solid rgba(0, 104, 116, 0.28);
+  outline-offset: 2px;
+}
+
+.soap-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+@media (max-width: 520px) {
+  .soap-shell {
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .soap-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #netmedic-rsdkh-input-soap,
+  .netmedic-rsdkh-soap-toast,
+  .soap-actions button {
+    scroll-behavior: auto;
+    transition: none;
+  }
+}

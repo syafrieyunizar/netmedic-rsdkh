@@ -16,6 +16,7 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 - Warning JKN tampil kondisional hanya saat ada isi dari respons AI.
 - Mode API pribadi/BYOK.
 - Mode API admin bersama dengan login panel admin, pengaturan API key admin, dan manajemen user.
+- Tombol `Input SOAP` pada eRM RSDKH untuk memilah dan mengisi SOAP secara otomatis.
 
 ## Struktur File
 
@@ -28,6 +29,7 @@ sidepanel.js
 icon.png
 fonts/
 supabase/
+hospital/rsdkh/
 DESIGN.md
 SKILL.md
 ```
@@ -95,6 +97,9 @@ Jalankan:
 ```bash
 node --check sidepanel.js
 node --check background.js
+node --check hospital/rsdkh/erm.js
+node --check hospital/rsdkh/ai.js
+node hospital/rsdkh/ai.js
 node sidepanel.js
 ```
 
@@ -102,7 +107,9 @@ node sidepanel.js
 
 ## Catatan Keamanan
 
-- Extension tidak membaca atau menulis field halaman eRM.
-- Identitas pasien dianggap manual dan anonim.
-- Hasil AI selalu tampil sebagai preview/editable result sebelum dipakai user.
+- Modul RSDKH menulis Subjektif, Objektif, Assessment, dan Planning ke field eRM hanya setelah user menekan `Generate` pada modal Input SOAP.
+- Anamnesis, Pemeriksaan Fisik, dan Diagnosis disimpan otomatis. Asesment IGD 2 tetap belum disimpan untuk pemeriksaan dokter.
+- SOAP yang ditempel dikirim ke provider API yang aktif untuk dipilah menjadi S/O/A/P.
+- Identitas pada fitur side panel tetap diisi manual dan anonim.
+- Hasil Magic SOAP dan Kronologi di side panel tetap tampil sebagai preview/editable result sebelum dipakai user.
 - Admin credential hanya dipakai untuk sesi panel admin dan tidak disimpan permanen di extension.

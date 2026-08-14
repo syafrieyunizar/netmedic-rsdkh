@@ -77,6 +77,8 @@ Manrope must be bundled locally so the extension works offline and complies with
 5. Scrollable content canvas with a maximum content width of 760px.
 6. Sticky 40px status bar at the bottom.
 
+Before an anonymous patient identity is set, both feature tabs expose only one shared identity gate. After confirmation, the gate is replaced by a sticky pastel-green patient bar below the tabs. The bar shows the active anonymous identity and one compact red `x` action that opens the confirmed new-patient flow. Magic SOAP, Kronologi, drafts, and history must all use this single identity source.
+
 The desktop navigation drawer in the reference must not be rendered inside the Side Panel. At widths below 370px, the API status label must collapse visually to its status dot while preserving its accessible name.
 
 ### Content Cards
@@ -106,6 +108,16 @@ The desktop navigation drawer in the reference must not be rendered inside the S
 - Required fields must include a visible asterisk and programmatic validation message.
 - Textareas must resize vertically and never cause horizontal page overflow.
 - The Objective field may expose one compact clinical-photo upload action. Its preview shows the selected thumbnail, filename, removal action, provider disclosure, and never persists the image to extension storage.
+- Labels, inputs, selects, and textareas must explicitly use the bundled Manrope stack so Objective and all other SOAP fields render with identical typography.
+
+### e-Resep Automation
+
+- The hospital-specific Resep Elektronik V2 page may expose one compact `e-Resep otomatis` action beside Racikan.
+- Its native dialog uses a three-option segmented control, one free-form source field, an editable therapy summary, and repeated 8px-radius prescription item cards.
+- Every item exposes product/search name, dosage form, strength/size, Qty in pcs, directions, review warning, and insertion status.
+- AI generation never writes directly to eRM. `Masukkan e-Resep` remains disabled until the clinician confirms therapy suitability.
+- Product lookup selects automatically only when one candidate remains after form/strength filtering. Ambiguous or missing products stop on the affected card with a recoverable inline error.
+- Insertion is strictly serial. Completed cards remain locked and are skipped during retry to prevent duplicates.
 
 ### Contextual Help
 

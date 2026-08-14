@@ -36,14 +36,39 @@
       <button id="kronologiTab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="kronologiPanel">Kronologi</button>
     </nav>
 
-    <div class="patient-toolbar">
-      <button id="newPatient" class="new-patient-button" type="button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0m0-11v6m-3-3h6"/></svg>
-        <span>Pasien baru</span>
-      </button>
+    <section id="identityGate" class="identity-gate" aria-labelledby="identityGateTitle">
+      <form id="identityGateForm" class="input-card identity-gate-card">
+        <div class="card-heading">
+          <div>
+            <span class="section-kicker">IDENTITAS PASIEN</span>
+            <h2 id="identityGateTitle">Mulai dokumentasi pasien</h2>
+          </div>
+        </div>
+        <div class="field identity-field">
+          <div class="identity-label-row">
+            <label for="identity">Identitas anonim pasien</label>
+            <button id="importErmIdentity" class="erm-identity-button" type="button" data-state="idle" aria-live="polite" aria-atomic="true" title="Ambil jenis kelamin dan umur dari eRM saat ini">[dari eRM saat ini]</button>
+          </div>
+          <input id="identity" type="text" placeholder="Laki-laki 45 tahun" autocomplete="off" required>
+        </div>
+        <div id="identityGateStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+        <div class="actions">
+          <button class="button primary" type="submit"><span>Lanjut</span></button>
+        </div>
+      </form>
+    </section>
+
+    <div id="patientToolbar" class="patient-toolbar" hidden>
+      <div class="active-patient-bar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
+        <strong id="activePatientIdentity"></strong>
+        <button id="newPatient" class="change-patient-button" type="button" aria-label="Ganti pasien" title="Ganti pasien">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
     </div>
 
-    <section id="soapPanel" class="tab-panel" role="tabpanel" aria-labelledby="soapTab">
+    <section id="soapPanel" class="tab-panel" role="tabpanel" aria-labelledby="soapTab" hidden>
       <section class="input-card" aria-labelledby="soapInputTitle">
         <div class="card-heading">
           <div>
@@ -54,10 +79,7 @@
         </div>
         <div id="soapStatus" class="status" data-state="ready" role="status" aria-live="polite"><span class="status-dot" aria-hidden="true"></span><span class="status-text">Siap</span></div>
 
-        <div class="form-grid two-column">
-          <label>Identitas anonim pasien
-            <input id="identity" type="text" placeholder="Laki-laki 45 tahun" autocomplete="off">
-          </label>
+        <div class="form-grid">
           <label>Status pelayanan
             <select id="serviceMode">
               <option value="rawat_inap">Rawat inap</option>
@@ -138,7 +160,7 @@
 
   <footer class="app-footer">
     <span><span class="footer-dot" aria-hidden="true"></span>Siap digunakan</span>
-    <span>v1.0.0</span>
+    <span>v1.2.0</span>
   </footer>
 
   <dialog id="historyDialog" class="history-dialog" aria-labelledby="historyTitle">

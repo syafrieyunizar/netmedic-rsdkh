@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Netmedic RSDKH",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Side panel mandiri RSDKH untuk Magic SOAP, Kronologi BPJS, dan modul khusus rumah sakit.",
   "permissions": ["sidePanel", "storage", "clipboardWrite"],
   "host_permissions": [
@@ -27,14 +27,14 @@
   "content_scripts": [
     {
       "matches": ["https://rsudbalangan.com/*", "http://10.10.0.3/*"],
-      "js": ["hospital/rsdkh/erm.js"],
-      "css": ["hospital/rsdkh/erm.css"],
+      "js": ["hospital/rsdkh/erm.js", "hospital/rsdkh/prescription.js"],
+      "css": ["hospital/rsdkh/erm.css", "hospital/rsdkh/prescription.css"],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["hospital/rsdkh/erm.css", "fonts/Manrope-Variable.ttf"],
+      "resources": ["hospital/rsdkh/erm.css", "hospital/rsdkh/prescription.css", "fonts/Manrope-Variable.ttf"],
       "matches": ["https://rsudbalangan.com/*", "http://10.10.0.3/*"]
     }
   ],

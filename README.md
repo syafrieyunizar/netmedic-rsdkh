@@ -7,7 +7,7 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 ## Fitur
 
 - Side Panel Chrome dengan 2 tab: Magic SOAP dan Kronologi.
-- Input manual identitas anonim pasien dan data SOAP awal.
+- Satu identitas anonim bersama untuk Magic SOAP dan Kronologi, dengan gerbang awal dan bar pasien sticky.
 - Upload foto klinis opsional pada Objektif untuk dianalisis oleh model vision sebelum SOAP dibuat.
 - Generate hasil AI sebagai preview yang bisa diedit.
 - Copy hasil per form/field.
@@ -18,6 +18,7 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 - Mode API pribadi/BYOK.
 - Mode API admin bersama dengan login panel admin, pengaturan API key admin, dan manajemen user.
 - Tombol `Input SOAP` pada eRM RSDKH untuk memilah dan mengisi SOAP secara otomatis.
+- Tombol `e-Resep otomatis` pada Resep Elektronik V2 untuk merapikan resep, meninjau item secara editable, dan memasukkannya secara berurutan setelah konfirmasi dokter.
 
 ## Struktur File
 
@@ -111,9 +112,12 @@ node sidepanel.js
 ## Catatan Keamanan
 
 - Modul RSDKH menulis Subjektif, Objektif, Assessment, dan Planning ke field eRM hanya setelah user menekan `Generate` pada modal Input SOAP.
+- e-Resep otomatis tidak langsung menulis hasil AI. Dokter harus meninjau item, mencentang konfirmasi kesesuaian terapi, lalu menekan `Masukkan e-Resep`.
+- Produk hanya dipilih otomatis bila dropdown menyisakan satu kandidat yang sesuai. Kandidat ambigu menghentikan proses pada item tersebut dan tidak dilewati diam-diam.
+- Item resep dimasukkan secara serial. Item yang sudah berhasil ditandai dan tidak diulang saat user memperbaiki item berikutnya.
 - Anamnesis, Pemeriksaan Fisik, dan Diagnosis disimpan otomatis. Asesment IGD 2 tetap belum disimpan untuk pemeriksaan dokter.
 - SOAP yang ditempel dikirim ke provider API yang aktif untuk dipilah menjadi S/O/A/P.
-- Identitas pada fitur side panel tetap diisi manual dan anonim.
+- Identitas pada side panel tetap anonim, dapat diisi manual atau ditarik sebagai jenis kelamin dan umur dari halaman eRM pasien aktif.
 - Hasil Magic SOAP dan Kronologi di side panel tetap tampil sebagai preview/editable result sebelum dipakai user.
 - Foto klinis hanya disimpan sementara di memori side panel, dikirim ke provider saat Generate, lalu dilepas setelah analisis berhasil.
 - Admin credential hanya dipakai untuk sesi panel admin dan tidak disimpan permanen di extension.

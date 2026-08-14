@@ -1,0 +1,537 @@
+@font-face {
+  font-family: "Manrope RSDKH";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("../../fonts/Manrope-Variable.ttf") format("truetype");
+}
+
+:host,
+#netmedic-rsdkh-erx-ui {
+  --erx-surface: #f9f9f9;
+  --erx-surface-lowest: #ffffff;
+  --erx-surface-low: #f3f3f3;
+  --erx-text: #1a1a1a;
+  --erx-text-secondary: #43474e;
+  --erx-outline: #74777f;
+  --erx-outline-variant: #c4c6d0;
+  --erx-primary: #006874;
+  --erx-primary-hover: #005861;
+  --erx-on-primary: #ffffff;
+  --erx-secondary-container: #cde7ed;
+  --erx-info-container: #dae2ff;
+  --erx-success: #237a57;
+  --erx-success-container: #d5f6e6;
+  --erx-warning: #624f00;
+  --erx-warning-container: #fff5c2;
+  --erx-error: #ba1a1a;
+  --erx-error-container: #ffdad6;
+  color: var(--erx-text);
+  font-family: "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0;
+}
+
+.netmedic-rsdkh-erx-slot {
+  display: inline-flex !important;
+  align-items: center;
+  margin-left: 8px;
+  list-style: none;
+}
+
+#netmedic-rsdkh-erx-button {
+  min-height: 36px;
+  padding: 0 14px;
+  color: #ffffff;
+  background: #006874;
+  border: 1px solid #006874;
+  border-radius: 8px;
+  cursor: pointer;
+  font: 600 13px/1 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0;
+  transition: background-color 200ms ease, border-color 200ms ease, opacity 200ms ease;
+}
+
+#netmedic-rsdkh-erx-button:hover {
+  background: #005861;
+  border-color: #005861;
+}
+
+#netmedic-rsdkh-erx-button:active {
+  opacity: 0.8;
+}
+
+#netmedic-rsdkh-erx-button:focus-visible {
+  outline: 3px solid rgba(0, 104, 116, 0.3);
+  outline-offset: 2px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.erx-dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-width: 760px;
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  color: var(--erx-text);
+  background: var(--erx-surface-lowest);
+  border: 1px solid var(--erx-outline-variant);
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(26, 26, 26, 0.22);
+  font: 400 14px/1.5 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0;
+}
+
+.erx-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.erx-shell {
+  display: grid;
+  gap: 16px;
+  max-height: calc(100vh - 34px);
+  padding: 24px;
+  overflow: auto;
+}
+
+.erx-header,
+.erx-preview-heading,
+.erx-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.erx-header {
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--erx-outline-variant);
+}
+
+.erx-header p,
+.erx-header h2,
+.erx-preview-heading h3,
+.erx-item p {
+  margin: 0;
+}
+
+.erx-header p {
+  color: var(--erx-primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.erx-header h2 {
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.erx-close-icon,
+.erx-remove {
+  display: inline-flex;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--erx-text-secondary);
+  background: transparent;
+  border: 1px solid var(--erx-outline-variant);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.erx-close-icon svg,
+.erx-remove svg,
+.erx-actions svg,
+.erx-add-item svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.erx-compose,
+.erx-preview,
+.erx-items,
+.erx-item-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.erx-mode {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.erx-mode legend,
+.erx-source-label > span,
+.erx-preview > label > span,
+.erx-item-grid label > span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--erx-text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.erx-mode > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 3px;
+  background: var(--erx-surface-low);
+  border: 1px solid var(--erx-outline-variant);
+  border-radius: 12px;
+}
+
+.erx-mode label {
+  min-width: 0;
+}
+
+.erx-mode input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.erx-mode span {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  color: var(--erx-text-secondary);
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: center;
+  transition: color 200ms ease, background-color 200ms ease;
+}
+
+.erx-mode input:checked + span {
+  color: var(--erx-on-primary);
+  background: var(--erx-primary);
+}
+
+.erx-mode input:focus-visible + span {
+  outline: 3px solid rgba(0, 104, 116, 0.28);
+  outline-offset: 2px;
+}
+
+.erx-source-label textarea,
+.erx-preview textarea,
+.erx-item-grid input,
+.erx-item-grid textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  color: var(--erx-text);
+  background: var(--erx-surface);
+  border: 1px solid var(--erx-outline-variant);
+  border-radius: 12px;
+  outline: none;
+  font: 400 14px/1.5 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0;
+  resize: vertical;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.erx-source-label textarea:focus,
+.erx-preview textarea:focus,
+.erx-item-grid input:focus,
+.erx-item-grid textarea:focus {
+  border-color: var(--erx-primary);
+  box-shadow: 0 0 0 2px rgba(0, 104, 116, 0.2);
+}
+
+.erx-preview {
+  padding-top: 4px;
+  border-top: 1px solid var(--erx-outline-variant);
+}
+
+.erx-preview-heading {
+  justify-content: space-between;
+}
+
+.erx-preview-heading h3 {
+  font-size: 16px;
+}
+
+.erx-add-item {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  color: var(--erx-primary);
+  background: transparent;
+  border: 1px solid var(--erx-outline-variant);
+  border-radius: 10px;
+  cursor: pointer;
+  font: 650 12px/1 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+}
+
+.erx-warning,
+.erx-status,
+.erx-review-note,
+.erx-item-status {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.erx-warning,
+.erx-review-note {
+  color: var(--erx-warning);
+  background: var(--erx-warning-container);
+}
+
+.erx-item {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  background: var(--erx-surface-lowest);
+  border: 1px solid var(--erx-outline-variant);
+  border-radius: 8px;
+}
+
+.erx-item > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.erx-item-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.erx-item-title::before {
+  content: attr(data-index) ". ";
+  color: var(--erx-primary);
+}
+
+.erx-remove {
+  flex-basis: 36px;
+  width: 36px;
+  height: 36px;
+  color: var(--erx-error);
+  border-color: var(--erx-error);
+  border-radius: 8px;
+}
+
+.erx-remove svg {
+  width: 18px;
+  height: 18px;
+}
+
+.erx-item-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(110px, 1fr) minmax(120px, 1fr) 90px;
+}
+
+.erx-item-grid label:last-child {
+  grid-column: 1 / -1;
+}
+
+.erx-item-grid textarea {
+  min-height: 64px;
+}
+
+.erx-item[data-state="done"] {
+  background: var(--erx-success-container);
+  border-color: var(--erx-success);
+}
+
+.erx-item[data-state="error"] {
+  border-color: var(--erx-error);
+}
+
+.erx-item-status[data-state="loading"] {
+  color: #263b73;
+  background: var(--erx-info-container);
+}
+
+.erx-item-status[data-state="done"] {
+  color: #155c43;
+  background: var(--erx-success-container);
+}
+
+.erx-item-status[data-state="error"],
+.erx-status[data-state="error"] {
+  color: #76000a;
+  background: var(--erx-error-container);
+}
+
+.erx-status[data-state="loading"] {
+  color: #263b73;
+  background: var(--erx-info-container);
+}
+
+.erx-status[data-state="success"] {
+  color: #155c43;
+  background: var(--erx-success-container);
+}
+
+.erx-confirm {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  background: var(--erx-surface-low);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.erx-confirm input {
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  accent-color: var(--erx-primary);
+}
+
+.erx-actions {
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.erx-actions button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  font: 650 13px/1 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  transition: background-color 200ms ease, border-color 200ms ease, opacity 200ms ease;
+}
+
+.erx-actions .secondary {
+  color: var(--erx-text);
+  background: transparent;
+  border: 1px solid var(--erx-outline-variant);
+}
+
+.erx-actions .primary {
+  color: var(--erx-on-primary);
+  background: var(--erx-primary);
+  border: 1px solid var(--erx-primary);
+}
+
+.erx-actions .primary:hover:not(:disabled) {
+  background: var(--erx-primary-hover);
+  border-color: var(--erx-primary-hover);
+}
+
+.erx-close-icon:hover:not(:disabled),
+.erx-remove:hover:not(:disabled),
+.erx-add-item:hover:not(:disabled),
+.erx-actions .secondary:hover:not(:disabled) {
+  background: var(--erx-surface-low);
+}
+
+.erx-remove:hover:not(:disabled) {
+  color: var(--erx-on-primary);
+  background: var(--erx-error);
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid rgba(0, 104, 116, 0.28);
+  outline-offset: 2px;
+}
+
+button:disabled,
+input:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.netmedic-rsdkh-erx-toast {
+  position: fixed;
+  z-index: 2147483647;
+  right: 20px;
+  bottom: 20px;
+  max-width: min(420px, calc(100vw - 40px));
+  padding: 12px 16px;
+  color: #155c43;
+  background: #d5f6e6;
+  border: 1px solid #237a57;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(26, 26, 26, 0.18);
+  font: 600 13px/1.5 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.netmedic-rsdkh-erx-toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (max-width: 680px) {
+  .erx-shell {
+    padding: 18px;
+  }
+
+  .erx-mode > div,
+  .erx-item-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .erx-item-grid label:last-child {
+    grid-column: auto;
+  }
+
+  .erx-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .erx-actions .erx-insert {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 460px) {
+  .erx-mode > div,
+  .erx-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .erx-actions .erx-insert {
+    grid-column: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #netmedic-rsdkh-erx-button,
+  .netmedic-rsdkh-erx-toast,
+  .erx-mode span,
+  .erx-actions button {
+    transition: none;
+  }
+}

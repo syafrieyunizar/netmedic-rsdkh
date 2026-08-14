@@ -49,6 +49,7 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 - Desktop drawer navigation from the reference must collapse into segmented tabs.
 - The content canvas must remain scrollable without horizontal overflow.
 - The bottom status bar must remain visible without covering content.
+- Gate both tabs behind one shared anonymous identity form. Once confirmed, replace it with a sticky patient bar and a red change-patient action; never render a second identity field inside either tab.
 
 ### Cards
 
@@ -64,6 +65,7 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 - Validation errors must appear in the nearest live status region.
 - Provider-specific settings must use progressive disclosure.
 - Keep the optional clinical-photo action attached to Objective. Store only its generated text in the draft; never persist the image itself.
+- Apply the bundled Manrope stack explicitly to every field and label so no SOAP section falls back to a browser control font.
 
 ### Actions
 
@@ -71,6 +73,14 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 - Clear and Cancel are outlined secondary commands.
 - Delete API key is destructive red.
 - Loading must disable the initiating button and replace its label with progress text.
+
+### e-Resep Automation
+
+- Keep e-Resep UI and selectors in `hospital/rsdkh/`; never place hospital DOM automation in shared side-panel code.
+- Use a native dialog with three prescription modes, editable repeated item cards, inline warnings, and a clinician confirmation gate.
+- Never auto-select an ambiguous product or silently skip a failed item.
+- Insert products serially and preserve completed-item state so retry cannot duplicate successful rows.
+- Do not bump the extension version until generation and one complete live eRM insertion have both been verified.
 
 ### API Settings
 

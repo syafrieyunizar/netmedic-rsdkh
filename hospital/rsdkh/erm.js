@@ -26,6 +26,18 @@
     return location.hash.startsWith("#/rekam-medis/");
   }
 
+  function getCurrentPatientIdentity() {
+    if (!isErmPage()) return "";
+
+    const age = [...document.querySelectorAll("small.tag.is-danger.is-rounded")]
+      .find((element) => isVisible(element) && /^\d+\s*thn(?:\s+\d+\s*bln)?(?:\s+\d+\s*hari)?$/i.test(normalize(element.textContent)));
+    const gender = [...document.querySelectorAll("small.tag.is-info.is-rounded")]
+      .find((element) => isVisible(element) && /^(?:laki[ -]?laki|perempuan)$/i.test(normalize(element.textContent)));
+
+    if (!age || !gender) return "";
+    return `${normalize(gender.textContent)} ${normalize(age.textContent)}`;
+  }
+
   function findButton(label, scope = document) {
     return [...scope.querySelectorAll("button")].find((button) => isVisible(button) && normalize(button.textContent) === label);
   }
@@ -382,6 +394,12 @@
     injectQueued = true;
     requestAnimationFrame(injectButton);
   }
+
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type !== "rsdkh:get-current-patient-identity") return;
+    const identity = getCurrentPatientIdentity();
+    sendResponse(identity ? { ok: true, identity } : { ok: false });
+  });
 
   new MutationObserver(queueInject).observe(document.documentElement, { childList: true, subtree: true });
   addEventListener("hashchange", queueInject);

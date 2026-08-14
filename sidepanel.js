@@ -28,7 +28,7 @@ const HELP_CONTENT = {
   soap: {
     title: "Cara menggunakan Magic SOAP",
     steps: [
-      "Isi identitas anonim pasien dan pilih status pelayanan.",
+      "Tetapkan identitas anonim pasien, lalu pilih status pelayanan.",
       "Masukkan catatan awal Subjektif, Objektif, Assessment, dan Planning. Foto klinis opsional dapat ditambahkan pada Objektif.",
       "Tekan Generate, lalu tinjau dan edit hasil sebelum digunakan.",
       "Salin setiap bagian melalui tombol salin. Jika muncul pengingat kronologi, gunakan Buat kronologi."
@@ -37,7 +37,7 @@ const HELP_CONTENT = {
   kronologi: {
     title: "Cara menggunakan Kronologi",
     steps: [
-      "Isi skenario kejadian berdasarkan keterangan asli pasien.",
+      "Tetapkan identitas anonim pasien, lalu isi skenario berdasarkan keterangan asli pasien.",
       "Isi akibat atau cedera yang terjadi. Data dari Magic SOAP dapat terisi otomatis.",
       "Tekan Generate, lalu tinjau dan edit kronologi final sebelum digunakan.",
       "Periksa warning dan aturan JKN bila muncul, kemudian salin hasil melalui tombol salin."
@@ -97,6 +97,7 @@ let resultCloseTimer = null;
 let historyCloseTimer = null;
 let soapSaveTimer;
 let kronologiSaveTimer;
+let ermIdentityFeedbackTimer;
 let selectedClinicalImage = null;
 
 function buildMagicSoapPrompt({ identity, serviceMode, subjektif, objektif, assessment, planning }) {
@@ -443,6 +444,97 @@ function setStatus(element, state, message) {
   const text = element.querySelector(".status-text");
   if (text) text.textContent = message;
   else element.textContent = message;
+}
+
+function setErmIdentityButtonState(state, message) {
+  const button = $("#importErmIdentity");
+  button.dataset.state = state;
+  button.textContent = `[${message}]`;
+}
+
+function scheduleErmIdentityFeedbackReset(statusElement, statusMessage) {
+  clearTimeout(ermIdentityFeedbackTimer);
+  const feedbackState = $("#importErmIdentity").dataset.state;
+  ermIdentityFeedbackTimer = setTimeout(() => {
+    if ($("#importErmIdentity").dataset.state === feedbackState) resetErmIdentityButton();
+    if (statusElement.querySelector(".status-text")?.textContent === statusMessage) statusElement.hidden = true;
+  }, 4000);
+}
+
+async function importIdentityFromErm() {
+  const button = $("#importErmIdentity");
+  clearTimeout(ermIdentityFeedbackTimer);
+  button.disabled = true;
+  setErmIdentityButtonState("loading", "mengambil data eRM...");
+
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!activeTab?.id) throw new Error("Tab aktif tidak ditemukan.");
+
+    const response = await chrome.tabs.sendMessage(activeTab.id, { type: "rsdkh:get-current-patient-identity" });
+    if (!response?.ok || !response.identity) throw new Error("Identitas pasien tidak ditemukan.");
+
+    $("#identity").value = response.identity;
+    $("#identity").dispatchEvent(new Event("input", { bubbles: true }));
+    setErmIdentityButtonState("success", "data eRM berhasil di input");
+    const statusMessage = "Identitas anonim diisi dari eRM saat ini.";
+    const status = $("#identityGateStatus");
+    status.hidden = false;
+    setStatus(status, "success", statusMessage);
+    scheduleErmIdentityFeedbackReset(status, statusMessage);
+  } catch (error) {
+    setErmIdentityButtonState("error", "nampaknya anda sedang tidak berada di halaman eRM pasien");
+    const contentScriptMissing = /receiving end does not exist|could not establish connection/i.test(error?.message || "");
+    const statusMessage = contentScriptMissing
+      ? "Koneksi eRM belum aktif. Refresh halaman eRM, lalu coba lagi."
+      : "Data identitas pasien tidak ditemukan pada halaman aktif.";
+    const status = $("#identityGateStatus");
+    status.hidden = false;
+    setStatus(status, "error", statusMessage);
+    scheduleErmIdentityFeedbackReset(status, statusMessage);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function resetErmIdentityButton() {
+  clearTimeout(ermIdentityFeedbackTimer);
+  ermIdentityFeedbackTimer = null;
+  setErmIdentityButtonState("idle", "dari eRM saat ini");
+}
+
+function syncIdentityUi() {
+  const identity = $("#identity").value.trim();
+  const ready = Boolean(identity);
+  $("#identityGate").hidden = ready;
+  $("#patientToolbar").hidden = !ready;
+  $("#activePatientIdentity").textContent = identity;
+  const activeTab = $(".tabs").dataset.activeTab || "soap";
+  $("#soapPanel").hidden = !ready || activeTab !== "soap";
+  $("#kronologiPanel").hidden = !ready || activeTab !== "kronologi";
+}
+
+async function confirmPatientIdentity(event) {
+  event.preventDefault();
+  const identity = $("#identity").value.trim();
+  const status = $("#identityGateStatus");
+  if (!identity) {
+    status.hidden = false;
+    setStatus(status, "error", "Identitas anonim wajib diisi.");
+    $("#identity").focus();
+    return;
+  }
+
+  activePatientEpisode = activePatientEpisode || createEpisode(identity);
+  activePatientEpisode.identity = identity;
+  await chrome.storage.local.set({
+    [SOAP_DRAFT_KEY]: soapDraft(),
+    [ACTIVE_PATIENT_KEY]: activePatientEpisode
+  });
+  syncIdentityUi();
+  setStatus($("#soapStatus"), "ready", `Pasien: ${identity}`);
+  setStatus($("#kronologiStatus"), "ready", `Pasien: ${identity}`);
+  ($("#soapPanel").hidden ? $("#skenario") : $("#subjektif")).focus();
 }
 
 function setGenerating(button, status, active) {
@@ -1559,7 +1651,9 @@ async function startNewPatient(event) {
   resetFields(KRONOLOGI_FIELD_IDS);
   clearClinicalImage();
   $("#identity").value = identity;
+  resetErmIdentityButton();
   activePatientEpisode = createEpisode(identity);
+  syncIdentityUi();
   syncResultAlerts();
   await chrome.storage.local.set({
     [SOAP_DRAFT_KEY]: soapDraft(),
@@ -1575,8 +1669,9 @@ async function startNewPatient(event) {
 
 function activateTab(name) {
   const soapActive = name === "soap";
-  $("#soapPanel").hidden = !soapActive;
-  $("#kronologiPanel").hidden = soapActive;
+  const identityReady = Boolean($("#identity").value.trim());
+  $("#soapPanel").hidden = !identityReady || !soapActive;
+  $("#kronologiPanel").hidden = !identityReady || soapActive;
   $("#soapTab").classList.toggle("active", soapActive);
   $("#kronologiTab").classList.toggle("active", !soapActive);
   $("#soapTab").setAttribute("aria-selected", String(soapActive));
@@ -2147,6 +2242,12 @@ async function initialize() {
   if (historyWasPruned) await chrome.storage.local.set({ [HISTORY_KEY]: historyEntries });
   restoreDraft(saved[SOAP_DRAFT_KEY]);
   restoreDraft(saved[KRONOLOGI_DRAFT_KEY]);
+  if (activePatientEpisode?.identity) $("#identity").value = activePatientEpisode.identity;
+  if (!activePatientEpisode && $("#identity").value.trim()) {
+    activePatientEpisode = createEpisode($("#identity").value.trim());
+    await chrome.storage.local.set({ [ACTIVE_PATIENT_KEY]: activePatientEpisode });
+  }
+  syncIdentityUi();
   fillSettingsForm();
   if (settings.apiKeySource === "admin") await refreshAdminSettings();
   syncResultAlerts();
@@ -2171,6 +2272,13 @@ if (typeof document !== "undefined") {
   });
   $("#generateSoap").addEventListener("click", generateSoap);
   $("#generateKronologi").addEventListener("click", generateKronologi);
+  $("#identityGateForm").addEventListener("submit", confirmPatientIdentity);
+  $("#importErmIdentity").addEventListener("click", importIdentityFromErm);
+  $("#identity").addEventListener("input", (event) => {
+    if (!event.isTrusted) return;
+    resetErmIdentityButton();
+    $("#identityGateStatus").hidden = true;
+  });
   $("#uploadClinicalImage").addEventListener("click", () => $("#clinicalImageInput").click());
   $("#clinicalImageInput").addEventListener("change", selectClinicalImage);
   $("#removeClinicalImage").addEventListener("click", () => {

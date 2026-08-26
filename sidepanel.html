@@ -62,7 +62,10 @@
     <div id="patientToolbar" class="patient-toolbar" hidden>
       <div class="active-patient-bar">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>
-        <strong id="activePatientIdentity"></strong>
+        <div class="active-patient-copy">
+          <strong id="activePatientIdentity"></strong>
+          <button id="patientBedButton" class="patient-bed-button" type="button" title="Atur bed pasien">BED</button>
+        </div>
         <button id="newPatient" class="change-patient-button" type="button" aria-label="Ganti pasien" title="Ganti pasien">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
@@ -161,7 +164,7 @@
 
   <footer class="app-footer">
     <span><span class="footer-dot" aria-hidden="true"></span>Siap digunakan</span>
-    <span>v1.6.0</span>
+    <span>v1.7.0</span>
   </footer>
 
   <dialog id="historyDialog" class="history-dialog" aria-labelledby="historyTitle">
@@ -216,6 +219,29 @@
       <div class="dialog-actions">
         <button id="cancelNewPatient" class="button" type="button">Batal</button>
         <button class="button primary" type="submit"><span>Mulai pasien baru</span></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="patientBedDialog" class="compact-dialog" aria-labelledby="patientBedTitle">
+    <form id="patientBedForm" class="compact-dialog-form">
+      <div class="dialog-heading">
+        <div>
+          <span class="section-kicker">LOKASI PASIEN</span>
+          <h2 id="patientBedTitle">Atur bed</h2>
+        </div>
+        <button id="closePatientBed" class="icon-button" type="button" aria-label="Tutup pengaturan bed" title="Tutup">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="field">
+        <label for="patientBedInput">Pasien diletakkan di bed berapa?</label>
+        <input id="patientBedInput" type="text" autocomplete="off" required>
+      </div>
+      <div id="patientBedStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+      <div class="dialog-actions">
+        <button id="cancelPatientBed" class="button" type="button">Batal</button>
+        <button class="button primary" type="submit"><span>OK</span></button>
       </div>
     </form>
   </dialog>

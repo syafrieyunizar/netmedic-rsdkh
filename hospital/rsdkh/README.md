@@ -12,7 +12,7 @@ Integrasi ini aktif hanya pada halaman rekam medis SIAPMEDIS RSDKH di `rsudbalan
 - `product-catalog.json`: katalog final produk eRM RSDKH.
 - `product-aliases.json`: kamus istilah dokter bawaan untuk pencarian katalog.
 
-Side panel juga menyediakan tombol `dari eRM saat ini` di samping Identitas anonim pasien. Tombol ini hanya membaca jenis kelamin dan umur dari halaman rekam medis yang sedang aktif; nama, nomor rekam medis, dan identitas pribadi lain tidak diambil.
+Side panel membaca profil pasien aktif dari eRM untuk memilih memori lokal berdasarkan nomor RM, menampilkan nama pasien, dan mengelola label BED. Nama dan nomor RM tidak dimasukkan ke prompt AI; prompt Magic SOAP tetap hanya menerima umur dan jenis kelamin anonim. Nilai BED dapat memaksa judul tab eRM menjadi `<bed> <nama pasien>` selama halaman pasien tersebut aktif.
 
 ## Alur Input SOAP
 

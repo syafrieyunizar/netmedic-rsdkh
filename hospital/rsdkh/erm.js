@@ -17,6 +17,9 @@
   let currentStep = -1;
   let savedSections = [];
   let injectQueued = false;
+  let forcedTabTitle = "";
+  let forcedPatientMedicalRecord = "";
+  let originalTabTitle = "";
 
   const normalize = (value) => String(value || "").trim().replace(/\s+/g, " ");
   const isVisible = (element) => Boolean(element && element.getClientRects().length && getComputedStyle(element).visibility !== "hidden");
@@ -86,6 +89,30 @@
       age: normalize(age.textContent).replace(/\bthn\b/i, "tahun"),
       medicalRecordNumber: normalize(medicalRecord.textContent)
     };
+  }
+
+  function setForcedPatientTabTitle(title, medicalRecordNumber) {
+    const nextTitle = normalize(title);
+    const previousTitle = forcedTabTitle;
+    if (nextTitle && !previousTitle) originalTabTitle = document.title;
+    forcedTabTitle = nextTitle;
+    forcedPatientMedicalRecord = normalize(medicalRecordNumber);
+    if (nextTitle) document.title = nextTitle;
+    else if (previousTitle && document.title === previousTitle) document.title = originalTabTitle || "Netmedic";
+  }
+
+  function enforcePatientTabTitle() {
+    if (!forcedTabTitle) return;
+    if (!isErmPage()) {
+      setForcedPatientTabTitle("", "");
+      return;
+    }
+    const patient = getCurrentPatientReportIdentity();
+    if (patient && patient.medicalRecordNumber !== forcedPatientMedicalRecord) {
+      setForcedPatientTabTitle("", "");
+      return;
+    }
+    if (document.title !== forcedTabTitle) document.title = forcedTabTitle;
   }
 
   function identityFacts(value) {
@@ -516,7 +543,10 @@
   function queueInject() {
     if (injectQueued) return;
     injectQueued = true;
-    requestAnimationFrame(injectButton);
+    requestAnimationFrame(() => {
+      injectButton();
+      enforcePatientTabTitle();
+    });
   }
 
   if (typeof module !== "undefined") {
@@ -550,6 +580,16 @@
         : { ok: false, error: "Nama, jenis kelamin, umur, atau nomor RM tidak ditemukan pada header pasien." });
       return false;
     }
+    if (message?.type === "rsdkh:set-patient-tab-title") {
+      const patient = getCurrentPatientReportIdentity();
+      if (!patient || (message.medicalRecordNumber && patient.medicalRecordNumber !== normalize(message.medicalRecordNumber))) {
+        sendResponse({ ok: false, error: "Nomor RM pada tab aktif tidak cocok." });
+        return false;
+      }
+      setForcedPatientTabTitle(message.title, patient.medicalRecordNumber);
+      sendResponse({ ok: true });
+      return false;
+    }
     if (message?.type === "rsdkh:input-soap-parts") {
       importSoapPartsFromSidePanel(message.soap, message.identity, message.patientStatus)
         .then(sendResponse)
@@ -559,7 +599,7 @@
     return false;
   });
 
-  new MutationObserver(queueInject).observe(document.documentElement, { childList: true, subtree: true });
+  new MutationObserver(queueInject).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
   addEventListener("hashchange", queueInject);
   queueInject();
 })();

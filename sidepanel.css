@@ -365,10 +365,39 @@ main {
   stroke-width: 2;
 }
 
-.active-patient-bar strong {
+.active-patient-copy {
+  display: grid;
   min-width: 0;
   margin-right: auto;
+  justify-items: start;
+  gap: 2px;
+}
+
+.active-patient-bar strong {
   overflow-wrap: anywhere;
+}
+
+.patient-bed-button {
+  min-height: 26px;
+  max-width: 100%;
+  padding: 2px var(--space-2);
+  overflow: hidden;
+  color: var(--primary);
+  background: var(--surface-lowest);
+  border: 1px solid #73bd9a;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color var(--motion), background-color var(--motion), border-color var(--motion), opacity var(--motion);
+}
+
+.patient-bed-button:hover:not(:disabled) {
+  color: #154f38;
+  background: #bcebd4;
+  border-color: #4fa87c;
 }
 
 .change-patient-button {

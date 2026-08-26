@@ -7,7 +7,9 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 ## Fitur
 
 - Side Panel Chrome dengan 2 tab: Magic SOAP dan Kronologi.
-- Satu identitas anonim bersama untuk Magic SOAP dan Kronologi, wajib memuat umur serta jenis kelamin atau honorifik seperti `Tn.`/`Ny.`.
+- Memori SOAP/Kronologi terpisah per pasien berdasarkan nomor RM pada eRM aktif.
+- Bar pasien menampilkan nama dan BED secara lokal, sedangkan prompt AI tetap hanya memakai umur serta jenis kelamin anonim.
+- BED pasien dapat diubah dan dipakai untuk memaksa judul tab eRM menjadi `<bed> <nama pasien>`.
 - Upload foto klinis opsional pada Objektif untuk dianalisis oleh model vision sebelum SOAP dibuat.
 - Generate hasil AI sebagai preview yang bisa diedit.
 - Copy hasil per form/field.

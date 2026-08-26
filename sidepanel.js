@@ -11,6 +11,7 @@ const HISTORY_KEY = "patientHistory";
 const ACTIVE_PATIENT_KEY = "activePatientEpisode";
 const PRODUCT_ALIASES_KEY = "rsdkhProductAliases";
 const WHATSAPP_SOAP_SETTINGS_KEY = "whatsappSoapSettings";
+const PATIENT_MEMORIES_KEY = "patientMemories";
 const HISTORY_RETENTION_MS = 60 * 24 * 60 * 60 * 1000;
 const MAX_CLINICAL_IMAGE_BYTES = 8 * 1024 * 1024;
 const CLINICAL_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -113,6 +114,32 @@ let whatsappSoapSettings = { doctorName: "", openingTemplate: DEFAULT_WHATSAPP_O
 let whatsappSettingsSaveTimer;
 let whatsappStep = 0;
 let whatsappGeneratedAt = new Date();
+let patientMemories = {};
+let activePatientProfile = null;
+let patientSyncRunning = false;
+let patientMemoryReady = false;
+
+function patientMemoryKey(profile) {
+  return String(profile?.medicalRecordNumber || "").trim();
+}
+
+function anonymousIdentityForProfile(profile) {
+  const gender = String(profile?.gender || "").trim();
+  const age = String(profile?.age || "").trim();
+  return gender && age ? `${gender} ${age}` : "";
+}
+
+function sameAnonymousIdentity(left, right) {
+  const first = parseAnonymousIdentity(left);
+  const second = parseAnonymousIdentity(right);
+  return first.valid && second.valid && first.age === second.age && first.gender === second.gender;
+}
+
+function patientTabTitle(profile, bed) {
+  const patientName = String(profile?.name || "").trim();
+  const bedName = String(bed || "").trim();
+  return patientName && bedName ? `${bedName} ${patientName}` : "";
+}
 
 function whatsappTimeOfDay(value = new Date()) {
   const hour = value.getHours();
@@ -539,12 +566,30 @@ async function readIdentityFromActiveErm() {
   return response.identity;
 }
 
-async function readWhatsappIdentityFromActiveErm() {
+async function readPatientProfileFromActiveErm() {
   const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!activeTab?.id) throw new Error("Tab aktif tidak ditemukan.");
   const response = await chrome.tabs.sendMessage(activeTab.id, { type: "rsdkh:get-current-patient-report-identity" });
   if (!response?.ok || !response.identity) throw new Error(response?.error || "Identitas lengkap pasien tidak ditemukan.");
-  return formatWhatsappPatientIdentity(response.identity);
+  if (!patientMemoryKey(response.identity) || !anonymousIdentityForProfile(response.identity)) {
+    throw new Error("Nomor RM, umur, atau jenis kelamin pasien belum lengkap.");
+  }
+  return response.identity;
+}
+
+async function readWhatsappIdentityFromActiveErm() {
+  return formatWhatsappPatientIdentity(await readPatientProfileFromActiveErm());
+}
+
+async function setActivePatientTabTitle(title, medicalRecordNumber) {
+  const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!activeTab?.id) throw new Error("Tab eRM aktif tidak ditemukan.");
+  const response = await chrome.tabs.sendMessage(activeTab.id, {
+    type: "rsdkh:set-patient-tab-title",
+    title,
+    medicalRecordNumber
+  });
+  if (!response?.ok) throw new Error(response?.error || "Nama tab pasien gagal diubah.");
 }
 
 function scheduleErmIdentityFeedbackReset(statusElement, statusMessage) {
@@ -640,9 +685,13 @@ async function importNewPatientIdentityFromErm() {
 function syncIdentityUi() {
   const identity = $("#identity").value.trim();
   const ready = parseAnonymousIdentity(identity).valid;
+  const memory = patientMemories[patientMemoryKey(activePatientProfile)];
   $("#identityGate").hidden = ready;
   $("#patientToolbar").hidden = !ready;
-  $("#activePatientIdentity").textContent = identity;
+  $("#activePatientIdentity").textContent = activePatientProfile?.name || identity;
+  $("#patientBedButton").hidden = !activePatientProfile;
+  $("#patientBedButton").textContent = memory?.bed ? `BED : ${memory.bed}` : "BED";
+  $("#newPatient").hidden = Boolean(activePatientProfile);
   const activeTab = $(".tabs").dataset.activeTab || "soap";
   $("#soapPanel").hidden = !ready || activeTab !== "soap";
   $("#kronologiPanel").hidden = !ready || activeTab !== "kronologi";
@@ -1307,7 +1356,8 @@ function kronologiDraft() {
 function scheduleSoapSave() {
   clearTimeout(soapSaveTimer);
   soapSaveTimer = setTimeout(async () => {
-    await chrome.storage.local.set({ [SOAP_DRAFT_KEY]: soapDraft() });
+    if (activePatientProfile) await persistActivePatientMemory();
+    else await chrome.storage.local.set({ [SOAP_DRAFT_KEY]: soapDraft() });
     await saveEpisodeResult("soap", false);
   }, 250);
 }
@@ -1315,7 +1365,8 @@ function scheduleSoapSave() {
 function scheduleKronologiSave() {
   clearTimeout(kronologiSaveTimer);
   kronologiSaveTimer = setTimeout(async () => {
-    await chrome.storage.local.set({ [KRONOLOGI_DRAFT_KEY]: kronologiDraft() });
+    if (activePatientProfile) await persistActivePatientMemory();
+    else await chrome.storage.local.set({ [KRONOLOGI_DRAFT_KEY]: kronologiDraft() });
     await saveEpisodeResult("kronologi", false);
   }, 250);
 }
@@ -1325,6 +1376,108 @@ function restoreDraft(draft) {
     const field = $(`#${id}`);
     if (field && value !== undefined) field.value = value;
   });
+}
+
+function snapshotActivePatientMemory() {
+  const key = patientMemoryKey(activePatientProfile);
+  if (!key) return null;
+  const previous = patientMemories[key] || {};
+  const anonymousIdentity = anonymousIdentityForProfile(activePatientProfile);
+  activePatientEpisode = activePatientEpisode || createEpisode(anonymousIdentity);
+  activePatientEpisode.identity = anonymousIdentity;
+  activePatientEpisode.medicalRecordNumber = key;
+  activePatientEpisode.patientName = activePatientProfile.name;
+  const memory = {
+    ...previous,
+    profile: { ...activePatientProfile },
+    anonymousIdentity,
+    bed: String(previous.bed || ""),
+    soapDraft: soapDraft(),
+    kronologiDraft: kronologiDraft(),
+    episode: { ...activePatientEpisode },
+    updatedAt: new Date().toISOString()
+  };
+  patientMemories[key] = memory;
+  return memory;
+}
+
+async function persistActivePatientMemory() {
+  if (!snapshotActivePatientMemory()) return;
+  await chrome.storage.local.set({
+    [PATIENT_MEMORIES_KEY]: patientMemories,
+    [SOAP_DRAFT_KEY]: soapDraft(),
+    [KRONOLOGI_DRAFT_KEY]: kronologiDraft(),
+    [ACTIVE_PATIENT_KEY]: activePatientEpisode
+  });
+}
+
+async function activatePatientProfile(profile) {
+  const key = patientMemoryKey(profile);
+  if (!key || key === patientMemoryKey(activePatientProfile)) {
+    if (key) {
+      activePatientProfile = { ...profile };
+      const anonymousIdentity = anonymousIdentityForProfile(profile);
+      patientMemories[key] = {
+        ...patientMemories[key],
+        profile: { ...profile },
+        anonymousIdentity
+      };
+      $("#identity").value = anonymousIdentity;
+      syncIdentityUi();
+      await setActivePatientTabTitle(patientTabTitle(profile, patientMemories[key].bed), key).catch(() => {});
+    }
+    return;
+  }
+
+  clearTimeout(soapSaveTimer);
+  clearTimeout(kronologiSaveTimer);
+  if (activePatientProfile) await persistActivePatientMemory();
+
+  const anonymousIdentity = anonymousIdentityForProfile(profile);
+  let memory = patientMemories[key];
+  if (!memory) {
+    const adoptCurrentDraft = !activePatientProfile && sameAnonymousIdentity($("#identity").value, anonymousIdentity);
+    memory = {
+      profile: { ...profile },
+      anonymousIdentity,
+      bed: "",
+      soapDraft: adoptCurrentDraft ? soapDraft() : { identity: anonymousIdentity, serviceMode: "rawat_inap", requiresChronology: "false" },
+      kronologiDraft: adoptCurrentDraft ? kronologiDraft() : {},
+      episode: adoptCurrentDraft && activePatientEpisode ? { ...activePatientEpisode } : createEpisode(anonymousIdentity)
+    };
+  }
+
+  activePatientProfile = { ...profile };
+  resetFields(SOAP_FIELD_IDS);
+  resetFields(KRONOLOGI_FIELD_IDS);
+  clearClinicalImage();
+  restoreDraft(memory.soapDraft);
+  restoreDraft(memory.kronologiDraft);
+  $("#identity").value = anonymousIdentity;
+  activePatientEpisode = memory.episode?.id ? { ...memory.episode } : createEpisode(anonymousIdentity);
+  patientMemories[key] = { ...memory, profile: { ...profile }, anonymousIdentity };
+  ["resultDialog", "whatsappSoapDialog", "soapInputStatusDialog"].forEach((id) => {
+    const dialog = $(`#${id}`);
+    if (dialog?.open) dialog.close();
+  });
+  syncIdentityUi();
+  syncResultAlerts();
+  setStatus($("#soapStatus"), "ready", `Pasien: ${profile.name}`);
+  setStatus($("#kronologiStatus"), "ready", `Pasien: ${profile.name}`);
+  await persistActivePatientMemory();
+  await setActivePatientTabTitle(patientTabTitle(profile, patientMemories[key].bed), key).catch(() => {});
+}
+
+async function syncPatientFromActiveErm() {
+  if (!patientMemoryReady || patientSyncRunning) return;
+  patientSyncRunning = true;
+  try {
+    await activatePatientProfile(await readPatientProfileFromActiveErm());
+  } catch {
+    // Keep the current patient memory when the active tab is not a ready eRM patient page.
+  } finally {
+    patientSyncRunning = false;
+  }
 }
 
 function hasResult(type) {
@@ -1391,10 +1544,15 @@ async function saveEpisodeResult(type, createIfMissing = true) {
   entry.identity = activePatientEpisode.identity || "Tanpa identitas";
   entry.updatedAt = new Date().toISOString();
   entry[type] = type === "soap" ? soapHistoryResult() : kronologiHistoryResult();
-  await chrome.storage.local.set({
+  const storageUpdate = {
     [HISTORY_KEY]: historyEntries,
     [ACTIVE_PATIENT_KEY]: activePatientEpisode
-  });
+  };
+  if (activePatientProfile) {
+    snapshotActivePatientMemory();
+    storageUpdate[PATIENT_MEMORIES_KEY] = patientMemories;
+  }
+  await chrome.storage.local.set(storageUpdate);
   renderHistoryList();
 }
 
@@ -1941,6 +2099,41 @@ function resetFields(ids) {
   });
 }
 
+function openPatientBedDialog() {
+  if (!activePatientProfile) return;
+  const memory = patientMemories[patientMemoryKey(activePatientProfile)];
+  $("#patientBedInput").value = memory?.bed || "";
+  $("#patientBedStatus").hidden = true;
+  const dialog = $("#patientBedDialog");
+  if (!dialog.open) dialog.showModal();
+  $("#patientBedInput").focus();
+}
+
+async function savePatientBed(event) {
+  event.preventDefault();
+  const bed = $("#patientBedInput").value.trim();
+  const status = $("#patientBedStatus");
+  const key = patientMemoryKey(activePatientProfile);
+  if (!bed || !key) {
+    status.hidden = false;
+    setStatus(status, "error", "Nama atau nomor bed wajib diisi.");
+    $("#patientBedInput").focus();
+    return;
+  }
+
+  const memory = patientMemories[key] || {};
+  patientMemories[key] = { ...memory, bed };
+  syncIdentityUi();
+  try {
+    await persistActivePatientMemory();
+    await setActivePatientTabTitle(patientTabTitle(activePatientProfile, bed), key);
+    $("#patientBedDialog").close();
+  } catch (error) {
+    status.hidden = false;
+    setStatus(status, "error", `BED tersimpan, tetapi nama tab gagal diubah: ${error.message}`);
+  }
+}
+
 function openNewPatientDialog() {
   const dialog = $("#newPatientDialog");
   $("#newPatientForm").reset();
@@ -1975,6 +2168,10 @@ async function startNewPatient(event) {
     return;
   }
 
+  const previousProfile = activePatientProfile;
+  if (previousProfile) await persistActivePatientMemory();
+  activePatientProfile = null;
+  if (previousProfile) await setActivePatientTabTitle("", patientMemoryKey(previousProfile)).catch(() => {});
   resetFields(SOAP_FIELD_IDS);
   resetFields(KRONOLOGI_FIELD_IDS);
   clearClinicalImage();
@@ -2750,7 +2947,7 @@ async function deleteApiSettings() {
 }
 
 async function initialize() {
-  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, WHATSAPP_SOAP_SETTINGS_KEY]);
+  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, WHATSAPP_SOAP_SETTINGS_KEY, PATIENT_MEMORIES_KEY]);
   await loadProductAliasResources();
   productAliases = Array.isArray(saved[PRODUCT_ALIASES_KEY])
     ? dedupeProductAliases(saved[PRODUCT_ALIASES_KEY])
@@ -2759,6 +2956,11 @@ async function initialize() {
     doctorName: String(saved[WHATSAPP_SOAP_SETTINGS_KEY]?.doctorName || ""),
     openingTemplate: String(saved[WHATSAPP_SOAP_SETTINGS_KEY]?.openingTemplate || DEFAULT_WHATSAPP_OPENING)
   };
+  patientMemories = saved[PATIENT_MEMORIES_KEY]
+    && typeof saved[PATIENT_MEMORIES_KEY] === "object"
+    && !Array.isArray(saved[PATIENT_MEMORIES_KEY])
+    ? saved[PATIENT_MEMORIES_KEY]
+    : {};
   settings = normalizeStoredSettings(saved[SETTINGS_KEY]);
   const hadHistoryStorage = Array.isArray(saved[HISTORY_KEY]);
   const storedHistory = hadHistoryStorage ? saved[HISTORY_KEY] : [];
@@ -2777,6 +2979,8 @@ async function initialize() {
     activePatientEpisode = createEpisode($("#identity").value.trim());
     await chrome.storage.local.set({ [ACTIVE_PATIENT_KEY]: activePatientEpisode });
   }
+  patientMemoryReady = true;
+  await syncPatientFromActiveErm();
   syncIdentityUi();
   fillSettingsForm();
   renderProductAliases();
@@ -2860,6 +3064,10 @@ if (typeof document !== "undefined") {
     if (event.target === $("#historyDialog")) closeHistoryDialog();
   });
   $("#newPatient").addEventListener("click", openNewPatientDialog);
+  $("#patientBedButton").addEventListener("click", openPatientBedDialog);
+  $("#patientBedForm").addEventListener("submit", savePatientBed);
+  $("#closePatientBed").addEventListener("click", () => $("#patientBedDialog").close());
+  $("#cancelPatientBed").addEventListener("click", () => $("#patientBedDialog").close());
   $("#importNewPatientErmIdentity").addEventListener("click", importNewPatientIdentityFromErm);
   $("#newPatientIdentity").addEventListener("input", (event) => {
     if (!event.isTrusted) return;
@@ -2948,6 +3156,14 @@ if (typeof document !== "undefined") {
     showSettingsPage("home", "back", false);
   });
 
+  window.addEventListener("focus", syncPatientFromActiveErm);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) syncPatientFromActiveErm();
+  });
+  setInterval(() => {
+    if (!document.hidden) syncPatientFromActiveErm();
+  }, 2000);
+
   initialize().catch((error) => setStatus($("#soapStatus"), "error", `Error: ${error.message}`));
 }
 
@@ -2965,6 +3181,10 @@ if (typeof module !== "undefined") {
     embeddedProviderError,
     pruneExpiredHistory,
     parseAnonymousIdentity,
+    patientMemoryKey,
+    anonymousIdentityForProfile,
+    sameAnonymousIdentity,
+    patientTabTitle,
     whatsappTimeOfDay,
     formatWhatsappPatientIdentity,
     buildWhatsappSoapReport,
@@ -2991,6 +3211,23 @@ if (typeof module !== "undefined") {
     assert.equal(parseAnonymousIdentity("Perempuan 71 thn 9 bln").valid, true);
     assert.equal(parseAnonymousIdentity("Boss, 22 tahun").valid, false);
     assert.equal(parseAnonymousIdentity("Tn. X").valid, false);
+    const patientProfile = { name: "SALIMUDDIN", gender: "Laki-laki", age: "48 tahun 6 bln 24 hari", medicalRecordNumber: "051462" };
+    assert.equal(patientMemoryKey(patientProfile), "051462");
+    assert.equal(anonymousIdentityForProfile(patientProfile), "Laki-laki 48 tahun 6 bln 24 hari");
+    assert.equal(sameAnonymousIdentity("Laki-laki 48 tahun", anonymousIdentityForProfile(patientProfile)), true);
+    assert.equal(sameAnonymousIdentity("Perempuan 48 tahun", anonymousIdentityForProfile(patientProfile)), false);
+    assert.equal(patientTabTitle(patientProfile, "6"), "6 SALIMUDDIN");
+    assert.equal(patientTabTitle(patientProfile, ""), "");
+    const privateSoapPrompt = buildMagicSoapPrompt({
+      identity: anonymousIdentityForProfile(patientProfile),
+      serviceMode: "rawat_inap",
+      subjektif: "Nyeri",
+      objektif: "",
+      assessment: "",
+      planning: ""
+    });
+    assert.doesNotMatch(privateSoapPrompt, /SALIMUDDIN|051462/);
+    assert.match(privateSoapPrompt, /Laki-laki 48 tahun 6 bln 24 hari/);
     assert.equal(whatsappTimeOfDay(new Date(2026, 0, 1, 5)), "pagi");
     assert.equal(whatsappTimeOfDay(new Date(2026, 0, 1, 12)), "siang");
     assert.equal(whatsappTimeOfDay(new Date(2026, 0, 1, 16)), "sore");

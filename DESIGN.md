@@ -26,10 +26,11 @@ The supplied `Netmedic RSDKH` HTML mockup is the visual source of truth. Its des
 - `font.weight.medium`: 500
 - `font.weight.semibold`: 600
 - `font.weight.bold`: 700
-- `font.size.label`: 11.9px / 1.25
-- `font.size.body-sm`: 12px / 1.5
-- `font.size.body`: 14px / 1.5
-- `font.size.heading`: 17.5px / 1.35
+- `font.size.label`: 9.9px / 1.25
+- `font.size.body-sm`: 10px / 1.5
+- `font.size.body`: 12px / 1.5
+- `font.size.heading`: 15.5px / 1.35
+- Header brand title remains 16px, author remains 10.5px, and the Magic SOAP/Kronologi tabs remain 12px.
 - Letter spacing must remain `0`, except uppercase kickers may use the browser default spacing.
 
 Manrope must be bundled locally so the extension works offline and complies with MV3 CSP.
@@ -77,7 +78,9 @@ Manrope must be bundled locally so the extension works offline and complies with
 5. Scrollable content canvas with a maximum content width of 760px.
 6. Sticky 40px status bar at the bottom.
 
-Before an anonymous patient identity is set, both feature tabs expose only one shared identity gate. After confirmation, the gate is replaced by a sticky pastel-green patient bar below the tabs. The bar shows the active anonymous identity and one compact red `x` action that opens the confirmed new-patient flow. Magic SOAP, Kronologi, drafts, and history must all use this single identity source.
+Before a valid anonymous patient identity is set, both feature tabs expose only one shared identity gate. A valid identity must include age plus either an explicit gender or a recognized honorific such as `Tn.` or `Ny.`. After confirmation, the gate is replaced by a sticky pastel-green patient bar below the tabs. The bar shows the active anonymous identity and one compact red `x` action that opens the confirmed new-patient flow. Magic SOAP, Kronologi, drafts, and history must all use this single identity source.
+
+The Magic SOAP result view exposes one primary `Input SOAP` command after the editable S/O/A/P fields. It first opens a compact required status choice: inpatient maps to `Diagnosa Awal`, while outpatient maps to `Primary / utama`. It then sends the current edited values to the active RSDKH eRM tab, verifies that age and gender match the active eRM patient before writing, and reports progress or recoverable connection errors in the existing result status region.
 
 The desktop navigation drawer in the reference must not be rendered inside the Side Panel. At widths below 370px, the API status label must collapse visually to its status dot while preserving its accessible name.
 
@@ -114,10 +117,12 @@ The desktop navigation drawer in the reference must not be rendered inside the S
 
 - The hospital-specific Resep Elektronik V2 page may expose one compact `e-Resep otomatis` action beside Racikan.
 - Its native dialog uses a three-option segmented control, one free-form source field, an editable therapy summary, and repeated 8px-radius prescription item cards.
-- Every item exposes product/search name, dosage form, strength/size, Qty in pcs, directions, review warning, and insertion status.
+- Every item exposes product name, Qty in pcs, directions, review warning, and insertion status. Dosage form and strength remain internal matching metadata rather than separate visible fields.
 - AI generation never writes directly to eRM. `Masukkan e-Resep` remains disabled until the clinician confirms therapy suitability.
-- Product lookup selects automatically only when one candidate remains after form/strength filtering. Ambiguous or missing products stop on the affected card with a recoverable inline error.
-- Insertion is strictly serial. Completed cards remain locked and are skipped during retry to prevent duplicates.
+- Rawat Jalan opens a compact optional duration dialog; an empty value means 10 pcs per eligible medicine, while syrup/infusion/injection rules retain their specific calculations.
+- Product lookup applies the local RSDKH term dictionary, explicit route, and strength. Ambiguous or missing products stop on the affected card with a recoverable inline error.
+- Insertion is strictly serial. The Add action waits for Angular readiness and retries once only after checking that no row was created. Completed cards remain locked and are skipped during retry.
+- Product dictionary management lives inside Settings as a collapsible `Kamus Produk RSDKH` section with add, delete, behavior selection, save, and reset controls.
 
 ### Contextual Help
 
@@ -154,23 +159,23 @@ The desktop navigation drawer in the reference must not be rendered inside the S
 - The copy button must show a temporary success state without moving nearby content.
 - The `Editable` badge must use secondary-container and teal text.
 - Kronologi warning and JKN rule are non-editable metadata, rendered together only when either value is present.
-- JKN warnings use an error-colored alert with a warning icon and compact 12px text.
+- JKN warnings use an error-colored alert with a warning icon and compact 10px text.
 - Magic SOAP chronology metadata is non-editable and appears only when `requires_chronology` is true.
 - Magic SOAP chronology reminders use a warning-colored alert with the reason and effect when present.
 - The chronology reminder includes a bottom-right `Buat kronologi` action.
 - `Buat kronologi` closes the result view, opens the Kronologi tab, copies `chronology_effect` into editable `Akibat/cedera`, preserves any existing scenario draft, and focuses the scenario field.
 
-### Settings Dialog
+### Settings View
 
-- Use a native `<dialog>` with white surface, 16px radius, outline border, and modal shadow.
-- Backdrop must use approximately 42% black plus subtle blur.
-- Provider-specific fields must appear progressively.
-- API key must use a show/hide icon button within the input boundary.
-- Save, cancel, and delete actions must remain distinct.
+- Use a full-height native `<dialog>` that slides in from the right without a dark backdrop.
+- The first view is a compact settings hub with separate entries for `Koneksi AI`, `Kamus Produk RSDKH`, and `Panel Admin`.
+- Each entry opens a dedicated subpage with a predictable back button, fixed header, scrollable body, and contextual bottom actions.
+- Provider-specific fields must appear progressively. API key must use a show/hide icon button within the input boundary.
+- Save and destructive actions must remain distinct; do not render one global save action across unrelated subpages.
 - On failed validation, the existing stored configuration must remain active.
 - `Sumber API` offers personal BYOK and server-side admin API modes.
 - Admin mode shows the public provider/model status, then requires a registered user login before generation.
-- Owner administration stays behind a `Panel admin` disclosure. Before authentication, it renders only username, password, login feedback, and `Login Panel Admin`.
+- Owner administration uses the dedicated `Panel Admin` subpage. Before authentication, it renders only username, password, login feedback, and `Login Panel Admin`.
 - Successful owner login replaces the login form with a memory-only admin session, a `Keluar Admin` command, and exactly two tabs: `API Key` and `Pengguna`; no Knowledge interface is rendered.
 - The `API Key` tab provides provider configuration, validation, save, and confirmed reset. The `Pengguna` tab provides global admin-access user management: list, create, reset password, and confirmed deletion.
 - Closing Settings or choosing `Keluar Admin` clears the owner credentials and requires a fresh login.

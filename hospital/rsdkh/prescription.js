@@ -4,6 +4,9 @@
   const BUTTON_ID = "netmedic-rsdkh-erx-button";
   const SLOT_ID = `${BUTTON_ID}-slot`;
   const UI_ID = "netmedic-rsdkh-erx-ui";
+  const PRODUCT_ALIASES_KEY = "rsdkhProductAliases";
+  const NETMEDIC_LOGIN_KEY = "RUdJRVJBTURBTg==";
+  const NETMEDIC_CACHE_NAME = "cacheEMR_qwertyuiop";
   const OPTION_SELECTOR = ".p-autocomplete-item:not(.p-disabled), .p-dropdown-item:not(.p-disabled), [role='option']:not([aria-disabled='true'])";
   const FORM_ALIASES = {
     tablet: ["tablet", "tab", "kaplet", "kapsul", "capsule"],
@@ -18,6 +21,11 @@
   let ui;
   let running = false;
   let injectQueued = false;
+  let productCatalog = [];
+  let productCatalogByName = new Map();
+  let productCatalogPromise;
+  let productAliases = [];
+  let productAliasesPromise;
 
   const normalize = (value) => String(value || "").trim().replace(/\s+/g, " ");
   const searchable = (value) => normalize(value).toLowerCase().replace(/[^a-z0-9%.,]+/g, " ");
@@ -26,6 +34,229 @@
 
   function isPrescriptionPage() {
     return location.hash.includes("/order-resep-v2");
+  }
+
+  function extractIgdInstructions(records = []) {
+    return records.flatMap((record) => Array.isArray(record?.json?.datasource) ? record.json.datasource : [])
+      .map((row) => String(row?.instruksidokter || "").trim())
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  function extractOpnamePlans(records = []) {
+    return records.map((record) => String(record?.json?.rencanatindakan || "").trim())
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  function storedJson(storage, key) {
+    try {
+      return JSON.parse(storage.getItem(key) || "null");
+    } catch {
+      return null;
+    }
+  }
+
+  function currentRegistration() {
+    const cache = storedJson(localStorage, "cacheHelper");
+    const value = Array.isArray(cache) ? cache.find((entry) => entry?.name === NETMEDIC_CACHE_NAME)?.value : null;
+    if (!value) return null;
+    try {
+      return typeof value === "string" ? JSON.parse(value) : value;
+    } catch {
+      return null;
+    }
+  }
+
+  async function loadMedicalRecords(kind) {
+    const login = storedJson(localStorage, NETMEDIC_LOGIN_KEY) || storedJson(sessionStorage, NETMEDIC_LOGIN_KEY);
+    const registration = currentRegistration()?.noregistrasi;
+    const token = login?.["X-AUTH-TOKEN"] || login?.["x-auth-token"];
+    if (!registration) throw new Error("Nomor registrasi pasien tidak ditemukan. Buka ulang rekam medis pasien.");
+    if (!token) throw new Error("Sesi Netmedic tidak ditemukan. Silakan login ulang.");
+
+    const query = new URLSearchParams({ jenis: kind, noregistrasi: registration });
+    const response = await fetch(`/service/emr/get-rekam-medis?${query}`, {
+      credentials: "same-origin",
+      headers: {
+        "X-AUTH-TOKEN": token,
+        kdProfile: login.kdProfile || "",
+        KdUser: login.id || "",
+        Accept: "application/json"
+      }
+    });
+    if (!response.ok) throw new Error(`Data rekam medis gagal diambil (${response.status}).`);
+    const payload = await response.json();
+    return Array.isArray(payload?.data) ? payload.data : [];
+  }
+
+  function catalogKey(name) {
+    return normalize(name).toLocaleUpperCase("id-ID");
+  }
+
+  function upsertCatalogRecord(catalog, record) {
+    const key = catalogKey(record?.namaproduk);
+    if (key) catalog.set(key, record);
+  }
+
+  function normalizeProductAlias(alias = {}) {
+    return {
+      term: normalize(alias.term),
+      query: normalize(alias.query),
+      selection: alias.selection === "confirm" ? "confirm" : "unique"
+    };
+  }
+
+  function findProductAlias(item, aliases = []) {
+    const source = ` ${normalizeProductMatchText(`${item.display_name || ""} ${item.search_term || ""}`)} `;
+    return aliases.map(normalizeProductAlias).find((alias) => {
+      const term = normalizeProductMatchText(alias.term);
+      return term && source.includes(` ${term} `);
+    }) || null;
+  }
+
+
+  function normalizeProductMatchText(value) {
+    return searchable(value)
+      .replace(/,/g, ".")
+      .replace(/(\d)(mcg|mg|gr|g|ml|cc)\b/g, "$1 $2")
+      .replace(/\b(?:normal saline|sodium chloride|natrium klorida|ns)\b/g, "nacl")
+      .replace(/\b(?:difenhidramin|diphenhydramine|diphenhydramin)\b/g, "diphenhydramin")
+      .replace(/\bondansetron\b/g, "ondancetron")
+      .replace(/\b(?:adrenalin|adrenaline)\b/g, "epinephrine")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function detectProductForm(value) {
+    const text = searchable(value);
+    if (/\b(?:injeksi|injection|inj|ampul|amp|vial)\b/.test(text)) return "injeksi";
+    if (/\b(?:infus|infusion|ivfd)\b/.test(text)) return "infus";
+    if (/\b(?:sirup|syrup|syr|suspensi|susp)\b/.test(text)) return "sirup";
+    if (/\b(?:tablet|tab|kaplet|kapsul|capsule|caps)\b/.test(text)) return "tablet";
+    if (/\b(?:salep|cream|krim|ointment)\b/.test(text)) return "salep";
+    if (/\b(?:tetes|drop)\b/.test(text)) return "tetes";
+    return "";
+  }
+
+  function requestedProductForm(item) {
+    return detectProductForm(item.display_name)
+      || detectProductForm(item.form)
+      || detectProductForm(item.search_term);
+  }
+
+  function doseTokens(value) {
+    return [...new Set(normalizeProductMatchText(value)
+      .match(/\d+(?:\.\d+)?\s*(?:mcg|mg|gr|g|ml|cc|%)/g) || [])]
+      .map((token) => token.replace(/\s+/g, ""));
+  }
+
+  function productMatchScore(item, productName) {
+    const product = normalizeProductMatchText(productName);
+    const context = normalizeProductMatchText(`${item.search_term || ""} ${item.display_name || ""}`);
+    const names = [...new Set([item.search_term, item.display_name].map(normalizeProductMatchText).filter(Boolean))];
+    if (!names.length || !product) return -Infinity;
+
+    const requestedForm = requestedProductForm(item);
+    const productForm = detectProductForm(productName);
+    if (requestedForm && productForm && requestedForm !== productForm) return -Infinity;
+    const requestedDoses = doseTokens(item.strength || context);
+    const compactProduct = product.replace(/\s+/g, "");
+    return Math.max(...names.map((primary) => {
+      let score = product === primary ? 240 : product.includes(primary) ? 120 : 0;
+      const primaryTokens = [...new Set(primary.split(" ").filter((token) => token.length > 1))];
+      const productTokens = new Set(product.split(" "));
+      const matchedTokens = primaryTokens.filter((token) => productTokens.has(token)).length;
+      score += matchedTokens * 24;
+      score -= (primaryTokens.length - matchedTokens) * 18;
+      if (requestedForm && productForm === requestedForm) score += 48;
+      if (requestedDoses.length) {
+        const matchingDoses = requestedDoses.filter((dose) => compactProduct.includes(dose)).length;
+        score += matchingDoses ? matchingDoses * 32 : -32;
+      }
+      return score;
+    }));
+  }
+
+  function firstCatalogSuggestion(value, catalog) {
+    const query = normalizeProductMatchText(value);
+    if (!query) return "";
+    const options = catalog.map((record) => ({ name: record.namaproduk, text: normalizeProductMatchText(record.namaproduk) }));
+    return (options.find((option) => option.text === query)
+      || options.find((option) => option.text.startsWith(query))
+      || options.find((option) => option.text.includes(query)))?.name || "";
+  }
+
+  function matchCatalogItem(item, catalog, aliases = []) {
+    const alias = findProductAlias(item, aliases);
+    const aliasQuery = normalizeProductMatchText(alias?.query);
+    const aliasCandidates = aliasQuery
+      ? catalog.filter((product) => normalizeProductMatchText(product.namaproduk).includes(aliasQuery))
+      : [];
+    const pool = aliasCandidates.length ? aliasCandidates : catalog;
+    const scoredItem = alias ? { ...item, search_term: alias.query } : item;
+    const ranked = pool
+      .map((product) => ({ name: product.namaproduk, score: productMatchScore(scoredItem, product.namaproduk) }))
+      .filter((candidate) => Number.isFinite(candidate.score))
+      .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name, "id"));
+    const best = ranked[0];
+    const second = ranked[1];
+    const aliasAllowsAutomatic = !alias || (alias.selection === "unique" && aliasCandidates.length === 1);
+    const confident = Boolean(aliasAllowsAutomatic && best && best.score >= 54 && (!second || best.score - second.score >= 12));
+    const matchedName = confident ? best.name : "";
+    const reviewNote = confident
+      ? item.review_note || ""
+      : alias?.selection === "confirm"
+        ? `Istilah '${alias.term}' diatur agar selalu dikonfirmasi. Pilih produk yang sesuai.`
+        : `Produk katalog belum dapat dipastikan untuk '${item.display_name || item.search_term || "item"}'. Pilih produk yang sesuai.`;
+    return {
+      ...item,
+      search_term: matchedName,
+      catalog_candidates: ranked.slice(0, 8).map((candidate) => candidate.name),
+      needs_review: Boolean(item.needs_review || !confident),
+      review_note: reviewNote
+    };
+  }
+
+  function matchPrescriptionToCatalog(result, catalog, aliases = []) {
+    return { ...result, items: result.items.map((item) => matchCatalogItem(item, catalog, aliases)) };
+  }
+
+  async function loadProductAliases() {
+    if (!productAliasesPromise) {
+      productAliasesPromise = Promise.all([
+        fetch(chrome.runtime.getURL("hospital/rsdkh/product-aliases.json")).then((response) => {
+          if (!response.ok) throw new Error(`Kamus produk gagal dimuat (${response.status}).`);
+          return response.json();
+        }),
+        chrome.storage.local.get(PRODUCT_ALIASES_KEY)
+      ]).then(([defaults, stored]) => {
+        const aliases = Array.isArray(stored[PRODUCT_ALIASES_KEY]) ? stored[PRODUCT_ALIASES_KEY] : defaults.aliases;
+        productAliases = aliases.map(normalizeProductAlias).filter((alias) => alias.term && alias.query);
+        return productAliases;
+      });
+    }
+    return productAliasesPromise;
+  }
+
+  async function loadProductCatalog() {
+    if (!productCatalogPromise) {
+      productCatalogPromise = fetch(chrome.runtime.getURL("hospital/rsdkh/product-catalog.json"))
+        .then((response) => {
+          if (!response.ok) throw new Error(`Katalog produk gagal dimuat (${response.status}).`);
+          return response.json();
+        })
+        .then((payload) => {
+          const records = Array.isArray(payload?.products) ? payload.products : [];
+          const unique = new Map();
+          records.forEach((record) => upsertCatalogRecord(unique, { namaproduk: normalize(record?.namaproduk) }));
+          if (!unique.size || payload.count !== unique.size || payload.complete !== true) throw new Error("Katalog produk tidak valid, belum lengkap, atau jumlahnya tidak sesuai.");
+          productCatalog = [...unique.values()];
+          productCatalogByName = new Map(productCatalog.map((record) => [catalogKey(record.namaproduk), record.namaproduk]));
+          return productCatalog;
+        });
+    }
+    return productCatalogPromise;
   }
 
   function getPatientAgeContext() {
@@ -37,8 +268,8 @@
     return { text, years, category: years < 18 ? "child" : "adult" };
   }
 
-  function ensureSurfloForContext(result, mode, age = {}) {
-    if (mode !== "emergency_inpatient" || !Array.isArray(result?.items)) return result;
+  function ensureSurfloForContext(result, mode, age = {}, includeSupplies = true) {
+    if (!includeSupplies || mode !== "emergency_inpatient" || !Array.isArray(result?.items)) return result;
     const parenteral = result.items.some((item) => {
       const text = `${item.form || ""} ${item.display_name || ""} ${item.search_term || ""}`.toLowerCase();
       return /\b(?:injeksi|injection|inj|infus|infusion|ivfd)\b/.test(text) && !/\bsurflo\b/.test(text);
@@ -65,6 +296,93 @@
     else items.push(surflo);
     const warning = size ? "" : "Umur pasien tidak ditemukan; ukuran Surflo wajib ditinjau.";
     return { ...result, warning: [result.warning, warning].filter(Boolean).join(" "), items };
+  }
+
+  function parseDoseSchedule(value) {
+    const text = searchable(value).replace(/,/g, ".");
+    const compact = text.match(/\b(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*(mcg|mg|gr|g|ml|cc|tablet|tab|kaplet|kapsul|caps)?\b/i);
+    if (compact) {
+      return {
+        frequency: Number(compact[1]),
+        amount: Number(compact[2]),
+        unit: String(compact[3] || "").toLowerCase()
+      };
+    }
+    const verbal = text.match(/\b(\d+(?:\.\d+)?)\s*(tablet|tab|kaplet|kapsul|caps|ml|cc)\b.*?\b(\d+(?:\.\d+)?)\s*kali\b/i);
+    if (verbal) {
+      return { frequency: Number(verbal[3]), amount: Number(verbal[1]), unit: verbal[2].toLowerCase() };
+    }
+    return { frequency: 0, amount: 0, unit: "" };
+  }
+
+  function massInMg(value) {
+    const match = searchable(value).replace(/,/g, ".").match(/\b(\d+(?:\.\d+)?)\s*(mcg|mg|gr|g)\b/i);
+    if (!match) return 0;
+    const amount = Number(match[1]);
+    const unit = match[2].toLowerCase();
+    if (unit === "mcg") return amount / 1000;
+    if (unit === "g" || unit === "gr") return amount * 1000;
+    return amount;
+  }
+
+  function durationDays(value) {
+    return Number(searchable(value).match(/\b(?:selama\s*)?(\d+)\s*(?:hari|hr)\b/i)?.[1]) || 0;
+  }
+
+  function infusionRateTpm(value) {
+    return Number(searchable(value).replace(/,/g, ".").match(/\b(\d+(?:\.\d+)?)\s*(?:tpm|tetes\s*per\s*menit)\b/i)?.[1]) || 0;
+  }
+
+  function calculatePrescriptionQty(item, mode, outpatientDays = 0) {
+    const product = item.search_term || item.display_name || "";
+    const form = detectProductForm(product) || requestedProductForm(item);
+    const context = `${item.directions || ""} ${item.display_name || ""} ${item.strength || ""}`;
+    const explicitDays = durationDays(context);
+    const days = mode === "outpatient" ? (Number(outpatientDays) || explicitDays) : 0;
+    if (item.is_supply) return Math.max(1, Math.ceil(Number(item.qty) || 1));
+    if (form === "sirup") return 1;
+
+    if (form === "infus") {
+      const rate = infusionRateTpm(context);
+      if (!rate) return Math.max(1, Math.ceil(Number(item.qty) || 1));
+      return Math.max(1, Math.ceil(rate / 7) * (days || 1));
+    }
+
+    const schedule = parseDoseSchedule(context);
+    if (form === "injeksi") {
+      const productStrength = massInMg(product);
+      const prescribedStrength = schedule.unit && /^(?:mcg|mg|gr|g)$/.test(schedule.unit)
+        ? massInMg(`${schedule.amount}${schedule.unit}`)
+        : massInMg(item.strength || item.display_name);
+      const perDose = productStrength && prescribedStrength
+        ? Math.max(1, Math.ceil(prescribedStrength / productStrength))
+        : 1;
+      return Math.max(1, perDose * (schedule.frequency || 1) * (days || 1));
+    }
+
+    if (form === "tablet") {
+      if (mode === "outpatient" && !days) return 10;
+      let unitsPerDose = schedule.amount || 1;
+      if (/^(?:mcg|mg|gr|g)$/.test(schedule.unit)) {
+        const productStrength = massInMg(product);
+        const prescribedStrength = massInMg(`${schedule.amount}${schedule.unit}`);
+        if (productStrength && prescribedStrength) unitsPerDose = Math.max(1, Math.ceil(prescribedStrength / productStrength));
+      }
+      return Math.max(1, Math.ceil(unitsPerDose * (schedule.frequency || 1) * (days || 1)));
+    }
+
+    if (mode === "outpatient" && !days) return 10;
+    return Math.max(1, Math.ceil(Number(item.qty) || 1));
+  }
+
+  function applyCalculatedQuantities(result, mode, outpatientDays = 0) {
+    return {
+      ...result,
+      items: result.items.map((item) => ({
+        ...item,
+        qty: calculatePrescriptionQty(item, mode, outpatientDays)
+      }))
+    };
   }
 
   function exactText(label, selector = "a,button,span,div,label,li") {
@@ -186,6 +504,48 @@
     return [...panel.querySelectorAll('input[placeholder="Qty"], input.p-inputnumber-input')].find(isVisible) || null;
   }
 
+  function linkedQtyInput(panel, qty) {
+    return [...panel.querySelectorAll('input[placeholder="Jumlah"]')]
+      .find((control) => control !== qty && isVisible(control)) || null;
+  }
+
+  async function syncQtyInput(panel, qty, value) {
+    const expected = Math.max(1, Math.ceil(Number(value) || 1));
+    await typeControlValue(qty, expected, { blur: false, delay: 18 });
+    await waitFor(() => Number(qty.value) === expected, "Qty Obat belum berhasil diisi.", 3000);
+
+    const inputNumber = qty.closest(".p-inputnumber");
+    const up = inputNumber?.querySelector(".p-inputnumber-button-up");
+    const down = inputNumber?.querySelector(".p-inputnumber-button-down");
+    if (up && down) {
+      const first = expected > 1 ? down : up;
+      const second = expected > 1 ? up : down;
+      clickButtonLikeUser(first);
+      await sleep(80);
+      clickButtonLikeUser(second);
+      await sleep(80);
+
+      for (let attempt = 0; Number(qty.value) !== expected && attempt < 500; attempt += 1) {
+        const current = Number(qty.value);
+        const step = current < expected ? up : down;
+        clickButtonLikeUser(step);
+        await sleep(25);
+        if (Number(qty.value) === current) throw new Error("Spinner Qty Obat tidak merespons.");
+      }
+    }
+
+    await waitFor(() => Number(qty.value) === expected, "Qty Obat belum tersinkron ke eRM.", 3000);
+    const linked = linkedQtyInput(panel, qty);
+    if (linked) {
+      await waitFor(
+        () => Number(linked.value) === expected,
+        `Jumlah e-Resep belum mengikuti Qty ${expected}.`,
+        3000
+      );
+    }
+    qty.blur();
+  }
+
   function directionsField(panel) {
     return [...panel.querySelectorAll('textarea[placeholder="Aturan Pakai"], input[placeholder="Aturan Pakai"]')].find(isVisible) || null;
   }
@@ -265,6 +625,14 @@
 
     clearControlLikeHuman(search);
 
+    if (item.catalog_product) {
+      await typeControlValue(search, term, { blur: false, delay: 18 });
+      options = await settledOptions(search);
+      const exact = options.find((option) => catalogKey(option.textContent) === catalogKey(term));
+      if (exact) return chooseOption(exact, search);
+      throw new Error(`Produk katalog '${term}' tidak muncul pada dropdown eRM.`);
+    }
+
     for (const character of term) {
       typeCharacterLikeHuman(search, character);
       options = await settledOptions(search);
@@ -296,29 +664,74 @@
       .length;
   }
 
+  function isReadyButton(button) {
+    return Boolean(button
+      && isVisible(button)
+      && !button.disabled
+      && button.getAttribute("aria-disabled") !== "true"
+      && !button.classList.contains("p-disabled"));
+  }
+
+  function clickButtonLikeUser(button) {
+    button.scrollIntoView({ block: "center", behavior: "auto" });
+    button.focus();
+    if (typeof PointerEvent === "function") {
+      button.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, pointerType: "mouse", isPrimary: true }));
+    }
+    button.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+    if (typeof PointerEvent === "function") {
+      button.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, pointerType: "mouse", isPrimary: true }));
+    }
+    button.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
+    button.click();
+  }
+
+  async function clickAddWithRetry(panel, added, product) {
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      if (added()) return;
+      const add = await waitFor(
+        () => {
+          const button = findButton("Tambah", prescriptionPanel() || panel);
+          return isReadyButton(button) ? button : null;
+        },
+        "Tombol Tambah belum siap. Periksa produk dan Qty.",
+        6000
+      );
+      await sleep(attempt === 1 ? 220 : 420);
+      if (added()) return;
+      clickButtonLikeUser(add);
+      try {
+        await waitFor(added, `Produk '${product}' belum berhasil ditambahkan.`, 5000);
+        return;
+      } catch (error) {
+        if (attempt === 2 || added()) {
+          if (added()) return;
+          throw error;
+        }
+      }
+    }
+  }
+
   async function insertItem(item) {
     const panel = await ensureNonCompoundPanel();
     const selectedProduct = await selectProduct(panel, item);
     const qty = await waitFor(() => qtyInput(panel), "Kolom Qty Obat tidak ditemukan.");
-    await typeControlValue(qty, item.qty);
-    await waitFor(() => Number(qty.value) === Number(item.qty), "Qty Obat belum berhasil diisi.", 3000);
+    await syncQtyInput(panel, qty, item.qty);
     const directions = directionsField(panel);
     if (directions) setControlValue(directions, item.directions || "");
+    await sleep(180);
 
     const beforeRows = document.querySelectorAll("tbody tr").length;
     const beforeProductRows = productRowCount(selectedProduct);
-    const add = findButton("Tambah", panel);
-    if (!add) throw new Error("Tombol Tambah e-Resep tidak ditemukan.");
-    add.click();
-    await sleep(120);
-    await waitFor(() => {
+    const added = () => {
       const currentPanel = prescriptionPanel();
       if (!currentPanel) return false;
       const productAdded = productRowCount(selectedProduct) > beforeProductRows;
       const rowsAdded = document.querySelectorAll("tbody tr").length > beforeRows;
       const reset = !normalize(productInput(currentPanel)?.value) && !normalize(qtyInput(currentPanel)?.value);
       return productAdded || rowsAdded || reset;
-    }, `Produk '${selectedProduct}' belum berhasil ditambahkan.`);
+    };
+    await clickAddWithRetry(panel, added, selectedProduct);
     return selectedProduct;
   }
 
@@ -354,10 +767,10 @@
     const card = document.createElement("article");
     card.className = "erx-item";
     card.dataset.state = "pending";
-    const header = document.createElement("header");
-    const title = document.createElement("strong");
-    title.className = "erx-item-title";
-    title.textContent = item.display_name || item.search_term || "Item baru";
+    card.dataset.form = item.form || "";
+    card.dataset.strength = item.strength || "";
+    const index = document.createElement("strong");
+    index.className = "erx-item-index";
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "erx-remove";
@@ -369,22 +782,44 @@
       renumberItems();
       syncInsertButton();
     });
-    header.append(title, remove);
 
     const grid = document.createElement("div");
     grid.className = "erx-item-grid";
     grid.append(
-      createField("Nama produk / pencarian", "erx-search", item.search_term || item.display_name || ""),
-      createField("Sediaan", "erx-form", item.form || ""),
-      createField("Kekuatan / ukuran", "erx-strength", item.strength || ""),
+      index,
+      createField("Nama produk", "erx-search", item.search_term || ""),
       createField("Qty (pcs)", "erx-qty", item.qty || 1, "number"),
-      createField("Aturan pakai", "erx-directions", item.directions || "", "textarea")
+      createField("Aturan pakai", "erx-directions", item.directions || ""),
+      remove
     );
     grid.querySelector(".erx-qty").min = "1";
     grid.querySelector(".erx-qty").step = "1";
-    grid.querySelector(".erx-search").addEventListener("input", (event) => { title.textContent = event.target.value || "Item baru"; });
+    const product = grid.querySelector(".erx-search");
+    product.setAttribute("list", "erx-product-catalog");
+    product.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.isComposing) return;
+      const suggestion = firstCatalogSuggestion(product.value, productCatalog);
+      if (!suggestion) return;
+      event.preventDefault();
+      product.value = suggestion;
+      product.dispatchEvent(new Event("input", { bubbles: true }));
+      product.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    product.addEventListener("change", () => {
+      const canonical = productCatalogByName.get(catalogKey(product.value));
+      if (canonical) {
+        product.value = canonical;
+        const review = card.querySelector(".erx-review-note");
+        if (/^Produk katalog belum dapat dipastikan/i.test(review?.textContent || "")) review.hidden = true;
+        if (card.dataset.state === "error") setItemStatus(card, "pending", "");
+      } else if (product.value.trim()) {
+        setItemStatus(card, "error", "Nama produk tidak tersedia pada katalog eRM.");
+      }
+      syncInsertButton();
+    });
     grid.addEventListener("input", () => {
       if (card.dataset.state === "error") setItemStatus(card, "pending", "");
+      syncInsertButton();
     });
 
     const review = document.createElement("p");
@@ -396,13 +831,13 @@
     status.hidden = true;
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
-    card.append(header, grid, review, status);
+    card.append(grid, review, status);
     return card;
   }
 
   function renumberItems() {
     [...ui.items.children].forEach((card, index) => {
-      card.querySelector(".erx-item-title").dataset.index = String(index + 1);
+      card.querySelector(".erx-item-index").textContent = `${index + 1}.`;
       card.querySelector(".erx-remove").setAttribute("aria-label", `Hapus item resep ${index + 1}`);
     });
   }
@@ -411,6 +846,11 @@
     ui.summary.value = result.summary || "";
     ui.warning.hidden = !result.warning;
     ui.warning.textContent = result.warning || "";
+    ui.catalogList.replaceChildren(...productCatalog.map((record) => {
+      const option = document.createElement("option");
+      option.value = record.namaproduk;
+      return option;
+    }));
     ui.items.replaceChildren(...result.items.map(createItemCard));
     renumberItems();
     ui.preview.hidden = false;
@@ -424,17 +864,20 @@
       card,
       item: {
         search_term: card.querySelector(".erx-search").value.trim(),
-        form: card.querySelector(".erx-form").value.trim(),
-        strength: card.querySelector(".erx-strength").value.trim(),
+        form: card.dataset.form || "",
+        strength: card.dataset.strength || "",
         qty: Math.max(1, Math.ceil(Number(card.querySelector(".erx-qty").value) || 1)),
-        directions: card.querySelector(".erx-directions").value.trim()
+        directions: card.querySelector(".erx-directions").value.trim(),
+        catalog_product: true
       }
     }));
   }
 
   function syncInsertButton() {
     const hasItems = Boolean(ui?.items.children.length);
-    ui.insert.disabled = running || !hasItems || !ui.confirm.checked;
+    const catalogValid = hasItems && [...ui.items.querySelectorAll(".erx-search")]
+      .every((input) => productCatalogByName.has(catalogKey(input.value)));
+    ui.insert.disabled = running || !catalogValid || !ui.confirm.checked;
   }
 
   function setRunning(active) {
@@ -450,6 +893,44 @@
     syncInsertButton();
   }
 
+  function chooseSupplyPreference() {
+    return new Promise((resolve) => {
+      const dialog = ui.supplyDialog;
+      const finish = (value) => {
+        dialog.close();
+        resolve(value);
+      };
+      ui.suppliesYes.onclick = () => finish(true);
+      ui.suppliesNo.onclick = () => finish(false);
+      dialog.oncancel = (event) => {
+        event.preventDefault();
+        finish(null);
+      };
+      dialog.showModal();
+      ui.suppliesYes.focus();
+    });
+  }
+
+  function chooseOutpatientDuration() {
+    return new Promise((resolve) => {
+      const dialog = ui.durationDialog;
+      const finish = (cancelled) => {
+        const days = Math.max(0, Math.floor(Number(ui.durationDays.value) || 0));
+        dialog.close();
+        resolve({ cancelled, days });
+      };
+      ui.durationContinue.onclick = () => finish(false);
+      ui.durationCancel.onclick = () => finish(true);
+      dialog.oncancel = (event) => {
+        event.preventDefault();
+        finish(true);
+      };
+      ui.durationDays.value = "";
+      dialog.showModal();
+      ui.durationDays.focus();
+    });
+  }
+
   async function generatePrescription() {
     const prescriptionText = ui.source.value.trim();
     if (!prescriptionText) {
@@ -457,6 +938,15 @@
       ui.source.focus();
       return;
     }
+    const mode = ui.shadow.querySelector('input[name="erx-mode"]:checked').value;
+    let outpatientDays = 0;
+    if (mode === "outpatient") {
+      const duration = await chooseOutpatientDuration();
+      if (duration.cancelled) return;
+      outpatientDays = duration.days;
+    }
+    const includeSupplies = await chooseSupplyPreference();
+    if (includeSupplies === null) return;
     setRunning(true);
     ui.generate.querySelector("span").textContent = "Sedang generate...";
     setStatus("loading", "AI sedang merapikan resep.");
@@ -464,18 +954,79 @@
       const response = await chrome.runtime.sendMessage({
         type: "rsdkh:generate-prescription",
         mode: ui.shadow.querySelector('input[name="erx-mode"]:checked').value,
-        prescriptionText
+        prescriptionText,
+        includeSupplies
       });
       if (!response?.ok) throw new Error(response?.error || "AI gagal merapikan resep.");
-      const mode = ui.shadow.querySelector('input[name="erx-mode"]:checked').value;
-      renderPrescription(ensureSurfloForContext(response.result, mode, getPatientAgeContext()));
-      setStatus("success", "Resep selesai dirapikan. Periksa setiap item sebelum dimasukkan.");
+      const [catalog, aliases] = await Promise.all([loadProductCatalog(), loadProductAliases()]);
+      const matched = matchPrescriptionToCatalog(ensureSurfloForContext(response.result, mode, getPatientAgeContext(), includeSupplies), catalog, aliases);
+      const calculated = applyCalculatedQuantities(matched, mode, outpatientDays);
+      renderPrescription(calculated);
+      const unresolved = calculated.items.filter((item) => !item.search_term).length;
+      const state = unresolved ? "error" : "success";
+      const message = unresolved
+        ? `${unresolved} item belum memiliki produk katalog. Pilih produk sebelum memasukkan e-Resep.`
+        : "Semua item sudah dicocokkan dengan katalog dan Qty telah dihitung. Periksa kembali sebelum memasukkan e-Resep.";
+      setStatus(state, message);
     } catch (error) {
       setStatus("error", error.message || "AI gagal merapikan resep.");
     } finally {
       setRunning(false);
       ui.generate.querySelector("span").textContent = "Generate";
     }
+  }
+
+  function sourceConfig() {
+    const mode = ui.shadow.querySelector('input[name="erx-mode"]:checked')?.value;
+    if (mode === "emergency_inpatient") return {
+      kind: "ASESMENT 2",
+      label: "Ambil Resep dari Tatalaksana IGD",
+      empty: "Instruksi Dokter pada Assessment IGD 2 belum tersedia.",
+      extract: extractIgdInstructions
+    };
+    if (mode === "inpatient") return {
+      kind: "PENGANTAR OPNAME",
+      label: "Ambil resep dari pengantar opname",
+      empty: "Rencana Tindakan pada Pengantar Opname belum tersedia.",
+      extract: extractOpnamePlans
+    };
+    return null;
+  }
+
+  function syncSourceButton() {
+    const config = sourceConfig();
+    ui.importSource.hidden = !config;
+    if (config) ui.importSource.querySelector("span").textContent = config.label;
+  }
+
+  async function importPrescriptionSource() {
+    const config = sourceConfig();
+    if (!config || running) return;
+    ui.importSource.disabled = true;
+    ui.modeInputs.forEach((input) => { input.disabled = true; });
+    ui.importSource.querySelector("span").textContent = "Mengambil data...";
+    setStatus("loading", `Mengambil ${config.kind === "ASESMENT 2" ? "Instruksi Dokter" : "Pengantar Opname"}.`);
+    try {
+      const source = config.extract(await loadMedicalRecords(config.kind));
+      if (!source) throw new Error(config.empty);
+      ui.source.value = source;
+      ui.source.dispatchEvent(new Event("input", { bubbles: true }));
+      setStatus("success", "Data resep berhasil diambil. Melanjutkan ke generate e-Resep.");
+      await generatePrescription();
+    } catch (error) {
+      setStatus("error", error.message || "Data resep gagal diambil.");
+    } finally {
+      ui.importSource.disabled = false;
+      ui.modeInputs.forEach((input) => { input.disabled = false; });
+      syncSourceButton();
+    }
+  }
+
+  function formatInsertionReport(completed, failures) {
+    const summary = `${completed} item berhasil, ${failures.length} item gagal.`;
+    if (!failures.length) return summary;
+    const details = failures.map(({ index, name, message }) => `${index}. ${name}: ${message}`).join("\n");
+    return `${summary}\n${details}\nItem hijau tidak akan diulang saat mencoba kembali.`;
   }
 
   async function insertPrescription() {
@@ -487,26 +1038,45 @@
     if (ui.dialog.open) ui.dialog.close();
     showToast(`Mulai memasukkan ${entries.length} item. Jangan berpindah halaman.`);
     let completed = 0;
+    const failures = [];
     try {
-      for (const { card, item } of entries) {
-        if (!item.search_term) throw new Error("Nama produk/pencarian tidak boleh kosong.");
+      for (const [position, { card, item }] of entries.entries()) {
+        const itemIndex = Number.parseInt(card.querySelector(".erx-item-index")?.textContent, 10) || position + 1;
         setItemStatus(card, "loading", `Mencari '${item.search_term}'...`);
         try {
+          if (!item.search_term) throw new Error("Nama produk/pencarian tidak boleh kosong.");
+          if (!productCatalogByName.has(catalogKey(item.search_term))) throw new Error(`Produk '${item.search_term}' tidak tersedia pada katalog eRM.`);
           const selected = await insertItem(item);
           completed += 1;
           setItemStatus(card, "done", `Berhasil ditambahkan: ${selected}`);
-          setStatus("loading", `Memasukkan ${completed} dari ${entries.length} item.`);
         } catch (error) {
-          setItemStatus(card, "error", error.message);
-          throw error;
+          const message = error.message || "Gagal memasukkan produk ke e-Resep.";
+          failures.push({
+            index: itemIndex,
+            name: item.search_term || `Item ${itemIndex}`,
+            message,
+            card
+          });
+          setItemStatus(card, "error", message);
         }
+        setStatus("loading", `Memproses ${position + 1} dari ${entries.length} item · ${completed} berhasil · ${failures.length} gagal.`);
       }
-      setStatus("success", `${completed} item berhasil dimasukkan ke e-Resep.`);
-      showToast(`${completed} item e-Resep berhasil dimasukkan. Periksa kembali sebelum melanjutkan.`);
+      if (failures.length) {
+        setStatus("error", formatInsertionReport(completed, failures));
+        if (!ui.dialog.open) ui.dialog.showModal();
+        requestAnimationFrame(() => failures[0].card.scrollIntoView({
+          block: "center",
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
+        }));
+        showToast(`Proses selesai: ${completed} berhasil, ${failures.length} gagal. Periksa laporan pada modal.`);
+      } else {
+        setStatus("success", formatInsertionReport(completed, failures));
+        showToast(`${completed} item e-Resep berhasil dimasukkan. Periksa kembali sebelum melanjutkan.`);
+      }
     } catch (error) {
-      setStatus("error", `${error.message} Item yang sudah hijau tidak akan diulang saat mencoba kembali.`);
+      setStatus("error", `Proses batch terganggu: ${error.message || "Terjadi kesalahan tak terduga."}`);
       if (!ui.dialog.open) ui.dialog.showModal();
-      showToast("Input e-Resep berhenti. Periksa item yang ditandai merah.");
+      showToast("Proses batch terganggu. Periksa laporan pada modal.");
     } finally {
       setRunning(false);
     }
@@ -542,14 +1112,16 @@
             <fieldset class="erx-mode"><legend>Jenis resep</legend><div role="radiogroup" aria-label="Jenis resep">
               <label><input type="radio" name="erx-mode" value="inpatient"><span>Rawat inap</span></label>
               <label><input type="radio" name="erx-mode" value="outpatient"><span>Rawat jalan</span></label>
-              <label><input type="radio" name="erx-mode" value="emergency_inpatient" checked><span>Resep IGD (Ranap)</span></label>
+              <label><input type="radio" name="erx-mode" value="emergency_inpatient" checked><span>Resep Pergantian IGD</span></label>
             </div></fieldset>
             <label class="erx-source-label" for="erx-source"><span>Tulis obat-obatan di sini</span><textarea id="erx-source" rows="6" placeholder="panto 1&#10;ns 1&#10;ondan 1"></textarea></label>
+            <button class="erx-import-source" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg><span></span></button>
           </section>
           <section class="erx-preview" hidden>
             <label for="erx-summary"><span>Terapi yang dirapikan</span><textarea id="erx-summary" rows="4"></textarea></label>
             <p class="erx-warning" hidden role="alert"></p>
             <div class="erx-preview-heading"><h3>Resep</h3><button class="erx-add-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Tambah item</button></div>
+            <datalist id="erx-product-catalog"></datalist>
             <div class="erx-items"></div>
             <label class="erx-confirm"><input type="checkbox"><span>Konfirmasi kesesuaian terapi. Saya sudah menyesuaikan bila ada yang salah atau kurang.</span></label>
           </section>
@@ -560,15 +1132,42 @@
             <button class="primary erx-insert" type="button" hidden disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg><span>Masukkan e-Resep</span></button>
           </footer>
         </div>
+      </dialog>
+      <dialog class="erx-supply-dialog" aria-labelledby="erx-supply-title">
+        <section>
+          <p>ALAT MEDIS</p>
+          <h2 id="erx-supply-title">Resepkan juga spuit dan alat medis lain?</h2>
+          <div>
+            <button class="secondary erx-supplies-no" type="button">Tidak, hanya resepkan obat-obatan</button>
+            <button class="primary erx-supplies-yes" type="button">Ya, resepkan alat medis</button>
+          </div>
+        </section>
+      </dialog>
+      <dialog class="erx-duration-dialog" aria-labelledby="erx-duration-title">
+        <section>
+          <p>RAWAT JALAN</p>
+          <h2 id="erx-duration-title">Obat digunakan untuk berapa hari?</h2>
+          <label>Jumlah hari
+            <input class="erx-duration-days" type="number" min="1" step="1" inputmode="numeric" placeholder="Contoh: 5">
+            <small>Default jika kosong: 10 pcs per masing-masing obat.</small>
+          </label>
+          <div>
+            <button class="secondary erx-duration-cancel" type="button">Batal</button>
+            <button class="primary erx-duration-continue" type="button">Lanjutkan</button>
+          </div>
+        </section>
       </dialog>`;
     document.documentElement.append(host);
     ui = {
       shadow,
       dialog: shadow.querySelector("dialog"),
       source: shadow.querySelector("#erx-source"),
+      importSource: shadow.querySelector(".erx-import-source"),
+      modeInputs: [...shadow.querySelectorAll('input[name="erx-mode"]')],
       preview: shadow.querySelector(".erx-preview"),
       summary: shadow.querySelector("#erx-summary"),
       warning: shadow.querySelector(".erx-warning"),
+      catalogList: shadow.querySelector("#erx-product-catalog"),
       items: shadow.querySelector(".erx-items"),
       confirm: shadow.querySelector(".erx-confirm input"),
       status: shadow.querySelector(".erx-status"),
@@ -576,10 +1175,19 @@
       generate: shadow.querySelector(".erx-generate"),
       insert: shadow.querySelector(".erx-insert"),
       close: shadow.querySelector(".erx-close"),
-      closeIcon: shadow.querySelector(".erx-close-icon")
+      closeIcon: shadow.querySelector(".erx-close-icon"),
+      supplyDialog: shadow.querySelector(".erx-supply-dialog"),
+      suppliesYes: shadow.querySelector(".erx-supplies-yes"),
+      suppliesNo: shadow.querySelector(".erx-supplies-no"),
+      durationDialog: shadow.querySelector(".erx-duration-dialog"),
+      durationDays: shadow.querySelector(".erx-duration-days"),
+      durationContinue: shadow.querySelector(".erx-duration-continue"),
+      durationCancel: shadow.querySelector(".erx-duration-cancel")
     };
     const close = () => { if (!running) ui.dialog.close(); };
     ui.generate.addEventListener("click", generatePrescription);
+    ui.importSource.addEventListener("click", importPrescriptionSource);
+    ui.modeInputs.forEach((input) => input.addEventListener("change", syncSourceButton));
     ui.insert.addEventListener("click", insertPrescription);
     ui.addItem.addEventListener("click", () => {
       ui.items.append(createItemCard({ qty: 1 }));
@@ -588,9 +1196,15 @@
       ui.items.lastElementChild.querySelector("input").focus();
     });
     ui.confirm.addEventListener("change", syncInsertButton);
+    ui.durationDays.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      ui.durationContinue.click();
+    });
     ui.close.addEventListener("click", close);
     ui.closeIcon.addEventListener("click", close);
     ui.dialog.addEventListener("cancel", (event) => { if (running) event.preventDefault(); });
+    syncSourceButton();
     return ui;
   }
 
@@ -607,22 +1221,23 @@
       document.getElementById(SLOT_ID)?.remove();
       return;
     }
-    if (document.getElementById(BUTTON_ID)) return;
-    const text = exactText("Racikan", "a,button,span,li");
-    const tab = text?.closest("a,button,[role='tab']") || text;
-    const tabItem = tab?.closest("li") || tab;
-    if (!tabItem?.parentElement) return;
-
-    const slot = document.createElement(tabItem.tagName === "LI" ? "li" : "span");
-    slot.id = SLOT_ID;
-    slot.className = "netmedic-rsdkh-erx-slot";
-    const button = document.createElement("button");
-    button.id = BUTTON_ID;
-    button.type = "button";
-    button.textContent = "e-Resep otomatis";
-    button.addEventListener("click", openModal);
-    slot.append(button);
-    tabItem.insertAdjacentElement("afterend", slot);
+    if (!document.getElementById(BUTTON_ID)) {
+      const text = exactText("Racikan", "a,button,span,li");
+      const tab = text?.closest("a,button,[role='tab']") || text;
+      const tabItem = tab?.closest("li") || tab;
+      if (tabItem?.parentElement) {
+        const slot = document.createElement(tabItem.tagName === "LI" ? "li" : "span");
+        slot.id = SLOT_ID;
+        slot.className = "netmedic-rsdkh-erx-slot";
+        const button = document.createElement("button");
+        button.id = BUTTON_ID;
+        button.type = "button";
+        button.textContent = "e-Resep otomatis";
+        button.addEventListener("click", openModal);
+        slot.append(button);
+        tabItem.insertAdjacentElement("afterend", slot);
+      }
+    }
   }
 
   function queueInject() {
@@ -631,9 +1246,36 @@
     requestAnimationFrame(injectButton);
   }
 
-  if (typeof module !== "undefined") module.exports = { narrowOptions, ensureSurfloForContext };
+  if (typeof module !== "undefined") module.exports = {
+    narrowOptions,
+    ensureSurfloForContext,
+    catalogKey,
+    upsertCatalogRecord,
+    normalizeProductAlias,
+    findProductAlias,
+    normalizeProductMatchText,
+    detectProductForm,
+    requestedProductForm,
+    doseTokens,
+    productMatchScore,
+    firstCatalogSuggestion,
+    matchCatalogItem,
+    matchPrescriptionToCatalog,
+    parseDoseSchedule,
+    massInMg,
+    durationDays,
+    infusionRateTpm,
+    calculatePrescriptionQty,
+    applyCalculatedQuantities,
+    extractIgdInstructions,
+    extractOpnamePlans,
+    formatInsertionReport
+  };
   if (typeof document !== "undefined") {
     new MutationObserver(queueInject).observe(document.documentElement, { childList: true, subtree: true });
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === "local" && changes[PRODUCT_ALIASES_KEY]) productAliasesPromise = null;
+    });
     addEventListener("hashchange", queueInject);
     queueInject();
   }
@@ -652,5 +1294,50 @@ if (typeof module !== "undefined" && require.main === module) {
   const injection = { summary: "Inj. Pantoprazole", warning: "", items: [{ display_name: "Pantoprazole", search_term: "Pantoprazole", form: "injeksi" }] };
   assert.equal(module.exports.ensureSurfloForContext(injection, "emergency_inpatient", { years: 45 }).items.at(-1).search_term, "Surflo no 22");
   assert.equal(module.exports.ensureSurfloForContext(injection, "emergency_inpatient", { years: 7 }).items.at(-1).search_term, "Surflo no 24");
+  const catalog = new Map();
+  module.exports.upsertCatalogRecord(catalog, { namaproduk: "SURFLO NO 24\r\n", marker: "old" });
+  module.exports.upsertCatalogRecord(catalog, { namaproduk: "  surflo   no 24  ", marker: "new" });
+  assert.equal(catalog.size, 1);
+  assert.equal(catalog.values().next().value.marker, "new");
+  const products = [
+    { namaproduk: "DIPHENHYDRAMIN 10MG INJ" },
+    { namaproduk: "EPINEPHRINE 0.1% INJ" },
+    { namaproduk: "NOREPINEPHRINE 4MG INJ" },
+    { namaproduk: "DEXAMETHASONE 0,5MG TAB" },
+    { namaproduk: "DEXAMETHASONE 5MG/ML INJ" },
+    { namaproduk: "NACL 0,9% 500ML INFUS" },
+    { namaproduk: "ONDANCETRON 4 MG TAB" },
+    { namaproduk: "ONDANCETRON 4MG/2ML INJ" },
+    { namaproduk: "ONDANCETRON 8MG INJ" }
+  ];
+  assert.equal(module.exports.matchCatalogItem({ search_term: "Difenhidramin", form: "injeksi" }, products).search_term, "DIPHENHYDRAMIN 10MG INJ");
+  assert.equal(module.exports.matchCatalogItem({ search_term: "Epinephrine", form: "injeksi" }, products).search_term, "EPINEPHRINE 0.1% INJ");
+  assert.equal(module.exports.matchCatalogItem({ search_term: "Dexamethasone", form: "injeksi" }, products).search_term, "DEXAMETHASONE 5MG/ML INJ");
+  assert.equal(module.exports.matchCatalogItem({ display_name: "Inj. Ondansetron 4mg", search_term: "Ondansetron", form: "", strength: "4 mg" }, products).search_term, "ONDANCETRON 4MG/2ML INJ");
+  assert.equal(module.exports.matchCatalogItem({ display_name: "Inj. Ondansetron 4mg", search_term: "ONDANCETRON 4 MG TAB", form: "injeksi", strength: "4 mg" }, products).search_term, "ONDANCETRON 4MG/2ML INJ");
+  assert.equal(module.exports.matchCatalogItem({ display_name: "Spuit 10 cc", search_term: "syringe 10 ml", form: "alat", strength: "10 cc" }, [{ namaproduk: "SPUIT 1 CC" }, { namaproduk: "SPUIT 10 CC" }]).search_term, "SPUIT 10 CC");
+  assert.equal(module.exports.firstCatalogSuggestion("nacl", [{ namaproduk: "NACL 0,9% 500ML INFUS" }, { namaproduk: "NACL 0,9% 100ML INFUS" }]), "NACL 0,9% 500ML INFUS");
+  assert.equal(module.exports.matchCatalogItem({ display_name: "Antrain", search_term: "Antrain", form: "injeksi", strength: "1 gr" }, [{ namaproduk: "METAMIZOLE 1GR INJ" }], [{ term: "antrain", query: "METAMIZOLE", selection: "unique" }]).search_term, "METAMIZOLE 1GR INJ");
+  assert.equal(module.exports.matchCatalogItem({ display_name: "Attapulgite", search_term: "Attapulgite", form: "tablet" }, [{ namaproduk: "AKITA (ATTAPULGITE 600, PECTIN 50)" }], [{ term: "attapulgite", query: "ATTAPULGITE", selection: "confirm" }]).search_term, "");
+  assert.equal(module.exports.calculatePrescriptionQty({ search_term: "NACL 0,9% 500ML INFUS", directions: "20 tpm" }, "inpatient"), 3);
+  assert.equal(module.exports.calculatePrescriptionQty({ search_term: "CEFOTAXIME 1GR INJ", form: "injeksi", strength: "1 gr", directions: "3x1gr" }, "inpatient"), 3);
+  assert.equal(module.exports.calculatePrescriptionQty({ search_term: "AKITA (ATTAPULGITE 600, PECTIN 50)", form: "tablet", directions: "3x2 tab" }, "inpatient"), 6);
+  assert.equal(module.exports.calculatePrescriptionQty({ search_term: "AKITA (ATTAPULGITE 600, PECTIN 50)", form: "tablet", directions: "3x2 tab" }, "outpatient"), 10);
+  assert.equal(module.exports.calculatePrescriptionQty({ search_term: "AKITA (ATTAPULGITE 600, PECTIN 50)", form: "tablet", directions: "3x2 tab" }, "outpatient", 5), 30);
+  assert.equal(module.exports.calculatePrescriptionQty({ search_term: "AKITA (ATTAPULGITE 600, PECTIN 50)", form: "tablet", directions: "3x2 tab selama 5 hari" }, "outpatient"), 30);
+  assert.equal(module.exports.calculatePrescriptionQty({ search_term: "PARACETAMOL SYRUP", form: "sirup", directions: "3x1" }, "outpatient", 5), 1);
+  assert.equal(module.exports.matchCatalogItem({ search_term: "Pantoprazole", form: "injeksi" }, products).search_term, "");
+  assert.equal(
+    module.exports.formatInsertionReport(2, [{ index: 3, name: "SPASMINAL", message: "Produk tidak ditemukan." }]),
+    "2 item berhasil, 1 item gagal.\n3. SPASMINAL: Produk tidak ditemukan.\nItem hijau tidak akan diulang saat mencoba kembali."
+  );
+  assert.equal(module.exports.extractIgdInstructions([
+    { json: { datasource: [{ instruksidokter: "NS 20 tpm" }, { instruksidokter: "  Inj. Antrain 1 gr  " }] } },
+    { json: { datasource: [{ instruksidokter: "Pantoprazole 40 mg" }, { instruksidokter: "" }] } }
+  ]), "NS 20 tpm\nInj. Antrain 1 gr\nPantoprazole 40 mg");
+  assert.equal(module.exports.extractOpnamePlans([
+    { json: { rencanatindakan: "Futrolit 20 tpm" } },
+    { json: { diagnosis: "Tidak boleh ikut", rencanatindakan: "Ondansetron 3x4 mg" } }
+  ]), "Futrolit 20 tpm\nOndansetron 3x4 mg");
   console.log("RSDKH prescription self-check ok");
 }

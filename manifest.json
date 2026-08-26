@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Netmedic RSDKH",
-  "version": "1.2.0",
+  "version": "1.6.0",
   "description": "Side panel mandiri RSDKH untuk Magic SOAP, Kronologi BPJS, dan modul khusus rumah sakit.",
   "permissions": ["sidePanel", "storage", "clipboardWrite"],
   "host_permissions": [
@@ -16,10 +16,19 @@
   "optional_host_permissions": ["https://*/*"],
   "action": {
     "default_title": "Netmedic RSDKH",
-    "default_icon": "icon.png"
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "24": "icons/icon-24.png",
+      "32": "icons/icon-32.png"
+    }
   },
   "icons": {
-    "128": "icon.png"
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "64": "icons/icon-64.png",
+    "128": "icons/icon-128.png",
+    "256": "icons/icon-256.png"
   },
   "background": {
     "service_worker": "background.js"
@@ -34,7 +43,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["hospital/rsdkh/erm.css", "hospital/rsdkh/prescription.css", "fonts/Manrope-Variable.ttf"],
+      "resources": ["hospital/rsdkh/erm.css", "hospital/rsdkh/prescription.css", "hospital/rsdkh/product-catalog.json", "hospital/rsdkh/product-aliases.json", "fonts/Manrope-Variable.ttf"],
       "matches": ["https://rsudbalangan.com/*", "http://10.10.0.3/*"]
     }
   ],

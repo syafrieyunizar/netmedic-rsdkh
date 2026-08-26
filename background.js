@@ -10,7 +10,7 @@ chrome.runtime.onStartup.addListener(enableSidePanel);
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const action = {
     "rsdkh:parse-soap": () => self.RSDKHAi.generateSoapParts(message.soapText),
-    "rsdkh:generate-prescription": () => self.RSDKHAi.generatePrescription(message.mode, message.prescriptionText)
+    "rsdkh:generate-prescription": () => self.RSDKHAi.generatePrescription(message.mode, message.prescriptionText, message.includeSupplies)
   }[message?.type];
   if (!action) return false;
   action()

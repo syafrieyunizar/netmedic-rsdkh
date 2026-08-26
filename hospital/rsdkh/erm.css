@@ -7,8 +7,12 @@
 }
 
 .netmedic-rsdkh-soap-slot {
-  display: inline-flex;
-  margin-right: 1.25rem;
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  list-style: none;
+  margin-right: 6px;
+  padding: 2px 0;
 }
 
 #netmedic-rsdkh-input-soap {
@@ -21,12 +25,12 @@
   cursor: pointer;
   display: inline-flex;
   font-family: "Manrope RSDKH", "Segoe UI", sans-serif;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   gap: 8px;
   justify-content: center;
-  min-height: 44px;
-  padding: 0 18px;
+  min-height: 34px;
+  padding: 0 12px;
   transition: background-color 200ms ease, border-color 200ms ease, opacity 200ms ease;
   white-space: nowrap;
 }
@@ -46,12 +50,12 @@
 }
 
 #netmedic-rsdkh-input-soap svg {
-  height: 19px;
+  height: 16px;
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2;
-  width: 19px;
+  width: 16px;
 }
 
 .netmedic-rsdkh-soap-toast {
@@ -193,6 +197,60 @@
   font-size: 15px;
   font-weight: 600;
   line-height: 1.4;
+}
+
+.soap-patient-status {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+}
+
+.soap-patient-status legend {
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
+  color: var(--soap-text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.soap-patient-status label {
+  position: relative;
+  min-width: 0;
+}
+
+.soap-patient-status input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.soap-patient-status span {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  color: var(--soap-text-secondary);
+  background: var(--soap-surface-low);
+  border: 1px solid var(--soap-outline-variant);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+
+.soap-patient-status input:checked + span {
+  color: var(--soap-on-primary);
+  background: var(--soap-primary);
+  border-color: var(--soap-primary);
+}
+
+.soap-patient-status input:focus-visible + span {
+  outline: 3px solid rgba(0, 104, 116, 0.28);
+  outline-offset: 2px;
 }
 
 .soap-form textarea {

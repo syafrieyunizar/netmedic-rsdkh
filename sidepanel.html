@@ -9,7 +9,7 @@
 <body>
   <header class="app-header">
     <div class="app-title">
-      <img class="title-icon" src="icon.png" alt="" aria-hidden="true">
+      <img class="title-icon" src="icons/icon-64.png" alt="" aria-hidden="true">
       <div>
         <h1>Netmedic RSDKH</h1>
         <span class="brand-author">by Syafrie Yunizar</span>
@@ -49,7 +49,8 @@
             <label for="identity">Identitas anonim pasien</label>
             <button id="importErmIdentity" class="erm-identity-button" type="button" data-state="idle" aria-live="polite" aria-atomic="true" title="Ambil jenis kelamin dan umur dari eRM saat ini">[dari eRM saat ini]</button>
           </div>
-          <input id="identity" type="text" placeholder="Laki-laki 45 tahun" autocomplete="off" required>
+          <input id="identity" type="text" placeholder="Tn. X, 45 tahun" autocomplete="off" required>
+          <span class="field-hint">Wajib memuat umur dan jenis kelamin, misalnya Laki-laki 45 tahun atau Tn. X, 45 tahun.</span>
         </div>
         <div id="identityGateStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
         <div class="actions">
@@ -160,7 +161,7 @@
 
   <footer class="app-footer">
     <span><span class="footer-dot" aria-hidden="true"></span>Siap digunakan</span>
-    <span>v1.2.0</span>
+    <span>v1.6.0</span>
   </footer>
 
   <dialog id="historyDialog" class="history-dialog" aria-labelledby="historyTitle">
@@ -203,10 +204,14 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </div>
-      <label>Identitas anonim pasien
-        <input id="newPatientIdentity" type="text" placeholder="Boss, 22 tahun" autocomplete="off" required>
+      <div class="field identity-field">
+        <div class="identity-label-row">
+          <label for="newPatientIdentity">Identitas anonim pasien</label>
+          <button id="importNewPatientErmIdentity" class="erm-identity-button" type="button" data-state="idle" aria-live="polite" aria-atomic="true" title="Ambil jenis kelamin dan umur dari eRM saat ini">[dari eRM saat ini]</button>
+        </div>
+        <input id="newPatientIdentity" type="text" placeholder="Tn. X, 45 tahun" autocomplete="off" required>
         <span class="field-hint">Form saat ini akan dibersihkan untuk memulai episode baru.</span>
-      </label>
+      </div>
       <div id="newPatientStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
       <div class="dialog-actions">
         <button id="cancelNewPatient" class="button" type="button">Batal</button>
@@ -281,6 +286,16 @@
               </div>
             </div>
           </aside>
+          <div class="result-command-bar">
+            <button id="openWhatsappSoap" class="button" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.5 9.2 9.2 0 0 1-4-.9L3 21l1.8-4.7A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 9h8m-8 4h5"/></svg>
+              <span>Input SOAP format WA</span>
+            </button>
+            <button id="inputSoapFromResult" class="button primary" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h6M9 9h6M9 13h3M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="m14 16 2 2 4-4"/></svg>
+              <span>Input SOAP</span>
+            </button>
+          </div>
         </section>
 
         <section class="result-panel" data-result-type="kronologi" aria-label="Hasil Kronologi" hidden>
@@ -305,120 +320,162 @@
     </div>
   </dialog>
 
-  <dialog id="settingsDialog">
-    <form id="settingsForm">
+  <dialog id="soapInputStatusDialog" class="compact-dialog" aria-labelledby="soapInputStatusTitle">
+    <form id="soapInputStatusForm" class="compact-dialog-form">
       <div class="dialog-heading">
         <div>
-          <span class="section-kicker">KONFIGURASI</span>
-          <h2>Pengaturan AI</h2>
+          <span class="section-kicker">INPUT SOAP</span>
+          <h2 id="soapInputStatusTitle">Rencana status pasien?</h2>
+        </div>
+        <button id="closeSoapInputStatus" class="icon-button" type="button" aria-label="Tutup" title="Tutup">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <fieldset class="status-choice-group">
+        <legend>Pilih rencana pelayanan</legend>
+        <label class="status-choice">
+          <input type="radio" name="soapPatientStatus" value="rawat_jalan" required>
+          <span>Rawat jalan</span>
+        </label>
+        <label class="status-choice">
+          <input type="radio" name="soapPatientStatus" value="rawat_inap" required>
+          <span>Rawat inap</span>
+        </label>
+      </fieldset>
+      <p class="field-hint">Pilihan ini hanya menentukan jenis diagnosis yang diinput ke eRM.</p>
+      <div class="dialog-actions">
+        <button id="cancelSoapInputStatus" class="button" type="button">Batal</button>
+        <button class="button primary" type="submit"><span>Lanjut input SOAP</span></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="whatsappSoapDialog" class="whatsapp-soap-dialog" aria-labelledby="whatsappSoapTitle">
+    <form id="whatsappSoapForm" class="whatsapp-soap-form">
+      <header class="dialog-heading whatsapp-soap-header">
+        <div>
+          <span class="section-kicker">FORMAT WHATSAPP</span>
+          <h2 id="whatsappSoapTitle" tabindex="-1">Pesan Pembuka</h2>
+        </div>
+        <button id="closeWhatsappSoap" class="icon-button" type="button" aria-label="Tutup format WhatsApp" title="Tutup">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </header>
+
+      <div class="whatsapp-step-progress" aria-live="polite">
+        <span id="whatsappStepCounter">Langkah 1 dari 7</span>
+        <progress id="whatsappStepProgress" max="7" value="1">1 dari 7</progress>
+      </div>
+
+      <div id="whatsappSoapStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+
+      <div class="whatsapp-step" data-whatsapp-step="0">
+        <div class="field">
+          <label for="whatsappDoctorName">Nama panggilan dokter jaga</label>
+          <input id="whatsappDoctorName" type="text" autocomplete="off" required>
+        </div>
+        <div class="field">
+          <label for="whatsappOpeningTemplate">Pesan pembuka</label>
+          <textarea id="whatsappOpeningTemplate" rows="6" required></textarea>
+          <span class="field-hint">Gunakan {waktu} dan {dokter} untuk isian otomatis.</span>
+        </div>
+      </div>
+
+      <div class="whatsapp-step" data-whatsapp-step="1" hidden>
+        <div class="field">
+          <label for="whatsappPatientIdentity">Identitas pasien dari eRM</label>
+          <textarea id="whatsappPatientIdentity" rows="3" required></textarea>
+        </div>
+        <button id="refreshWhatsappIdentity" class="button" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
+          <span>Ambil ulang dari eRM</span>
+        </button>
+      </div>
+
+      <div class="whatsapp-step" data-whatsapp-step="2" hidden>
+        <div class="field"><label for="whatsappSubjective">Subjektif</label><textarea id="whatsappSubjective" rows="12" required></textarea></div>
+      </div>
+
+      <div class="whatsapp-step" data-whatsapp-step="3" hidden>
+        <div class="field"><label for="whatsappObjective">Objektif</label><textarea id="whatsappObjective" rows="14" required></textarea></div>
+      </div>
+
+      <div class="whatsapp-step" data-whatsapp-step="4" hidden>
+        <div class="field"><label for="whatsappAssessment">Assessment</label><textarea id="whatsappAssessment" rows="8" required></textarea></div>
+      </div>
+
+      <div class="whatsapp-step" data-whatsapp-step="5" hidden>
+        <div class="field"><label for="whatsappPlanning">Planning</label><textarea id="whatsappPlanning" rows="10" required></textarea></div>
+      </div>
+
+      <div class="whatsapp-step" data-whatsapp-step="6" hidden>
+        <div class="field"><label for="whatsappClosing">Kalimat penutup</label><textarea id="whatsappClosing" rows="4" required></textarea></div>
+        <div class="field"><label for="whatsappFinalPreview">Pratinjau akhir</label><textarea id="whatsappFinalPreview" rows="16" readonly></textarea></div>
+      </div>
+
+      <div class="dialog-actions whatsapp-step-actions">
+        <button id="previousWhatsappStep" class="button" type="button">Sebelumnya</button>
+        <button id="nextWhatsappStep" class="button primary" type="button"><span>Berikutnya</span></button>
+        <button id="copyWhatsappSoap" class="button primary" type="button" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg>
+          <span>Salin format WA</span>
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog" class="settings-dialog">
+    <form id="settingsForm" class="settings-shell">
+      <header class="settings-header">
+        <button id="settingsBack" class="icon-button" type="button" aria-label="Kembali ke menu pengaturan" title="Kembali" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <div>
+          <span id="settingsKicker" class="section-kicker">KONFIGURASI</span>
+          <h2 id="settingsTitle" tabindex="-1">Pengaturan</h2>
         </div>
         <button id="closeSettings" class="icon-button" type="button" aria-label="Tutup pengaturan" title="Tutup">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
-      </div>
-      <div id="activeApiKeyStatus" class="active-api-status" data-state="empty" role="status" aria-live="polite">
-        <span class="connection-dot" aria-hidden="true"></span>
-        <span id="activeApiKeyText">Tidak ada API key aktif</span>
-      </div>
-      <label>Sumber API
-        <select id="apiKeySource">
-          <option value="personal">API key pribadi</option>
-          <option value="admin">API admin</option>
-        </select>
-      </label>
+      </header>
 
-      <div id="personalApiFields" class="settings-group">
-        <label>Provider
-          <select id="provider">
-            <option value="gemini">Gemini (Google)</option>
-            <option value="sumopod">Sumopod</option>
-            <option value="aimurah">AImurah</option>
-            <option value="semutssh">SemutSSH</option>
-            <option value="custom">Provider lain</option>
-          </select>
-        </label>
-        <div id="customProviderFields" class="settings-group" hidden>
-          <label>Nama provider
-            <input id="customProviderLabel" type="text" placeholder="Contoh: OpenAI" autocomplete="off">
-          </label>
-          <label>Endpoint URL
-            <input id="customBaseUrl" type="url" placeholder="https://api.provider.com/v1/chat/completions" autocomplete="off" spellcheck="false">
-            <span class="field-hint">Endpoint HTTPS OpenAI-compatible chat/completions.</span>
-          </label>
-        </div>
-        <div class="field"><label id="apiKeyLabel" for="apiKey">Gemini API key</label>
-          <span class="password-control">
-            <input id="apiKey" type="password" placeholder="Masukkan API key" autocomplete="off" spellcheck="false">
-            <button id="toggleApiKey" class="input-icon-button" type="button" aria-label="Tampilkan API key" title="Tampilkan API key">
-              <svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-              <svg class="eye-closed" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 4.2A10.5 10.5 0 0 1 12 4c6.5 0 10 8 10 8a18 18 0 0 1-2.1 3.1M6.6 6.6C3.5 8.6 2 12 2 12s3.5 8 10 8a9.8 9.8 0 0 0 3.4-.6"/></svg>
+      <div class="settings-content">
+        <section class="settings-page" data-settings-page="home">
+          <p class="settings-intro">Pilih bagian yang ingin diatur.</p>
+          <nav class="settings-menu" aria-label="Bagian pengaturan">
+            <button class="settings-menu-item" type="button" data-settings-target="connection">
+              <span class="settings-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2v6m0 8v6M4.9 4.9l4.2 4.2m5.8 5.8 4.2 4.2M2 12h6m8 0h6M4.9 19.1l4.2-4.2m5.8-5.8 4.2-4.2"/><circle cx="12" cy="12" r="3"/></svg></span>
+              <span class="settings-menu-copy"><strong>Koneksi AI</strong><small id="settingsApiSummary">API belum diatur</small></span>
+              <svg class="settings-menu-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </button>
-          </span>
-          <span class="field-hint">Disimpan lokal di Chrome dan dikirim hanya ke provider pilihan.</span>
-        </div>
-        <label>Model
-          <input id="model" type="text" value="gemini-2.0-flash" placeholder="Masukkan nama model" autocomplete="off" spellcheck="false">
-        </label>
-        <label class="toggle-row">
-          <span>
-            <strong>Validasi sebelum menyimpan</strong>
-            <small>Konfigurasi lama tetap dipakai bila validasi gagal.</small>
-          </span>
-          <input id="validateBeforeSave" type="checkbox" checked>
-        </label>
-      </div>
-
-      <div id="adminApiFields" class="settings-group" hidden>
-        <div id="adminPublicStatus" class="active-api-status" data-state="empty" role="status" aria-live="polite">
-          <span class="connection-dot" aria-hidden="true"></span>
-          <span id="adminPublicStatusText">Memeriksa API admin...</span>
-        </div>
-        <div id="adminLoggedIn" class="admin-session" hidden>
-          <div><span class="field-hint">Login sebagai</span><strong id="adminSessionUsername"></strong></div>
-          <button id="logoutAdminUser" class="button" type="button">Logout</button>
-        </div>
-        <div id="adminLoginFields" class="settings-group">
-          <label>Username
-            <input id="adminUsername" type="text" autocomplete="username" placeholder="Username akses admin">
-          </label>
-          <label>Password
-            <input id="adminPassword" type="password" autocomplete="current-password" placeholder="Password akses admin">
-          </label>
-          <button id="loginAdminUser" class="button" type="button">Login API admin</button>
-        </div>
-        <span class="field-hint">API key admin tetap di server dan tidak ditampilkan pada perangkat ini.</span>
-      </div>
-
-      <details id="ownerAdminSettings" class="owner-admin-settings">
-        <summary>Panel admin</summary>
-        <div id="ownerAdminLogin" class="settings-group owner-admin-login">
-          <label>Username
-            <input id="ownerUsername" type="text" autocomplete="username" placeholder="Username admin">
-          </label>
-          <label>Password
-            <input id="ownerPassword" type="password" autocomplete="current-password" placeholder="Password admin">
-          </label>
-          <button id="loginOwnerAdmin" class="button primary" type="button"><span>Login Panel Admin</span></button>
-          <div id="ownerLoginStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
-        </div>
-
-        <div id="ownerAdminPanel" class="owner-admin-panel" hidden>
-          <div class="owner-panel-header">
-            <div>
-              <span class="section-kicker">MENU KHUSUS ADMIN</span>
-              <h3>Pengaturan Admin</h3>
-            </div>
-            <button id="exitOwnerAdmin" class="button" type="button">Keluar Admin</button>
-          </div>
-          <nav class="owner-admin-tabs" role="tablist" aria-label="Pengaturan admin">
-            <button id="ownerApiTab" class="owner-admin-tab active" type="button" role="tab" aria-selected="true" data-owner-tab="apikey">API Key</button>
-            <button id="ownerUserTab" class="owner-admin-tab" type="button" role="tab" aria-selected="false" data-owner-tab="user">Pengguna</button>
+            <button class="settings-menu-item" type="button" data-settings-target="products">
+              <span class="settings-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 3h6v4H9zM6 7h12v14H6zM9 11h6m-3-3v6"/></svg></span>
+              <span class="settings-menu-copy"><strong>Kamus Produk RSDKH</strong><small id="settingsAliasSummary">Memuat kamus produk...</small></span>
+              <svg class="settings-menu-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button class="settings-menu-item" type="button" data-settings-target="admin">
+              <span class="settings-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></span>
+              <span class="settings-menu-copy"><strong>Panel Admin</strong><small id="settingsAdminSummary">Kelola API server dan pengguna</small></span>
+              <svg class="settings-menu-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
           </nav>
+        </section>
 
-          <section class="owner-admin-section" data-owner-panel="apikey">
-            <div class="settings-group">
-              <label>Provider admin
-                <select id="ownerProvider">
+        <section class="settings-page" data-settings-page="connection" hidden>
+          <div class="settings-page-body">
+            <div id="activeApiKeyStatus" class="active-api-status" data-state="empty" role="status" aria-live="polite">
+              <span class="connection-dot" aria-hidden="true"></span>
+              <span id="activeApiKeyText">Tidak ada API key aktif</span>
+            </div>
+            <label>Sumber API
+              <select id="apiKeySource">
+                <option value="personal">API key pribadi</option>
+                <option value="admin">API admin</option>
+              </select>
+            </label>
+            <div id="personalApiFields" class="settings-group">
+              <label>Provider
+                <select id="provider">
                   <option value="gemini">Gemini (Google)</option>
                   <option value="sumopod">Sumopod</option>
                   <option value="aimurah">AImurah</option>
@@ -426,66 +483,134 @@
                   <option value="custom">Provider lain</option>
                 </select>
               </label>
-              <div id="ownerCustomFields" class="settings-group" hidden>
+              <div id="customProviderFields" class="settings-group" hidden>
                 <label>Nama provider
-                  <input id="ownerProviderLabel" type="text" autocomplete="off">
+                  <input id="customProviderLabel" type="text" placeholder="Contoh: OpenAI" autocomplete="off">
                 </label>
                 <label>Endpoint URL
-                  <input id="ownerBaseUrl" type="url" autocomplete="off" spellcheck="false">
+                  <input id="customBaseUrl" type="url" placeholder="https://api.provider.com/v1/chat/completions" autocomplete="off" spellcheck="false">
+                  <span class="field-hint">Endpoint HTTPS OpenAI-compatible chat/completions.</span>
                 </label>
               </div>
-              <label>API key admin
-                <input id="ownerApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Kosongkan untuk mempertahankan key tersimpan">
-              </label>
-              <label>Model admin
-                <input id="ownerModel" type="text" value="gemini-2.0-flash" autocomplete="off" spellcheck="false">
-              </label>
-              <div class="owner-admin-actions">
-                <button id="resetOwnerConfig" class="button danger" type="button">Reset API admin</button>
-                <button id="validateOwnerConfig" class="button" type="button">Validasi</button>
-                <button id="saveOwnerConfig" class="button primary" type="button"><span>Simpan API admin</span></button>
+              <div class="field"><label id="apiKeyLabel" for="apiKey">Gemini API key</label>
+                <span class="password-control">
+                  <input id="apiKey" type="password" placeholder="Masukkan API key" autocomplete="off" spellcheck="false">
+                  <button id="toggleApiKey" class="input-icon-button" type="button" aria-label="Tampilkan API key" title="Tampilkan API key">
+                    <svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="eye-closed" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 4.2A10.5 10.5 0 0 1 12 4c6.5 0 10 8 10 8a18 18 0 0 1-2.1 3.1M6.6 6.6C3.5 8.6 2 12 2 12s3.5 8 10 8a9.8 9.8 0 0 0 3.4-.6"/></svg>
+                  </button>
+                </span>
+                <span class="field-hint">Disimpan lokal di Chrome dan dikirim hanya ke provider pilihan.</span>
               </div>
+              <label>Model
+                <input id="model" type="text" value="gemini-2.0-flash" placeholder="Masukkan nama model" autocomplete="off" spellcheck="false">
+              </label>
+              <label class="toggle-row">
+                <span><strong>Validasi sebelum menyimpan</strong><small>Konfigurasi lama tetap dipakai bila validasi gagal.</small></span>
+                <input id="validateBeforeSave" type="checkbox" checked>
+              </label>
             </div>
-          </section>
+            <div id="adminApiFields" class="settings-group" hidden>
+              <div id="adminPublicStatus" class="active-api-status" data-state="empty" role="status" aria-live="polite">
+                <span class="connection-dot" aria-hidden="true"></span>
+                <span id="adminPublicStatusText">Memeriksa API admin...</span>
+              </div>
+              <div id="adminLoggedIn" class="admin-session" hidden>
+                <div><span class="field-hint">Login sebagai</span><strong id="adminSessionUsername"></strong></div>
+                <button id="logoutAdminUser" class="button" type="button">Logout</button>
+              </div>
+              <div id="adminLoginFields" class="settings-group">
+                <label>Username<input id="adminUsername" type="text" autocomplete="username" placeholder="Username akses admin"></label>
+                <label>Password<input id="adminPassword" type="password" autocomplete="current-password" placeholder="Password akses admin"></label>
+                <button id="loginAdminUser" class="button" type="button">Login API admin</button>
+              </div>
+              <span class="field-hint">API key admin tetap di server dan tidak ditampilkan pada perangkat ini.</span>
+            </div>
+            <div id="settingsStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+          </div>
+          <div class="settings-actions">
+            <button id="deleteApiKey" class="button danger" type="button">Hapus key</button>
+            <button id="saveSettings" class="button primary" type="submit"><span>Simpan</span></button>
+          </div>
+        </section>
 
-          <section class="owner-admin-section" data-owner-panel="user" hidden>
-            <div class="owner-user-heading">
-              <div>
-                <strong>Pengguna API admin</strong>
-                <span class="field-hint">Kelola akun yang dapat menggunakan API admin.</span>
-              </div>
-              <button id="refreshAdminUsers" class="button" type="button">Muat ulang</button>
-            </div>
-            <div id="newAdminUserFields" class="settings-group">
-              <label>Username pengguna
-                <input id="newAdminUsername" type="text" autocomplete="off" placeholder="contoh: dokter.andi">
-              </label>
-              <label>Password pengguna
-                <input id="newAdminPassword" type="password" autocomplete="new-password" placeholder="Minimal 4 karakter">
-              </label>
-              <button id="createAdminUser" class="button primary" type="button"><span>Tambah pengguna</span></button>
-            </div>
-            <div id="resetAdminUserFields" class="settings-group" hidden>
-              <strong id="resetAdminUserTarget">Reset password</strong>
-              <label>Password baru
-                <input id="resetAdminUserPassword" type="password" autocomplete="new-password" placeholder="Minimal 4 karakter">
-              </label>
-              <div class="owner-admin-actions">
-                <button id="cancelResetAdminUser" class="button" type="button">Batal</button>
-                <button id="confirmResetAdminUser" class="button primary" type="button"><span>Simpan password</span></button>
+        <section class="settings-page" data-settings-page="products" hidden>
+          <div class="settings-page-body">
+            <div class="product-alias-heading">
+              <span class="field-hint">Hubungkan istilah dokter dengan nama pada katalog e-Resep. Alias hanya berlaku di perangkat ini.</span>
+              <div class="product-alias-toolbar">
+                <input id="productAliasSearch" type="search" autocomplete="off" placeholder="Cari alias atau produk" aria-label="Cari alias produk">
+                <button id="addProductAlias" class="button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Tambah alias</button>
               </div>
             </div>
-            <div id="adminUserList" class="admin-user-list" aria-live="polite"></div>
-          </section>
+            <datalist id="productCatalogOptions"></datalist>
+            <div id="productAliasList" class="product-alias-list"></div>
+            <div id="productAliasStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+          </div>
+          <div class="settings-actions product-alias-actions">
+            <button id="resetProductAliases" class="button danger" type="button">Reset bawaan</button>
+            <button id="saveProductAliases" class="button primary" type="button"><span>Simpan kamus</span></button>
+          </div>
+        </section>
 
-          <div id="ownerAdminStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
-        </div>
-      </details>
-      <div id="settingsStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
-      <div class="dialog-actions">
-        <button id="deleteApiKey" class="button danger" type="button">Hapus key</button>
-        <button id="cancelSettings" class="button" type="button">Batal</button>
-        <button id="saveSettings" class="button primary" type="submit"><span>Simpan</span></button>
+        <section class="settings-page" data-settings-page="admin" hidden>
+          <div class="settings-page-body">
+            <div id="ownerAdminLogin" class="settings-group owner-admin-login">
+              <p class="settings-page-note">Login diperlukan untuk mengubah API server dan pengguna.</p>
+              <label>Username<input id="ownerUsername" type="text" autocomplete="username" placeholder="Username admin"></label>
+              <label>Password<input id="ownerPassword" type="password" autocomplete="current-password" placeholder="Password admin"></label>
+              <button id="loginOwnerAdmin" class="button primary" type="button"><span>Login Panel Admin</span></button>
+              <div id="ownerLoginStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+            </div>
+            <div id="ownerAdminPanel" class="owner-admin-panel" hidden>
+              <div class="owner-panel-header">
+                <div><span class="section-kicker">MENU KHUSUS ADMIN</span><h3>Pengaturan Admin</h3></div>
+                <button id="exitOwnerAdmin" class="button" type="button">Keluar Admin</button>
+              </div>
+              <nav class="owner-admin-tabs" role="tablist" aria-label="Pengaturan admin">
+                <button id="ownerApiTab" class="owner-admin-tab active" type="button" role="tab" aria-selected="true" data-owner-tab="apikey">API Key</button>
+                <button id="ownerUserTab" class="owner-admin-tab" type="button" role="tab" aria-selected="false" data-owner-tab="user">Pengguna</button>
+              </nav>
+              <section class="owner-admin-section" data-owner-panel="apikey">
+                <div class="settings-group">
+                  <label>Provider admin<select id="ownerProvider"><option value="gemini">Gemini (Google)</option><option value="sumopod">Sumopod</option><option value="aimurah">AImurah</option><option value="semutssh">SemutSSH</option><option value="custom">Provider lain</option></select></label>
+                  <div id="ownerCustomFields" class="settings-group" hidden>
+                    <label>Nama provider<input id="ownerProviderLabel" type="text" autocomplete="off"></label>
+                    <label>Endpoint URL<input id="ownerBaseUrl" type="url" autocomplete="off" spellcheck="false"></label>
+                  </div>
+                  <label>API key admin<input id="ownerApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Kosongkan untuk mempertahankan key tersimpan"></label>
+                  <label>Model admin<input id="ownerModel" type="text" value="gemini-2.0-flash" autocomplete="off" spellcheck="false"></label>
+                  <div class="owner-admin-actions">
+                    <button id="resetOwnerConfig" class="button danger" type="button">Reset API admin</button>
+                    <button id="validateOwnerConfig" class="button" type="button">Validasi</button>
+                    <button id="saveOwnerConfig" class="button primary" type="button"><span>Simpan API admin</span></button>
+                  </div>
+                </div>
+              </section>
+              <section class="owner-admin-section" data-owner-panel="user" hidden>
+                <div class="owner-user-heading">
+                  <div><strong>Pengguna API admin</strong><span class="field-hint">Kelola akun yang dapat menggunakan API admin.</span></div>
+                  <button id="refreshAdminUsers" class="button" type="button">Muat ulang</button>
+                </div>
+                <div id="newAdminUserFields" class="settings-group">
+                  <label>Username pengguna<input id="newAdminUsername" type="text" autocomplete="off" placeholder="contoh: dokter.andi"></label>
+                  <label>Password pengguna<input id="newAdminPassword" type="password" autocomplete="new-password" placeholder="Minimal 4 karakter"></label>
+                  <button id="createAdminUser" class="button primary" type="button"><span>Tambah pengguna</span></button>
+                </div>
+                <div id="resetAdminUserFields" class="settings-group" hidden>
+                  <strong id="resetAdminUserTarget">Reset password</strong>
+                  <label>Password baru<input id="resetAdminUserPassword" type="password" autocomplete="new-password" placeholder="Minimal 4 karakter"></label>
+                  <div class="owner-admin-actions">
+                    <button id="cancelResetAdminUser" class="button" type="button">Batal</button>
+                    <button id="confirmResetAdminUser" class="button primary" type="button"><span>Simpan password</span></button>
+                  </div>
+                </div>
+                <div id="adminUserList" class="admin-user-list" aria-live="polite"></div>
+              </section>
+              <div id="ownerAdminStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+            </div>
+          </div>
+        </section>
       </div>
     </form>
   </dialog>

@@ -49,7 +49,7 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 - Desktop drawer navigation from the reference must collapse into segmented tabs.
 - The content canvas must remain scrollable without horizontal overflow.
 - The bottom status bar must remain visible without covering content.
-- Gate both tabs behind one shared anonymous identity form. Once confirmed, replace it with a sticky patient bar and a red change-patient action; never render a second identity field inside either tab.
+- Gate both tabs behind one shared anonymous identity form that requires age plus explicit gender or a recognized honorific such as `Tn.`/`Ny.`. Once confirmed, replace it with a sticky patient bar and a red change-patient action; never render a second identity field inside either tab.
 
 ### Cards
 
@@ -64,6 +64,7 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 - Focus must use the teal focus ring defined in `DESIGN.md`.
 - Validation errors must appear in the nearest live status region.
 - Provider-specific settings must use progressive disclosure.
+- Settings must open as a full-height hub with separate Koneksi AI, Kamus Produk RSDKH, and Panel Admin subpages. Preserve a visible back action and contextual save controls.
 - Keep the optional clinical-photo action attached to Objective. Store only its generated text in the draft; never persist the image itself.
 - Apply the bundled Manrope stack explicitly to every field and label so no SOAP section falls back to a browser control font.
 
@@ -73,13 +74,17 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 - Clear and Cancel are outlined secondary commands.
 - Delete API key is destructive red.
 - Loading must disable the initiating button and replace its label with progress text.
+- Keep the result-level `Input SOAP` action exclusive to Magic SOAP. Require a compact patient-status choice before sending the current editable S/O/A/P values directly to the active RSDKH content script without another AI parsing call. Map inpatient to `Diagnosa Awal` and outpatient to `Primary / utama`; do not branch any other automation step.
 
 ### e-Resep Automation
 
 - Keep e-Resep UI and selectors in `hospital/rsdkh/`; never place hospital DOM automation in shared side-panel code.
 - Use a native dialog with three prescription modes, editable repeated item cards, inline warnings, and a clinician confirmation gate.
+- Name the emergency replacement mode `Resep Pergantian IGD`. Rawat Jalan must ask an optional number of treatment days and clearly state the 10-pcs fallback.
+- Calculate Qty deterministically after catalog matching: infusion by tpm, injection by dose/frequency versus package strength, solid oral medicine by frequency and duration, and syrup as one bottle by default.
+- Keep the editable RSDKH term dictionary in Settings and storage local; bundled aliases provide defaults but must never modify the source product catalog.
 - Never auto-select an ambiguous product or silently skip a failed item.
-- Insert products serially and preserve completed-item state so retry cannot duplicate successful rows.
+- Insert products serially, wait until Angular enables Tambah, and verify row/reset state before one automatic retry. Preserve completed-item state so retry cannot duplicate successful rows.
 - Do not bump the extension version until generation and one complete live eRM insertion have both been verified.
 
 ### API Settings
@@ -132,7 +137,7 @@ State may use color only as reinforcement. A text label, icon, dot, or disabled 
 ## Responsive Behavior
 
 - Test at 320px, 375px, and 600px widths.
-- Test short landscape height with the settings dialog open.
+- Test short landscape height with the Settings hub and each subpage open.
 - Collapse the API status label below 370px while keeping its accessible name.
 - Use two columns only from 520px when content remains readable.
 - Stack action buttons when the available width cannot hold them safely.

@@ -1,0 +1,1825 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-19T17:29:10.744Z",
+  "source": "SIAPMEDIS RSDKH - hasil gabungan pemindaian autocomplete Produk",
+  "strategy": "0-9, AA-ZZ, lalu pecah rekursif A-Z saat hasil mencapai batas dropdown",
+  "complete": true,
+  "count": 605,
+  "products": [
+    {
+      "namaproduk": "1/3 TUBULAR PLATE 7 HOLE"
+    },
+    {
+      "namaproduk": "2 FDC (FASE LANJUTAN) ANAK"
+    },
+    {
+      "namaproduk": "2 FDC (FASE LANJUTAN) DEWASA KATEGORI HARIAN"
+    },
+    {
+      "namaproduk": "2 LUMEN MULTICATH 3 FR. 10 CM + GUIDWIRE"
+    },
+    {
+      "namaproduk": "4 FDC (FASE INTENSIF) DEWASA KATEGORI HARIAN"
+    },
+    {
+      "namaproduk": "ACETYLCYSTEINE 200MG TAB"
+    },
+    {
+      "namaproduk": "ACYCLOVIR 400MG TAB"
+    },
+    {
+      "namaproduk": "ACYCLOVIR 5% SK @5GR"
+    },
+    {
+      "namaproduk": "ADALAT OROS 30MG TAB"
+    },
+    {
+      "namaproduk": "AKILEN 3MG/ML @5ML TETES TELINGA"
+    },
+    {
+      "namaproduk": "AKITA (ATTAPULGITE 600, PECTIN 50)"
+    },
+    {
+      "namaproduk": "ALAT CUKUR"
+    },
+    {
+      "namaproduk": "ALKOHOL 70 % 1 LITER"
+    },
+    {
+      "namaproduk": "ALKOHOL SWAB 70 %"
+    },
+    {
+      "namaproduk": "ALLOPURINOL 100MG TAB"
+    },
+    {
+      "namaproduk": "ALLOPURINOL 300MG TAB"
+    },
+    {
+      "namaproduk": "ALPRAZOLAM 0.5 MG TAB"
+    },
+    {
+      "namaproduk": "AMBROXOL 15MG/5ML SYRUP"
+    },
+    {
+      "namaproduk": "AMBROXOL 30MG TAB"
+    },
+    {
+      "namaproduk": "AMIKACIN 250MG/ML INJ"
+    },
+    {
+      "namaproduk": "AMINOPHYLLINE 24MG/ML INJ"
+    },
+    {
+      "namaproduk": "AMINOSTERIL INFANT 10%"
+    },
+    {
+      "namaproduk": "AMIODARONE 150MG INJ"
+    },
+    {
+      "namaproduk": "AMITRIPTILLINE TAB 25 MG"
+    },
+    {
+      "namaproduk": "AMLODIPINE 10MG TAB"
+    },
+    {
+      "namaproduk": "AMLODIPINE 5MG TAB"
+    },
+    {
+      "namaproduk": "AMOXICILIN 500MG TAB"
+    },
+    {
+      "namaproduk": "AMOXICILLIN 100MG/ML DROP"
+    },
+    {
+      "namaproduk": "AMOXICILLIN 125 MG/ML SYRUP"
+    },
+    {
+      "namaproduk": "AMPICILIN 1GR INJ"
+    },
+    {
+      "namaproduk": "AMVAR 500MG TAB"
+    },
+    {
+      "namaproduk": "ANTASIDA DOEN 60ML SYRUP"
+    },
+    {
+      "namaproduk": "ANTASIDA DOEN TAB"
+    },
+    {
+      "namaproduk": "ANTI HEMOROID SUPPO"
+    },
+    {
+      "namaproduk": "APIALYS 100ML SYRUP"
+    },
+    {
+      "namaproduk": "APIALYS 10ML DROP"
+    },
+    {
+      "namaproduk": "APPENDECTOMY DRAPE"
+    },
+    {
+      "namaproduk": "APRON DISPOSABLE"
+    },
+    {
+      "namaproduk": "AQUADEST"
+    },
+    {
+      "namaproduk": "ARICEPT 10MG TAB"
+    },
+    {
+      "namaproduk": "ARIPIPRAZOLE 10 MG TAB"
+    },
+    {
+      "namaproduk": "ARKINE TAB"
+    },
+    {
+      "namaproduk": "ARM SLING L"
+    },
+    {
+      "namaproduk": "ARM SLING M"
+    },
+    {
+      "namaproduk": "ARM SLING S"
+    },
+    {
+      "namaproduk": "ARSITAM 500 (ETHAMBUTOL)"
+    },
+    {
+      "namaproduk": "ASAM BENZOAT"
+    },
+    {
+      "namaproduk": "ASAM FOLAT 1 MG"
+    },
+    {
+      "namaproduk": "ASAM FOLAT 400MCG TAB"
+    },
+    {
+      "namaproduk": "ASAM MEFENAMAT 500MG TAB"
+    },
+    {
+      "namaproduk": "ASAM SALISILAT 1 GR (BMHP)"
+    },
+    {
+      "namaproduk": "ASAM TRANEKSAMAT 500MG INJ"
+    },
+    {
+      "namaproduk": "ASAM TRANEKSAMAT 500MG TAB"
+    },
+    {
+      "namaproduk": "ASAM VALPROAT 250MG/5ML SYRUP"
+    },
+    {
+      "namaproduk": "ATORVASTATIN 20MG TAB"
+    },
+    {
+      "namaproduk": "ATRACURIUM BESILATE 50MG INJ"
+    },
+    {
+      "namaproduk": "ATROPIN SULFAT 0,25MG INJ"
+    },
+    {
+      "namaproduk": "AZITHROMYCIN 200MG/5ML SYRUP"
+    },
+    {
+      "namaproduk": "AZITHROMYCIN 500MG TAB RS"
+    },
+    {
+      "namaproduk": "BEROTEC 100MCG INHALER"
+    },
+    {
+      "namaproduk": "BETADINE OBAT KUMUR 190 ML"
+    },
+    {
+      "namaproduk": "BETAHISTIN 6MG TAB"
+    },
+    {
+      "namaproduk": "BETAHISTINE 24MG TAB"
+    },
+    {
+      "namaproduk": "BETAMETASONE 0,1% SK @5GR"
+    },
+    {
+      "namaproduk": "BIOSAVE 5ML INJ"
+    },
+    {
+      "namaproduk": "BISOPROLOL 1,25 MG"
+    },
+    {
+      "namaproduk": "BISOPROLOL 2.5MG TAB"
+    },
+    {
+      "namaproduk": "BISTURI NO. 23"
+    },
+    {
+      "namaproduk": "BLOOD TRANSFUSION SET"
+    },
+    {
+      "namaproduk": "BRICLOT 90 MG TAB ( TICAGRELOR )"
+    },
+    {
+      "namaproduk": "BUDESMA (BUDESONIDE 0,5 MG/ML)"
+    },
+    {
+      "namaproduk": "CAESAR DRAPE 2100 X 2900"
+    },
+    {
+      "namaproduk": "CALCIUM CARBONATE 500MG TAB"
+    },
+    {
+      "namaproduk": "CALCIUM GLUCONAS INJ @10ML"
+    },
+    {
+      "namaproduk": "CALCIUM LACTATE 500MG TAB"
+    },
+    {
+      "namaproduk": "CANDESARTAN 16MG TAB"
+    },
+    {
+      "namaproduk": "CANDESARTAN 8MG TAB"
+    },
+    {
+      "namaproduk": "CAPTOPRIL 25MG TAB"
+    },
+    {
+      "namaproduk": "CARBAMAZEPIN 200MG TAB"
+    },
+    {
+      "namaproduk": "CARNIT INJ 1 MG/ML (GLYCERYL TRINITRATE)"
+    },
+    {
+      "namaproduk": "CATGUT CHROMIC 0 HR 36 90CM"
+    },
+    {
+      "namaproduk": "Catgut Chromic 3/0 HR 26"
+    },
+    {
+      "namaproduk": "CATGUT CHROMIC 4/0 HR 20"
+    },
+    {
+      "namaproduk": "CEFADROXIL CAPS 500 MG"
+    },
+    {
+      "namaproduk": "CEFADROXYL 125MG/5ML SYRUP"
+    },
+    {
+      "namaproduk": "CEFAZOLIN SODIUM 1GR INJ"
+    },
+    {
+      "namaproduk": "CEFIXIME 100MG KAPS"
+    },
+    {
+      "namaproduk": "CEFIXIME 100MG/5ML SYRUP"
+    },
+    {
+      "namaproduk": "CEFIXIME 200MG KAPS"
+    },
+    {
+      "namaproduk": "CEFOTAXIME 1GR INJ"
+    },
+    {
+      "namaproduk": "CEFTAZIDIME 1GR INJ"
+    },
+    {
+      "namaproduk": "CEFTRIAXONE 1GR INJ"
+    },
+    {
+      "namaproduk": "CENDO ASTHENOF 5ML TM"
+    },
+    {
+      "namaproduk": "CENDO CENFRESH MINIDOSE"
+    },
+    {
+      "namaproduk": "CENDO CONVER 2% 15ML TM"
+    },
+    {
+      "namaproduk": "CENDO PANTOCAIN 0,5%/5ML"
+    },
+    {
+      "namaproduk": "CENDO TROPIN 0,5 % 5 ML"
+    },
+    {
+      "namaproduk": "CENDO XITROL 5 ML"
+    },
+    {
+      "namaproduk": "CENDO XITROL EO @3,5 GR"
+    },
+    {
+      "namaproduk": "CEPEZET 100 MG TAB"
+    },
+    {
+      "namaproduk": "CERVICAL COLLAR L"
+    },
+    {
+      "namaproduk": "CERVICAL COLLAR M"
+    },
+    {
+      "namaproduk": "CERVICAL COLLAR S"
+    },
+    {
+      "namaproduk": "CETIRIZINE 10MG TAB"
+    },
+    {
+      "namaproduk": "CETIRIZINE 5MG/5ML SYRUP"
+    },
+    {
+      "namaproduk": "CHLORPHENIRAMINE MALEATE TAB 4 MG"
+    },
+    {
+      "namaproduk": "CHLORPROMAZINE HCL 100MG TAB"
+    },
+    {
+      "namaproduk": "CHROMIC 2/0 90 CM, 36 MM"
+    },
+    {
+      "namaproduk": "CHROMIC 4/0 HR 22 76 CM"
+    },
+    {
+      "namaproduk": "CIPROFLOXACIN 2MG/ML @ 100ML INFUS"
+    },
+    {
+      "namaproduk": "CIPROFLOXACIN 500MG TAB"
+    },
+    {
+      "namaproduk": "CITICHOLINE 500MG INJ"
+    },
+    {
+      "namaproduk": "CITICHOLINE 500MG TAB"
+    },
+    {
+      "namaproduk": "CLINDAMYCINE 300MG TAB"
+    },
+    {
+      "namaproduk": "CLOBAZAM 10MG TAB"
+    },
+    {
+      "namaproduk": "CLOPIDOGREL 75MG TAB"
+    },
+    {
+      "namaproduk": "CLOSE SUCTION CATHETER FR. 12"
+    },
+    {
+      "namaproduk": "CLOZAPIN 25MG TAB"
+    },
+    {
+      "namaproduk": "CLOZAPINE 100MG TAB"
+    },
+    {
+      "namaproduk": "CO AMOXICLAV KAP 625 MG TAB"
+    },
+    {
+      "namaproduk": "CODEIN 10MG TAB"
+    },
+    {
+      "namaproduk": "CODEIN 20 MG"
+    },
+    {
+      "namaproduk": "COLCHICINE 0.5MG TAB"
+    },
+    {
+      "namaproduk": "COMBIVENT 2,5 ML NEBU"
+    },
+    {
+      "namaproduk": "CONCOR 1,25MG TAB"
+    },
+    {
+      "namaproduk": "COTTON BUD"
+    },
+    {
+      "namaproduk": "CURCUMA FCT TAB"
+    },
+    {
+      "namaproduk": "CURVIPLEX SYR"
+    },
+    {
+      "namaproduk": "CUTICELL 10cm x 10cm"
+    },
+    {
+      "namaproduk": "CVC 3 LUMEN FR 7"
+    },
+    {
+      "namaproduk": "CVC SET 2 LUMEN 4 FR"
+    },
+    {
+      "namaproduk": "CVC SET 2 LUMEN 5 FR"
+    },
+    {
+      "namaproduk": "D10% 500ML INFUS"
+    },
+    {
+      "namaproduk": "D5 1/2% 500ML INFUS"
+    },
+    {
+      "namaproduk": "D5 1/4% 500ML INFUS"
+    },
+    {
+      "namaproduk": "D5% 500ML INFUS"
+    },
+    {
+      "namaproduk": "DAILY C 500 (VITAMIN C ) 500MG TAB"
+    },
+    {
+      "namaproduk": "DELTA DRY 4\""
+    },
+    {
+      "namaproduk": "DELTA LITE PLUS DEEP GREEN 4\" ( 10 CM X 3,6 M)"
+    },
+    {
+      "namaproduk": "DESOXIMETASONE @15GR SALEP"
+    },
+    {
+      "namaproduk": "DEXAMETHASONE 0,5MG TAB"
+    },
+    {
+      "namaproduk": "DEXAMETHASONE 5MG/ML INJ"
+    },
+    {
+      "namaproduk": "DIAZEPAM 10MG/2.5ML RECTAL"
+    },
+    {
+      "namaproduk": "DIAZEPAM 2MG TAB"
+    },
+    {
+      "namaproduk": "DIAZEPAM 5MG/2,5ML RECTAL"
+    },
+    {
+      "namaproduk": "DIAZEPAM 5MG/ML INJ"
+    },
+    {
+      "namaproduk": "DIGOXIN 0,25MG INJ"
+    },
+    {
+      "namaproduk": "DIGOXIN 0,25MG TAB"
+    },
+    {
+      "namaproduk": "DILATAMOL (SALBUTAMOL INHALASI)"
+    },
+    {
+      "namaproduk": "DIMENHYDRINAT 50MG TAB"
+    },
+    {
+      "namaproduk": "DIPHENHYDRAMIN 10MG INJ"
+    },
+    {
+      "namaproduk": "DIVALPROEX SODIUM 250MG TAB"
+    },
+    {
+      "namaproduk": "DOBUTAMIN 250 MG/5 ML INJ"
+    },
+    {
+      "namaproduk": "DOHIXAT ( DOXYCYCLINE ) 100MG KAPS"
+    },
+    {
+      "namaproduk": "DOMPERIDONE 10MG TAB"
+    },
+    {
+      "namaproduk": "DOMPERIDONE 5MG/5ML SYRUP"
+    },
+    {
+      "namaproduk": "DOPAMET 250MG TAB"
+    },
+    {
+      "namaproduk": "DOPAMINE 200MG/5ML INJ"
+    },
+    {
+      "namaproduk": "DOUBLE SPIKE ( TRANSOFIX)"
+    },
+    {
+      "namaproduk": "E CARE FLIM IV DRESSING 6X7 CM P"
+    },
+    {
+      "namaproduk": "Elastomull Haft 8cmx4m"
+    },
+    {
+      "namaproduk": "ELECTRO SURGICAL PENCIL"
+    },
+    {
+      "namaproduk": "ELEKTRODA ECG"
+    },
+    {
+      "namaproduk": "EPHEDRIN 50MG/ML INJ"
+    },
+    {
+      "namaproduk": "EPINEPHRINE 0.1% INJ"
+    },
+    {
+      "namaproduk": "ERDOSTEINE 300MG TAB"
+    },
+    {
+      "namaproduk": "ERLAMOL DROPS (PARACETAMOL)"
+    },
+    {
+      "namaproduk": "ERYTHROMYCIN 500MG TAB"
+    },
+    {
+      "namaproduk": "ESCITALOPRAM 10 MG TAB"
+    },
+    {
+      "namaproduk": "ESILGAN 1MG TAB"
+    },
+    {
+      "namaproduk": "ETIRO-N 5 MG (NORETHISTERONE)"
+    },
+    {
+      "namaproduk": "ETT NO. 2,5 UNCUFF"
+    },
+    {
+      "namaproduk": "ETT NO. 3.5 UNCUFF"
+    },
+    {
+      "namaproduk": "ETT NO. 4,5"
+    },
+    {
+      "namaproduk": "ETT NO. 5.5"
+    },
+    {
+      "namaproduk": "ETT NO. 6"
+    },
+    {
+      "namaproduk": "ETT NO. 6,5"
+    },
+    {
+      "namaproduk": "ETT NO. 7"
+    },
+    {
+      "namaproduk": "ETT NO. 7,5"
+    },
+    {
+      "namaproduk": "EUTHYROX 50MCG TAB"
+    },
+    {
+      "namaproduk": "EXTENTION TUBE 150 CM ONEMED"
+    },
+    {
+      "namaproduk": "EYE DRAPE 100 X 80 CM"
+    },
+    {
+      "namaproduk": "Eye Shield"
+    },
+    {
+      "namaproduk": "FARIZOL 125MG/5ML SYR (METRONIDAZOLE )"
+    },
+    {
+      "namaproduk": "FARMABES 5MG/ML @5 ML (DILITIAZEM HCL)"
+    },
+    {
+      "namaproduk": "FAVIPIRAVIR 200MG TAB"
+    },
+    {
+      "namaproduk": "FEEDING TUBE NO 8 (40CM)"
+    },
+    {
+      "namaproduk": "FENOFIBRATE 100 MG TAB"
+    },
+    {
+      "namaproduk": "FENOFIBRATE 300 MG TAB"
+    },
+    {
+      "namaproduk": "FENTANYL 0,05MG/2ML INJ"
+    },
+    {
+      "namaproduk": "FERRIZ 100ML SYRUP"
+    },
+    {
+      "namaproduk": "FERVIT DROPS"
+    },
+    {
+      "namaproduk": "FG TROCHES TAB"
+    },
+    {
+      "namaproduk": "FIBRION 1.500.000 IU INJ"
+    },
+    {
+      "namaproduk": "FITOMENADION TAB DINKES @10MG"
+    },
+    {
+      "namaproduk": "FLAMAR TM @1MG"
+    },
+    {
+      "namaproduk": "FLASH IV CATHETER NO.26"
+    },
+    {
+      "namaproduk": "FLUCONAZOLE 200MG/100ML INFUS"
+    },
+    {
+      "namaproduk": "FLUOROCELL WDF"
+    },
+    {
+      "namaproduk": "FLUOXETINE HCL 20MG TAB"
+    },
+    {
+      "namaproduk": "FOLLEY CATHETER 2 WAY Fr. 14"
+    },
+    {
+      "namaproduk": "FOLLEY CATHETER 2 way Fr. 16"
+    },
+    {
+      "namaproduk": "FOLLEY CATHETER 2 WAY NO 18"
+    },
+    {
+      "namaproduk": "FOLLEY CATHETER 2 WAY NO. 6"
+    },
+    {
+      "namaproduk": "FOLLEY CATHETER 2 Way NO. 8"
+    },
+    {
+      "namaproduk": "FOLLEY CATHETER NO 10"
+    },
+    {
+      "namaproduk": "FONDAPARINUX SODIUM 2.5MG/0.5 ML INJ"
+    },
+    {
+      "namaproduk": "FONYLIN MR 60 MG TAB"
+    },
+    {
+      "namaproduk": "FORMALIN 100 ml"
+    },
+    {
+      "namaproduk": "FORUMEN EAR DROP @5MG"
+    },
+    {
+      "namaproduk": "FUKRICIN 5% TM @5ML"
+    },
+    {
+      "namaproduk": "FURAMIN 10ML INJ"
+    },
+    {
+      "namaproduk": "FUROSEMIDE 10MG/ML INJ"
+    },
+    {
+      "namaproduk": "FUROSEMIDE 40MG TAB"
+    },
+    {
+      "namaproduk": "FUTROLIT 500ML INFUS"
+    },
+    {
+      "namaproduk": "GABAPENTIN 100MG KAPS"
+    },
+    {
+      "namaproduk": "GAMMEX NO 7,5"
+    },
+    {
+      "namaproduk": "GAMMEX NO.7"
+    },
+    {
+      "namaproduk": "GASTRUL 200MG TAB"
+    },
+    {
+      "namaproduk": "GELAFUSAL 500ML INFUS"
+    },
+    {
+      "namaproduk": "GENOINT 0,3% SALEP MATA @3,5 GR"
+    },
+    {
+      "namaproduk": "GENOINT TETES MATA 0,3 % 5 ML"
+    },
+    {
+      "namaproduk": "GENTAMICIN 0,1% SK @5GR"
+    },
+    {
+      "namaproduk": "GENTAMICIN 40 MG/ML INJ"
+    },
+    {
+      "namaproduk": "GLAUSETA 250MG TAB"
+    },
+    {
+      "namaproduk": "GLIMEPIRIDE 1MG TAB"
+    },
+    {
+      "namaproduk": "GLIMEPIRIDE 2MG TAB"
+    },
+    {
+      "namaproduk": "GLIQUIDONE 30MG TAB"
+    },
+    {
+      "namaproduk": "GUEDEL 40 MM"
+    },
+    {
+      "namaproduk": "GUEDEL 60 MM"
+    },
+    {
+      "namaproduk": "GUEDEL 70 MM"
+    },
+    {
+      "namaproduk": "GUEDEL 80 MM"
+    },
+    {
+      "namaproduk": "GUEDEL AIRWAY 90MM"
+    },
+    {
+      "namaproduk": "GUEDEL NO 4 100 MM"
+    },
+    {
+      "namaproduk": "GYPSONA 3 (3.5M x 7,5 cm)"
+    },
+    {
+      "namaproduk": "GYPSONA 4 (3.5M x 10 cm)"
+    },
+    {
+      "namaproduk": "GYPSONA 6 (3.5M x 15 cm)"
+    },
+    {
+      "namaproduk": "HALOPERIDOL 5 MG TAB"
+    },
+    {
+      "namaproduk": "HALOPERIDOL INJ DINKES"
+    },
+    {
+      "namaproduk": "Hazmat"
+    },
+    {
+      "namaproduk": "HB VIT TAB"
+    },
+    {
+      "namaproduk": "HEPAGUSAN 25.000 IU INJ"
+    },
+    {
+      "namaproduk": "HUMAN ALBUMIN BEHRING 20% @100ML (DEXA)"
+    },
+    {
+      "namaproduk": "HYALOPH 5ML TM"
+    },
+    {
+      "namaproduk": "HYDROCHLOROTHIAZIDE 25MG TABLET"
+    },
+    {
+      "namaproduk": "HYDROCORTISONE 2.5% 5gr SK"
+    },
+    {
+      "namaproduk": "HYOSCINE BUTYLBROMIDE INJ 20MG/ML"
+    },
+    {
+      "namaproduk": "HYSON 100MG INJ"
+    },
+    {
+      "namaproduk": "HYTROZ 2 MG"
+    },
+    {
+      "namaproduk": "IBUPROFEN 100MG/5 ML SYRUP"
+    },
+    {
+      "namaproduk": "IBUPROFEN 400MG TAB"
+    },
+    {
+      "namaproduk": "INFUS PLASBUMIN 20% @100ML (ALBUMIN)"
+    },
+    {
+      "namaproduk": "INFUSET ANAK"
+    },
+    {
+      "namaproduk": "INFUSION SET DEWASA TYPE - Y"
+    },
+    {
+      "namaproduk": "INTUBATION STYLET 12 FR (4,0 mm)"
+    },
+    {
+      "namaproduk": "INTUBATION STYLET 15 FR (5,0mm)"
+    },
+    {
+      "namaproduk": "IO-BLUE 1 ml"
+    },
+    {
+      "namaproduk": "ISONIAZID 100MG TAB"
+    },
+    {
+      "namaproduk": "ISONIAZID 300MG TAB"
+    },
+    {
+      "namaproduk": "ISOSORBIDE DINITRAT 5MG TAB"
+    },
+    {
+      "namaproduk": "JAM STERILE WATER FOR INHALATION 350 ML"
+    },
+    {
+      "namaproduk": "KAEN 3B 500ML INFUS"
+    },
+    {
+      "namaproduk": "KAPAS LIDI"
+    },
+    {
+      "namaproduk": "KAPSUL KOSONG 0"
+    },
+    {
+      "namaproduk": "KAPSUL KOSONG 00"
+    },
+    {
+      "namaproduk": "KASA 16x16"
+    },
+    {
+      "namaproduk": "KASA 4 X10"
+    },
+    {
+      "namaproduk": "KCL 7,46% INJ"
+    },
+    {
+      "namaproduk": "KERTAS ENDO 210 X 25 MM"
+    },
+    {
+      "namaproduk": "KERTAS PUYER PERKAMEN"
+    },
+    {
+      "namaproduk": "KERTAS PUYER SACHET"
+    },
+    {
+      "namaproduk": "KETAMIN 50MG/ML INJ @10ML"
+    },
+    {
+      "namaproduk": "KETO-G TAB"
+    },
+    {
+      "namaproduk": "KETOCONAZOLE 2% @10GR SK"
+    },
+    {
+      "namaproduk": "KETOKONAZOLE 200MG TAB"
+    },
+    {
+      "namaproduk": "KETOROLAC 30MG INJ"
+    },
+    {
+      "namaproduk": "KOMPOLAX EMULSI SYR"
+    },
+    {
+      "namaproduk": "KONDOM CATHETER UK. L"
+    },
+    {
+      "namaproduk": "KONDOM CATHETER UK. M"
+    },
+    {
+      "namaproduk": "KONDOM CATHETER UK. S"
+    },
+    {
+      "namaproduk": "KSR 600MG TAB"
+    },
+    {
+      "namaproduk": "KUTOIN 100MG INJ"
+    },
+    {
+      "namaproduk": "L-BIO SACHET"
+    },
+    {
+      "namaproduk": "LACTULOSA 10MG/5ML SYRUP"
+    },
+    {
+      "namaproduk": "LANOLIN"
+    },
+    {
+      "namaproduk": "LANSOPRAZOLE 30MG KAPS"
+    },
+    {
+      "namaproduk": "LAPIFED 60ML SYRUP"
+    },
+    {
+      "namaproduk": "LAPIFED DM 100ML SYRUP"
+    },
+    {
+      "namaproduk": "LAPIFED EKSPEKTORAN 60ML SYRUP"
+    },
+    {
+      "namaproduk": "LERZIN 10MG/ML DROPS (CETIRIZINE HCL)"
+    },
+    {
+      "namaproduk": "LEVEMIR FLEXPEN"
+    },
+    {
+      "namaproduk": "LEVOFLOXACIN 500MG INFUS"
+    },
+    {
+      "namaproduk": "LEVOFLOXACIN 500MG TAB"
+    },
+    {
+      "namaproduk": "LIDOCAIN 2% INJ"
+    },
+    {
+      "namaproduk": "LMA 2"
+    },
+    {
+      "namaproduk": "LMA 2,5"
+    },
+    {
+      "namaproduk": "LMA 4"
+    },
+    {
+      "namaproduk": "LOPERAMIDE 2MG TAB"
+    },
+    {
+      "namaproduk": "LORATADIN 10MG TAB"
+    },
+    {
+      "namaproduk": "LORAZEPAM 2MG TAB"
+    },
+    {
+      "namaproduk": "MANITOL 500ML INFUS"
+    },
+    {
+      "namaproduk": "MASKER EARLOOP"
+    },
+    {
+      "namaproduk": "MASKER HIJAB"
+    },
+    {
+      "namaproduk": "MASKER NEBULIZER ANAK"
+    },
+    {
+      "namaproduk": "MASKER NEBULIZER BAYI"
+    },
+    {
+      "namaproduk": "MASKER NEBULIZER DEWASA"
+    },
+    {
+      "namaproduk": "MASKER NONREBREATHER ADULT"
+    },
+    {
+      "namaproduk": "MASKER NONREBREATHER CHILD"
+    },
+    {
+      "namaproduk": "MASKER OXYGEN ANAK"
+    },
+    {
+      "namaproduk": "MASKER OXYGEN BAYI"
+    },
+    {
+      "namaproduk": "MASKER OXYGEN DEWASA"
+    },
+    {
+      "namaproduk": "MECOBALAMIN 500MikroG INJ"
+    },
+    {
+      "namaproduk": "MECOBALAMIN KAPS"
+    },
+    {
+      "namaproduk": "MEGABAL 500MG KAPS"
+    },
+    {
+      "namaproduk": "MELOXICAM 15MG TAB"
+    },
+    {
+      "namaproduk": "MELOXICAM 7,5MG TAB"
+    },
+    {
+      "namaproduk": "MEROPENEM 1GR INJ"
+    },
+    {
+      "namaproduk": "MESTINON 60 MG"
+    },
+    {
+      "namaproduk": "METAMIZOLE 1GR INJ"
+    },
+    {
+      "namaproduk": "METFORMIN 500 MG TAB"
+    },
+    {
+      "namaproduk": "METHYLERGOMETRINE 0.125 MG TAB"
+    },
+    {
+      "namaproduk": "METHYLERGOMETRINE 0.2MG/ML INJ"
+    },
+    {
+      "namaproduk": "METHYLPREDNISOLONE 125MG INJ"
+    },
+    {
+      "namaproduk": "METHYLPREDNISOLONE 16MG TAB"
+    },
+    {
+      "namaproduk": "METHYLPREDNISOLONE 4MG TAB"
+    },
+    {
+      "namaproduk": "METHYLPREDNISOLONE 8MG TAB"
+    },
+    {
+      "namaproduk": "METOCLOPRAMIDE HCL 10MG INJ"
+    },
+    {
+      "namaproduk": "METRONIDAZOLE 500 MG TAB"
+    },
+    {
+      "namaproduk": "METRONIDAZOLE 500MG/100ML INFUS"
+    },
+    {
+      "namaproduk": "MEYLON 8,4% INJ"
+    },
+    {
+      "namaproduk": "MF CATH. 18"
+    },
+    {
+      "namaproduk": "MGSO4 20% INJ"
+    },
+    {
+      "namaproduk": "MGSO4 40% INJ"
+    },
+    {
+      "namaproduk": "MICONAZOLE 2% SK @10GR"
+    },
+    {
+      "namaproduk": "MICROGEST 100MG KAPS"
+    },
+    {
+      "namaproduk": "MICROGEST 200MG TAB"
+    },
+    {
+      "namaproduk": "MIDAZOLAM 1mg/ml @5ml INJ"
+    },
+    {
+      "namaproduk": "MILOZ 5MG INJ"
+    },
+    {
+      "namaproduk": "MMB PLATE 7 HOLE"
+    },
+    {
+      "namaproduk": "MMB PLATE 9 HOLE"
+    },
+    {
+      "namaproduk": "MOCUS EXTRACTOR"
+    },
+    {
+      "namaproduk": "MODEXA 0.05% NASAL SPRAY"
+    },
+    {
+      "namaproduk": "MORFIKAF-SR 10MG TAB (MORPHINE SULFATE PENTAHYDRATE)"
+    },
+    {
+      "namaproduk": "MORFINA 10MG/ML INJ"
+    },
+    {
+      "namaproduk": "MOXIFLOXACIN 400MG/250ML INFUS"
+    },
+    {
+      "namaproduk": "MULTY CONDYLAR 6 KIRI"
+    },
+    {
+      "namaproduk": "multy condylar plate 5L"
+    },
+    {
+      "namaproduk": "multy condylar plate 5R"
+    },
+    {
+      "namaproduk": "multy condylar plate 6R"
+    },
+    {
+      "namaproduk": "multy condylar plate 7L"
+    },
+    {
+      "namaproduk": "multy condylar plate 7R"
+    },
+    {
+      "namaproduk": "MUPIROCIN 2% SALEP @10GR"
+    },
+    {
+      "namaproduk": "NACL 0,9% 500ML INFUS"
+    },
+    {
+      "namaproduk": "NAIRET INJ (TERBUTALINE SULFATE 0.5 MG/ML)"
+    },
+    {
+      "namaproduk": "NARROW PLATE 6 HOLE"
+    },
+    {
+      "namaproduk": "NARROW PLATE L16"
+    },
+    {
+      "namaproduk": "NARROW PLATE L7"
+    },
+    {
+      "namaproduk": "NARROW PLATE L8"
+    },
+    {
+      "namaproduk": "NARROW PLATE L9"
+    },
+    {
+      "namaproduk": "NASAL CANNULA ADULT"
+    },
+    {
+      "namaproduk": "NASAL CANNULA ANAK"
+    },
+    {
+      "namaproduk": "NASAL CANNULA BAYI"
+    },
+    {
+      "namaproduk": "NATRIUM BICARBONAT TAB"
+    },
+    {
+      "namaproduk": "NATRIUM DIKLOFENAK 25MG TAB"
+    },
+    {
+      "namaproduk": "NATRIUM DIKLOFENAK 50MG TAB"
+    },
+    {
+      "namaproduk": "NEBACETIN 5GR POWDER"
+    },
+    {
+      "namaproduk": "NEOSTIGMIN 0,5MG/ML INJ"
+    },
+    {
+      "namaproduk": "NEUROSANBE DUAL INJ @3ML"
+    },
+    {
+      "namaproduk": "NGT 14"
+    },
+    {
+      "namaproduk": "NGT No 10 JMS"
+    },
+    {
+      "namaproduk": "NGT No 12"
+    },
+    {
+      "namaproduk": "NGT No 16"
+    },
+    {
+      "namaproduk": "NGT NO. 3,5"
+    },
+    {
+      "namaproduk": "NGT NO. 8 (100)"
+    },
+    {
+      "namaproduk": "NGT NO. 8 40 cm"
+    },
+    {
+      "namaproduk": "NGT NO.18"
+    },
+    {
+      "namaproduk": "NGT NO.5 (40)"
+    },
+    {
+      "namaproduk": "NICARDIPINE HCl 10MG INJ"
+    },
+    {
+      "namaproduk": "NIFEDIPIN 10MG TAB"
+    },
+    {
+      "namaproduk": "NISAGON CREAM (BETAMETHASONE - NEOMYCIN SULFATE)"
+    },
+    {
+      "namaproduk": "NISTATIN DROP 10 @ 12ml"
+    },
+    {
+      "namaproduk": "NITROKAF RETARD 2,5 MG KAPS(NITROGLYCERIN)"
+    },
+    {
+      "namaproduk": "NO PAIN SPRAY"
+    },
+    {
+      "namaproduk": "NONEMI TAB"
+    },
+    {
+      "namaproduk": "NORAGES INJ 2ML"
+    },
+    {
+      "namaproduk": "NORELUT 5MG TAB"
+    },
+    {
+      "namaproduk": "NOREPINEPHRINE 4MG INJ"
+    },
+    {
+      "namaproduk": "NORPHAGEN INJ @20ML"
+    },
+    {
+      "namaproduk": "NORVOM 10MG (METOCLORPRAMID)"
+    },
+    {
+      "namaproduk": "NOSPIRINAL 80MG TAB (ASETOSAL)"
+    },
+    {
+      "namaproduk": "NOVORAPID FLEXPEN"
+    },
+    {
+      "namaproduk": "NS 100ML INFUS"
+    },
+    {
+      "namaproduk": "NURSE CAP"
+    },
+    {
+      "namaproduk": "NYSTATIN 100 MG/ML DROP"
+    },
+    {
+      "namaproduk": "OBAT ANTI MALARIA DINKES (DHP)"
+    },
+    {
+      "namaproduk": "OCUFRESH TM"
+    },
+    {
+      "namaproduk": "OFLOXACIN 400MG TAB"
+    },
+    {
+      "namaproduk": "OMEDRINAT TAB 50MG (DIMENHYDRINAT)"
+    },
+    {
+      "namaproduk": "OMEPRAZOLE INJ 40MG"
+    },
+    {
+      "namaproduk": "ONDANCETRON 4 MG TAB"
+    },
+    {
+      "namaproduk": "ONDANCETRON 4MG/2ML INJ"
+    },
+    {
+      "namaproduk": "ONDANCETRON 8MG INJ"
+    },
+    {
+      "namaproduk": "ONOIWA 500MG KAPSUL"
+    },
+    {
+      "namaproduk": "OPTALVIT 60ML SYR"
+    },
+    {
+      "namaproduk": "ORALIT SACHET"
+    },
+    {
+      "namaproduk": "OTILON TETES TELINGA"
+    },
+    {
+      "namaproduk": "OTSU D40 25ML INJ"
+    },
+    {
+      "namaproduk": "OTSU SALIN 3% 500ML INFUS"
+    },
+    {
+      "namaproduk": "OXYTOCIN 10IU/ML INJ"
+    },
+    {
+      "namaproduk": "PAMOL 125MG SUPPO"
+    },
+    {
+      "namaproduk": "PAMOL 250MG SUPPO"
+    },
+    {
+      "namaproduk": "PANTOPRAZOLE INJ 40 MG"
+    },
+    {
+      "namaproduk": "PARACETAMOL 100ML INFUS"
+    },
+    {
+      "namaproduk": "PARACETAMOL 120MG/5ML SYRUP"
+    },
+    {
+      "namaproduk": "PARACETAMOL 500MG TAB"
+    },
+    {
+      "namaproduk": "PEN NEEDLE 32G x 4mm"
+    },
+    {
+      "namaproduk": "PERMETHRIN 5% 10GR CREAM"
+    },
+    {
+      "namaproduk": "PETHIDIN 50MG/ML @2ML INJ"
+    },
+    {
+      "namaproduk": "PHENOBARBITAL 30MG TAB"
+    },
+    {
+      "namaproduk": "PHENOBARBITAL 50MG/ML INJ"
+    },
+    {
+      "namaproduk": "PHENYTOIN 100MG KAPS"
+    },
+    {
+      "namaproduk": "PHENYTOIN SODIUM 50MG/ML INJ"
+    },
+    {
+      "namaproduk": "PHYTOMENADION 2MG INJ"
+    },
+    {
+      "namaproduk": "PICYN 750MG INJ"
+    },
+    {
+      "namaproduk": "PIOGLITAZONE 15MG TAB"
+    },
+    {
+      "namaproduk": "PIRACETAM 1200MG TAB"
+    },
+    {
+      "namaproduk": "PIRACETAM 3GR INJ"
+    },
+    {
+      "namaproduk": "PIRACETAM 800MG TAB"
+    },
+    {
+      "namaproduk": "PLAIN 0"
+    },
+    {
+      "namaproduk": "PLASTIK BESAR"
+    },
+    {
+      "namaproduk": "PLASTIK KECIL"
+    },
+    {
+      "namaproduk": "PLASTIK KLIP 11 X 17"
+    },
+    {
+      "namaproduk": "PLASTIK KLIP 13 X 8,7"
+    },
+    {
+      "namaproduk": "PLASTIK KLIP 5 X 8"
+    },
+    {
+      "namaproduk": "PLASTIK KLIP 7 X 10"
+    },
+    {
+      "namaproduk": "POLIBAN 10 CM X 2,7 M"
+    },
+    {
+      "namaproduk": "POLIBAN 15 CM X 2,7 M"
+    },
+    {
+      "namaproduk": "POLIBAN 7,5 cm X 2,7 m"
+    },
+    {
+      "namaproduk": "POLICREPE 4 (10cm x 4.55m)"
+    },
+    {
+      "namaproduk": "POLICREPE 6 (15cm x 4.55m)"
+    },
+    {
+      "namaproduk": "POLICREPE 7,5 cm x 4,55 m"
+    },
+    {
+      "namaproduk": "POLIDEMISIN SANBE TM"
+    },
+    {
+      "namaproduk": "POLIFIX 15cm x 5m"
+    },
+    {
+      "namaproduk": "POT URINE NON STERIL ONEMED"
+    },
+    {
+      "namaproduk": "PRECOPAR 500ML INFUS"
+    },
+    {
+      "namaproduk": "PREDNISONE 5MG TAB"
+    },
+    {
+      "namaproduk": "PREGABALIN 75MG TAB"
+    },
+    {
+      "namaproduk": "PRIMAQUINE 15MG TAB DINKES"
+    },
+    {
+      "namaproduk": "PROANES 1% 20ML INJ (PROPOFOL)"
+    },
+    {
+      "namaproduk": "PROPRANOLOL 10MG TAB"
+    },
+    {
+      "namaproduk": "PROPYLTHIOURACIL (PTU) 100MG TAB"
+    },
+    {
+      "namaproduk": "PROSEVAL KAPS"
+    },
+    {
+      "namaproduk": "PROTAGENTA 0,6 Ml MINIDOSE"
+    },
+    {
+      "namaproduk": "PROTOFEN 100MG SUPPO (KETOPROFEN)"
+    },
+    {
+      "namaproduk": "PSEUDOEPHEDRIN DROPS"
+    },
+    {
+      "namaproduk": "PVC UMBILICAL CATHETER 5 FR 37 CM"
+    },
+    {
+      "namaproduk": "PVC UMBILICAL CATHETER FR 3,5"
+    },
+    {
+      "namaproduk": "PYRAZINAMID 500MG TAB"
+    },
+    {
+      "namaproduk": "RABIVAX INJ DINKES"
+    },
+    {
+      "namaproduk": "RAMIPRIL 2,5MG TAB"
+    },
+    {
+      "namaproduk": "RANITIDIN 150MG TAB"
+    },
+    {
+      "namaproduk": "RANITIDIN 25MG/ML INJ"
+    },
+    {
+      "namaproduk": "reconstruction plate straight dia 3,5.6 holes"
+    },
+    {
+      "namaproduk": "reconstruction plate straight dia 3,5.7 holes"
+    },
+    {
+      "namaproduk": "reconstruction plate straight dia 4,5.6 holes"
+    },
+    {
+      "namaproduk": "reconstruction plate straight dia 4,5.7 holes"
+    },
+    {
+      "namaproduk": "reconstruction plate straight dia 4,5.8 holes"
+    },
+    {
+      "namaproduk": "reconstruction plate straight dia 4,5.9 holes"
+    },
+    {
+      "namaproduk": "RELAXON 50MG TABLET (EPERISON)"
+    },
+    {
+      "namaproduk": "RENOSAN 500ML INFUS"
+    },
+    {
+      "namaproduk": "RESTRAIN"
+    },
+    {
+      "namaproduk": "RHINOMAX TAB"
+    },
+    {
+      "namaproduk": "RIFAMPICIN 450MG KAPS"
+    },
+    {
+      "namaproduk": "RIFAMTIBI 450 MG(RIFAMPICIN)"
+    },
+    {
+      "namaproduk": "RING AS 500ML INFUS"
+    },
+    {
+      "namaproduk": "RINGER LAKTAT (RL) 500ML INFUS"
+    },
+    {
+      "namaproduk": "RISPERIDONE 2MG TAB"
+    },
+    {
+      "namaproduk": "ROCURONIUM 10MG/ML INJ"
+    },
+    {
+      "namaproduk": "RYZODEG FLEX TOUCH"
+    },
+    {
+      "namaproduk": "SAGESTAM INJ @2ML"
+    },
+    {
+      "namaproduk": "SAGESTAM TETES MATA/TELINGA STERIL @0,02%"
+    },
+    {
+      "namaproduk": "SALBULIN CANISTER"
+    },
+    {
+      "namaproduk": "SALBUTAMOL 2MG TAB"
+    },
+    {
+      "namaproduk": "SALBUTAMOL 4MG TAB"
+    },
+    {
+      "namaproduk": "SANBE HEST 500ML INFUS"
+    },
+    {
+      "namaproduk": "SANBE TEARS TM"
+    },
+    {
+      "namaproduk": "SANORINE ..0,1% (OBAT KUMUR )"
+    },
+    {
+      "namaproduk": "SARUNG TANGAN STERIL 7"
+    },
+    {
+      "namaproduk": "SARUNG TANGAN STERIL 7.5"
+    },
+    {
+      "namaproduk": "SARUNG TANGAN STERIL 8"
+    },
+    {
+      "namaproduk": "SARUNG TANGAN STERIL FREE POWDER NO 6,5"
+    },
+    {
+      "namaproduk": "SARUNG TANGAN STERIL FREE POWDER NO 7"
+    },
+    {
+      "namaproduk": "Sendok Obat"
+    },
+    {
+      "namaproduk": "SERETIDE DISKUS 100MCG"
+    },
+    {
+      "namaproduk": "SERETIDE DISKUS 250MCG"
+    },
+    {
+      "namaproduk": "SEVOFLURAN BAXTER 250ML INJ"
+    },
+    {
+      "namaproduk": "SIBITAL 200MG/2ML INJ"
+    },
+    {
+      "namaproduk": "Silk 1 Round Bodied 90 cm"
+    },
+    {
+      "namaproduk": "SILK 2/0 76CM"
+    },
+    {
+      "namaproduk": "SILK 3/0 76 CM 25 MM ROUND BODIED"
+    },
+    {
+      "namaproduk": "SILK 4/0 76cm ROUND BODIED 20mm (TRITON)"
+    },
+    {
+      "namaproduk": "SILTERO 20MG (SILDENAFIL)"
+    },
+    {
+      "namaproduk": "SIMFED TAB"
+    },
+    {
+      "namaproduk": "SIMFIX 200MG KAPS"
+    },
+    {
+      "namaproduk": "SIMVASTATIN 20MG TAB"
+    },
+    {
+      "namaproduk": "SKINTACT PAPER EASITAB ( ELEKTRODE ECG KECIL)"
+    },
+    {
+      "namaproduk": "SLIT ANGLED 2,75 MM"
+    },
+    {
+      "namaproduk": "SMALL BONE PLAT A8"
+    },
+    {
+      "namaproduk": "SOFBAN 3 (7,5 cm x 4,55 m)"
+    },
+    {
+      "namaproduk": "SOFBAN 4 (10 cm x 2,7 m)"
+    },
+    {
+      "namaproduk": "SOFBAN 6 (15cm x 2,7m)"
+    },
+    {
+      "namaproduk": "SOLUTION ADM SET FOR PUMP"
+    },
+    {
+      "namaproduk": "SOROQUIN XR 200MG TAB"
+    },
+    {
+      "namaproduk": "SPALK 7 x 100cm"
+    },
+    {
+      "namaproduk": "Spalk 7 x 30CM"
+    },
+    {
+      "namaproduk": "Spalk 7 x 50CM"
+    },
+    {
+      "namaproduk": "SPALK KARET L"
+    },
+    {
+      "namaproduk": "SPALK KARET M"
+    },
+    {
+      "namaproduk": "SPALK KARET S"
+    },
+    {
+      "namaproduk": "SPASMINAL (HYOSCINE-N-BUTYLBROMIDE, PARACETAMOL) 10MG/500MG"
+    },
+    {
+      "namaproduk": "Spinocan 25 G"
+    },
+    {
+      "namaproduk": "SPIOLTO 2,5/2,5 MCG REUSABLE"
+    },
+    {
+      "namaproduk": "SPIRONOLACTONE 25MG TAB"
+    },
+    {
+      "namaproduk": "SPUIT 1 CC"
+    },
+    {
+      "namaproduk": "SPUIT 10 CC"
+    },
+    {
+      "namaproduk": "SPUIT 20 CC LUBANG PINGGIR"
+    },
+    {
+      "namaproduk": "SPUIT 3 CC"
+    },
+    {
+      "namaproduk": "SPUIT 5 CC"
+    },
+    {
+      "namaproduk": "SPUIT 50 CC LUBANG PINGGIR"
+    },
+    {
+      "namaproduk": "SPUIT 50 CC TERUMO LUBANG TENGAH"
+    },
+    {
+      "namaproduk": "SPUIT 60 CC TERUMO LUBANG TENGAH"
+    },
+    {
+      "namaproduk": "STALEVO FCT 100MG TAB"
+    },
+    {
+      "namaproduk": "STELOSI 5MG TAB"
+    },
+    {
+      "namaproduk": "STERIJELL GEL PELUMAS STERIL 12,5 GR"
+    },
+    {
+      "namaproduk": "STOLAX SUPP ( BISACODYL )"
+    },
+    {
+      "namaproduk": "STREPTOMYCIN 1 GR INJ"
+    },
+    {
+      "namaproduk": "STYLET PAHSCO 2.2 MM"
+    },
+    {
+      "namaproduk": "STYLET PAHSCO 3,3 MM"
+    },
+    {
+      "namaproduk": "SUCRALFATE 500MG/5ML SYRUP"
+    },
+    {
+      "namaproduk": "SUCTION CATHETER 14 ONEMED"
+    },
+    {
+      "namaproduk": "SUCTION CATHETER NO 12 (REMEDI)"
+    },
+    {
+      "namaproduk": "SUCTION CATHETER NO 6 REMEDI"
+    },
+    {
+      "namaproduk": "SUCTION CATHETER NO. 10 ONEMED"
+    },
+    {
+      "namaproduk": "SUCTION CATHETER NO. 8 ONEMED"
+    },
+    {
+      "namaproduk": "SULFADIAZINE SILVER SK @35GR"
+    },
+    {
+      "namaproduk": "SULTRIMMIX DS ( COTRIMOXAZOLE 960MG TAB )"
+    },
+    {
+      "namaproduk": "SURFLO NO 16"
+    },
+    {
+      "namaproduk": "SURFLO NO 18"
+    },
+    {
+      "namaproduk": "SURFLO NO 20"
+    },
+    {
+      "namaproduk": "SURFLO NO 22"
+    },
+    {
+      "namaproduk": "SURFLO NO 24"
+    },
+    {
+      "namaproduk": "SYMBICORT 160/60 MCG TURBOHELER"
+    },
+    {
+      "namaproduk": "SYMBICORT 80/60 MCG TURBOHELER"
+    },
+    {
+      "namaproduk": "TAMPON UTERU VAGINA 7 CM X 350 CM"
+    },
+    {
+      "namaproduk": "Tampon vagina"
+    },
+    {
+      "namaproduk": "TAMSULOSIN 0,4 MG TAB"
+    },
+    {
+      "namaproduk": "TB VIT 6 TAB"
+    },
+    {
+      "namaproduk": "TENOFOVIR 300 MG/LAMIVUDINE 300 MG/DOLUTEGRAVIR 50 MG TAB"
+    },
+    {
+      "namaproduk": "TENOFOVIR DISOPROXIL 300MG TAB"
+    },
+    {
+      "namaproduk": "TERUFUSION SOL ADM SET ( INFUSSET TERUMO DEWASA)"
+    },
+    {
+      "namaproduk": "TETAGAM 1ML(250IU) INJ"
+    },
+    {
+      "namaproduk": "THIAMAZOLE 10MG KAPS"
+    },
+    {
+      "namaproduk": "THORACIC TROCAR & CANNULA FR 20"
+    },
+    {
+      "namaproduk": "THORACIC TROCAR & CANNULA FR 24"
+    },
+    {
+      "namaproduk": "THORACIC TROCAR & CANNULA FR 28"
+    },
+    {
+      "namaproduk": "THREE WAY"
+    },
+    {
+      "namaproduk": "THREE WAY WITH EXTENSION"
+    },
+    {
+      "namaproduk": "THROMBOPHOB GEL @20GR"
+    },
+    {
+      "namaproduk": "TIARYT 200MG TAB"
+    },
+    {
+      "namaproduk": "TOPICARE+CERAMIDE SHOOTING @100GR CREAM"
+    },
+    {
+      "namaproduk": "Tourniquet"
+    },
+    {
+      "namaproduk": "TRAMADOL 50 MG KAPS"
+    },
+    {
+      "namaproduk": "TRAMADOL INJ 100ML/2 MG"
+    },
+    {
+      "namaproduk": "TRIAMCINOLONE 4 MG TAB"
+    },
+    {
+      "namaproduk": "TRIHEXYPHENIDIL 2MG TAB"
+    },
+    {
+      "namaproduk": "trochanter ear plate A5"
+    },
+    {
+      "namaproduk": "trochanter ear plate A7"
+    },
+    {
+      "namaproduk": "ULTRASONIC GEL 250 ML ONEMED"
+    },
+    {
+      "namaproduk": "UMARONE 2ML INJ"
+    },
+    {
+      "namaproduk": "UMBILICAL CORD CLAMP"
+    },
+    {
+      "namaproduk": "UNDERPADS SURGICARE"
+    },
+    {
+      "namaproduk": "UPERIO 50 TAB (SACUBITRIL VALSARTAN, SODIUM HYDRATE)"
+    },
+    {
+      "namaproduk": "URIEF 4MG TAB"
+    },
+    {
+      "namaproduk": "URINE BAG 2000ML"
+    },
+    {
+      "namaproduk": "URSODEOXYCHOLIC ACID 250MG KAPS"
+    },
+    {
+      "namaproduk": "VAGISTIN OVULA"
+    },
+    {
+      "namaproduk": "VALSARTAN 80MG TAB"
+    },
+    {
+      "namaproduk": "VASACON-A 15ML TM"
+    },
+    {
+      "namaproduk": "VERTILON 5 MG (FLUNARIZINE)"
+    },
+    {
+      "namaproduk": "VIOREX LIQUID 2% 500ML"
+    },
+    {
+      "namaproduk": "VITALYSIN SYR @60ML"
+    },
+    {
+      "namaproduk": "VITAMIN A 100.000 UI TAB DINKES"
+    },
+    {
+      "namaproduk": "VITAMIN A 200.000 IU TAB DINKES"
+    },
+    {
+      "namaproduk": "VITAMIN B KOMPLEK TAB"
+    },
+    {
+      "namaproduk": "VITAMIN B6 10MG TAB"
+    },
+    {
+      "namaproduk": "WARFARIN SODIUM CLATHRATE 2 MG"
+    },
+    {
+      "namaproduk": "WASH GLOVES"
+    },
+    {
+      "namaproduk": "WIDA WI 1000 ML INFUS"
+    },
+    {
+      "namaproduk": "XIETY 10MG TAB"
+    },
+    {
+      "namaproduk": "YAMHATEVY HAND SANITIZER LIQUID (CHG 0,5%) 500 ML"
+    },
+    {
+      "namaproduk": "YAMHATEVY HAND SCRUB 2% 500 ML"
+    },
+    {
+      "namaproduk": "YEKAPRIM SYR (SULFAMETHOXAZOL, TRIMETHOPRIM) 240 MG/ML (COTRIMOXAZOLE)"
+    },
+    {
+      "namaproduk": "YUSIMOX FORTE SYR ( AMOXICILLIN 250MG/5ML )"
+    },
+    {
+      "namaproduk": "ZINC 20MG TAB"
+    },
+    {
+      "namaproduk": "ZINC 20MG/5 ML SYRUP"
+    }
+  ]
+}

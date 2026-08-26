@@ -76,8 +76,8 @@
 }
 
 .erx-dialog {
-  width: min(760px, calc(100vw - 32px));
-  max-width: 760px;
+  width: min(700px, calc(100vw - 32px));
+  max-width: 700px;
   max-height: calc(100vh - 32px);
   padding: 0;
   color: var(--erx-text);
@@ -92,6 +92,104 @@
 .erx-dialog::backdrop {
   background: rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(2px);
+}
+
+.erx-supply-dialog,
+.erx-duration-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 0;
+  color: var(--erx-text);
+  background: var(--erx-surface-lowest);
+  border: 1px solid var(--erx-outline-variant);
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(26, 26, 26, 0.24);
+  font: 400 14px/1.5 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+}
+
+.erx-supply-dialog::backdrop,
+.erx-duration-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.erx-supply-dialog section,
+.erx-duration-dialog section {
+  display: grid;
+  gap: 16px;
+  padding: 22px;
+}
+
+.erx-supply-dialog p,
+.erx-supply-dialog h2,
+.erx-duration-dialog p,
+.erx-duration-dialog h2 {
+  margin: 0;
+}
+
+.erx-supply-dialog p,
+.erx-duration-dialog p {
+  color: var(--erx-primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.erx-supply-dialog h2,
+.erx-duration-dialog h2 {
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.erx-supply-dialog section > div,
+.erx-duration-dialog section > div {
+  display: grid;
+  gap: 8px;
+}
+
+.erx-supply-dialog button,
+.erx-duration-dialog button {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font: 650 12px/1.35 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+}
+
+.erx-supply-dialog .secondary,
+.erx-duration-dialog .secondary {
+  color: var(--erx-text);
+  background: transparent;
+  border: 1px solid var(--erx-outline-variant);
+}
+
+.erx-supply-dialog .primary,
+.erx-duration-dialog .primary {
+  color: var(--erx-on-primary);
+  background: var(--erx-primary);
+  border: 1px solid var(--erx-primary);
+}
+
+.erx-duration-dialog label {
+  display: grid;
+  gap: 6px;
+  color: var(--erx-text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.erx-duration-dialog input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  color: var(--erx-text);
+  background: var(--erx-surface);
+  border: 1px solid var(--erx-outline-variant);
+  border-radius: 10px;
+  font: 400 14px/1.5 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+}
+
+.erx-duration-dialog small {
+  color: var(--erx-text-secondary);
+  font-size: 11px;
+  font-weight: 400;
 }
 
 .erx-shell {
@@ -169,6 +267,41 @@
 .erx-item-grid {
   display: grid;
   gap: 12px;
+}
+
+.erx-import-source {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  color: var(--erx-primary);
+  background: var(--erx-surface-lowest);
+  border: 1px solid var(--erx-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  font: 650 12px/1.35 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  text-align: left;
+  white-space: normal;
+}
+
+.erx-import-source:hover:not(:disabled) {
+  background: var(--erx-secondary-container);
+}
+
+.erx-import-source svg {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .erx-mode {
@@ -297,6 +430,10 @@
   line-height: 1.5;
 }
 
+.erx-status {
+  white-space: pre-line;
+}
+
 .erx-warning,
 .erx-review-note {
   color: var(--erx-warning);
@@ -305,34 +442,29 @@
 
 .erx-item {
   display: grid;
-  gap: 12px;
-  padding: 14px;
+  gap: 8px;
+  padding: 10px;
   background: var(--erx-surface-lowest);
   border: 1px solid var(--erx-outline-variant);
   border-radius: 8px;
 }
 
-.erx-item > header {
+.erx-item-index {
   display: flex;
+  height: 44px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.erx-item-title {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.erx-item-title::before {
-  content: attr(data-index) ". ";
+  align-self: end;
+  justify-content: center;
   color: var(--erx-primary);
+  font-size: 13px;
 }
 
 .erx-remove {
   flex-basis: 36px;
   width: 36px;
   height: 36px;
+  align-self: end;
+  margin-bottom: 4px;
   color: var(--erx-error);
   border-color: var(--erx-error);
   border-radius: 8px;
@@ -344,15 +476,8 @@
 }
 
 .erx-item-grid {
-  grid-template-columns: minmax(0, 2fr) minmax(110px, 1fr) minmax(120px, 1fr) 90px;
-}
-
-.erx-item-grid label:last-child {
-  grid-column: 1 / -1;
-}
-
-.erx-item-grid textarea {
-  min-height: 64px;
+  grid-template-columns: 32px minmax(240px, 2fr) 82px minmax(180px, 1.4fr) 36px;
+  align-items: end;
 }
 
 .erx-item[data-state="done"] {
@@ -388,6 +513,11 @@
 .erx-status[data-state="success"] {
   color: #155c43;
   background: var(--erx-success-container);
+}
+
+.erx-status[data-state="warning"] {
+  color: var(--erx-warning);
+  background: var(--erx-warning-container);
 }
 
 .erx-confirm {
@@ -502,8 +632,8 @@ textarea:disabled {
     grid-template-columns: 1fr;
   }
 
-  .erx-item-grid label:last-child {
-    grid-column: auto;
+  .erx-item-index {
+    justify-content: flex-start;
   }
 
   .erx-actions {

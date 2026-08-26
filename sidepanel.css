@@ -58,7 +58,7 @@ body {
   color: var(--on-surface);
   background: var(--surface);
   font-family: "Manrope", "Segoe UI", Arial, sans-serif;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 400;
   line-height: 1.5;
   letter-spacing: 0;
@@ -95,7 +95,7 @@ p {
 
 h1,
 h2 {
-  font-size: 17.5px;
+  font-size: 15.5px;
   font-weight: 700;
   line-height: 1.35;
 }
@@ -155,7 +155,7 @@ h2 {
 .section-kicker {
   display: block;
   color: var(--primary);
-  font-size: 11.9px;
+  font-size: 9.9px;
   font-weight: 700;
   line-height: 1.25;
   text-transform: uppercase;
@@ -350,7 +350,7 @@ main {
   background: var(--success-container);
   border: 1px solid #a5d8bf;
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -431,7 +431,7 @@ main {
 
 .admin-session strong {
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .owner-admin-settings {
@@ -446,7 +446,7 @@ main {
   min-height: 44px;
   align-items: center;
   color: var(--primary);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -479,7 +479,7 @@ main {
 .owner-panel-header h3 {
   margin: 2px 0 0;
   color: var(--on-surface);
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.35;
 }
 
@@ -497,7 +497,7 @@ main {
   border: 0;
   border-bottom: 3px solid transparent;
   font: inherit;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -551,7 +551,7 @@ main {
 .owner-user-heading strong,
 #resetAdminUserTarget {
   color: var(--on-surface);
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .admin-user-list {
@@ -580,7 +580,7 @@ main {
 
 .admin-user-main strong {
   overflow-wrap: anywhere;
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .admin-user-actions {
@@ -592,7 +592,7 @@ main {
 .admin-user-actions .button {
   min-height: 36px;
   padding: 0 var(--space-2);
-  font-size: 11.9px;
+  font-size: 9.9px;
 }
 
 .admin-user-actions .delete-user-button {
@@ -663,7 +663,7 @@ main {
 
 .clinical-image-meta strong {
   overflow: hidden;
-  font-size: 11.9px;
+  font-size: 9.9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -671,7 +671,7 @@ main {
 .clinical-image-meta span,
 .clinical-image-field > .field-hint {
   color: var(--on-surface-variant);
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 400;
 }
 
@@ -724,7 +724,7 @@ main {
   border: 1px solid var(--outline-variant);
   border-radius: 50%;
   font-family: "Segoe UI", Arial, sans-serif;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   font-style: normal;
   transition: color var(--motion), background-color var(--motion), border-color var(--motion), opacity var(--motion);
@@ -746,7 +746,7 @@ main {
   color: var(--primary);
   background: var(--secondary-container);
   border-radius: 999px;
-  font-size: 11.9px;
+  font-size: 9.9px;
   font-weight: 600;
 }
 
@@ -760,8 +760,124 @@ label,
 label {
   color: var(--on-surface-variant);
   font-family: "Manrope", "Segoe UI", Arial, sans-serif;
-  font-size: 11.9px;
+  font-size: 9.9px;
   font-weight: 600;
+}
+
+.product-alias-heading {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.product-alias-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+}
+
+.product-alias-heading svg,
+.product-alias-remove svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.product-alias-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.product-alias-row {
+  background: var(--surface-lowest);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+}
+
+.product-alias-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1);
+}
+
+.product-alias-toggle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  color: var(--on-surface);
+  text-align: left;
+  background: transparent;
+  border: 0;
+}
+
+.product-alias-toggle > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.product-alias-toggle strong,
+.product-alias-toggle small {
+  overflow-wrap: anywhere;
+}
+
+.product-alias-toggle small {
+  color: var(--on-surface-variant);
+  font-weight: 400;
+}
+
+.product-alias-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  transition: transform var(--motion);
+}
+
+.product-alias-row.is-expanded .product-alias-toggle svg {
+  transform: rotate(90deg);
+}
+
+.product-alias-editor {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-top: 1px solid var(--outline-variant);
+}
+
+.product-alias-editor .alias-selection-field {
+  grid-column: 1 / -1;
+}
+
+.product-alias-remove {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--error);
+  background: transparent;
+  border: 1px solid var(--error);
+  border-radius: var(--radius-sm);
+}
+
+.product-alias-remove:hover:not(:disabled) {
+  color: var(--on-primary);
+  background: var(--error);
+}
+
+.product-alias-actions {
+  display: flex;
 }
 
 .identity-label-row {
@@ -784,7 +900,7 @@ label {
   background: transparent;
   border: 1px solid var(--outline-variant);
   border-radius: var(--radius-sm);
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 600;
   line-height: 1.35;
   text-align: left;
@@ -824,7 +940,7 @@ textarea {
   border-radius: var(--radius-md);
   outline: none;
   font-family: "Manrope", "Segoe UI", Arial, sans-serif;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 400;
   letter-spacing: 0;
   transition: background-color var(--motion), border-color var(--motion), box-shadow var(--motion);
@@ -876,7 +992,7 @@ summary:focus-visible,
   color: var(--on-surface-variant);
   background: var(--surface-low);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .status[data-state="loading"] {
@@ -1002,7 +1118,7 @@ summary:focus-visible,
   color: var(--on-surface-variant);
   background: var(--surface-lowest);
   border-top: 1px solid var(--outline-variant);
-  font-size: 11.9px;
+  font-size: 9.9px;
 }
 
 dialog {
@@ -1130,7 +1246,7 @@ dialog::backdrop {
 .history-retention {
   margin-bottom: var(--space-3);
   color: #686c74;
-  font-size: 11.9px;
+  font-size: 9.9px;
 }
 
 .history-item-row {
@@ -1163,7 +1279,7 @@ dialog::backdrop {
 .history-meta,
 .history-empty-copy {
   color: #686c74;
-  font-size: 11.9px;
+  font-size: 9.9px;
 }
 
 .history-item {
@@ -1247,7 +1363,7 @@ dialog::backdrop {
   color: var(--primary);
   background: var(--secondary-container);
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 700;
 }
 
@@ -1261,7 +1377,7 @@ dialog::backdrop {
 .history-detail-heading h3 {
   margin: 0;
   overflow-wrap: anywhere;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .history-section {
@@ -1274,7 +1390,7 @@ dialog::backdrop {
 .history-section h3 {
   margin: 0;
   color: var(--primary);
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .history-field {
@@ -1284,7 +1400,7 @@ dialog::backdrop {
 
 .history-field strong {
   color: var(--on-surface-variant);
-  font-size: 11.9px;
+  font-size: 9.9px;
 }
 
 .history-field p {
@@ -1302,6 +1418,147 @@ dialog::backdrop {
   padding: var(--space-5);
 }
 
+.compact-dialog-form {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.whatsapp-soap-dialog {
+  width: min(580px, calc(100vw - 24px));
+  overflow: hidden;
+}
+
+.whatsapp-soap-form {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  max-height: calc(100vh - 24px);
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.whatsapp-soap-header {
+  min-width: 0;
+}
+
+.whatsapp-soap-header #closeWhatsappSoap {
+  color: var(--on-primary);
+  background: var(--error);
+  border-color: var(--error);
+}
+
+.whatsapp-soap-header #closeWhatsappSoap:hover:not(:disabled) {
+  color: var(--on-primary);
+  background: #d33a3a;
+  border-color: #d33a3a;
+}
+
+.whatsapp-step-progress {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--on-surface-variant);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.whatsapp-step-progress progress {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  appearance: none;
+  background: var(--surface-low);
+  border: 0;
+  border-radius: 999px;
+}
+
+.whatsapp-step-progress progress::-webkit-progress-bar {
+  background: var(--surface-low);
+}
+
+.whatsapp-step-progress progress::-webkit-progress-value {
+  background: var(--primary);
+  border-radius: 999px;
+  transition: width var(--motion);
+}
+
+.whatsapp-step {
+  display: grid;
+  min-height: 0;
+  align-content: start;
+  gap: var(--space-4);
+  padding-right: 2px;
+  overflow-y: auto;
+}
+
+.whatsapp-step .button {
+  justify-self: start;
+}
+
+#whatsappFinalPreview {
+  min-height: 240px;
+  background: var(--surface-low);
+}
+
+.whatsapp-step-actions {
+  flex-wrap: nowrap;
+}
+
+.status-choice-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.status-choice-group legend {
+  grid-column: 1 / -1;
+  margin-bottom: var(--space-1);
+  color: var(--on-surface-variant);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.status-choice {
+  position: relative;
+  min-width: 0;
+}
+
+.status-choice input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.status-choice span {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-3);
+  color: var(--on-surface-variant);
+  background: var(--surface-low);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color var(--motion), border-color var(--motion), color var(--motion);
+}
+
+.status-choice input:checked + span {
+  color: var(--on-primary);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.status-choice input:focus-visible + span {
+  outline: 3px solid color-mix(in srgb, var(--primary) 28%, transparent);
+  outline-offset: 2px;
+}
+
 .help-dialog-content {
   display: grid;
   gap: var(--space-4);
@@ -1314,7 +1571,7 @@ dialog::backdrop {
   margin: 0;
   padding-left: var(--space-5);
   color: var(--on-surface-variant);
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .help-steps li {
@@ -1405,6 +1662,15 @@ dialog::backdrop {
   resize: none;
 }
 
+.result-command-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--outline-variant);
+}
+
 .result-alert {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -1413,7 +1679,7 @@ dialog::backdrop {
   padding: var(--space-3);
   border: 1px solid;
   border-radius: var(--radius-md);
-  font-size: 12px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
@@ -1451,7 +1717,7 @@ dialog::backdrop {
 }
 
 .alert-block > span {
-  font-size: 11.9px;
+  font-size: 9.9px;
 }
 
 .alert-actions {
@@ -1464,7 +1730,7 @@ dialog::backdrop {
   color: var(--warning);
   background: var(--surface-lowest);
   border-color: var(--warning-outline);
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .alert-action-button:hover:not(:disabled) {
@@ -1485,10 +1751,214 @@ dialog::backdrop {
   border-color: var(--warning-outline);
 }
 
-#settingsForm {
+.settings-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: transform var(--motion), opacity var(--motion);
+}
+
+.settings-dialog[open] {
+  display: block;
+}
+
+.settings-dialog.is-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.settings-dialog::backdrop {
+  background: transparent;
+  backdrop-filter: none;
+}
+
+#settingsForm.settings-shell {
+  display: flex;
+  height: 100%;
+  padding: 0;
+  flex-direction: column;
+}
+
+.settings-header {
   display: grid;
+  grid-template-areas: "back title close";
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 64px;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface-lowest);
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+#settingsBack {
+  grid-area: back;
+}
+
+.settings-header > div {
+  grid-area: title;
+  min-width: 0;
+}
+
+#settingsTitle:focus {
+  outline: none;
+}
+
+#closeSettings {
+  grid-area: close;
+}
+
+.settings-content {
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.settings-page {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  animation: settings-page-forward 180ms ease-out;
+}
+
+.settings-dialog[data-settings-direction="back"] .settings-page {
+  animation-name: settings-page-back;
+}
+
+.settings-page[data-settings-page="home"] {
+  padding: var(--space-5) var(--space-4);
+}
+
+.settings-page:not([data-settings-page="home"]) {
+  display: flex;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+.settings-page-body {
+  display: grid;
+  min-height: 0;
+  padding: var(--space-4);
+  flex: 1;
+  align-content: start;
   gap: var(--space-4);
-  padding: var(--space-5);
+  overflow: auto;
+}
+
+.settings-intro,
+.settings-page-note {
+  color: var(--on-surface-variant);
+}
+
+.settings-menu {
+  display: grid;
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--outline-variant);
+}
+
+.settings-menu-item {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 20px;
+  width: 100%;
+  min-height: 64px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-1);
+  color: var(--on-surface);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--outline-variant);
+  border-radius: 0;
+  transition: color var(--motion), background-color var(--motion);
+}
+
+.settings-menu-item:hover {
+  color: var(--primary);
+  background: var(--surface-low);
+}
+
+.settings-menu-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.settings-menu-icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  background: var(--secondary-container);
+  border-radius: var(--radius-sm);
+}
+
+.settings-menu-icon svg,
+.settings-menu-chevron {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.settings-menu-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.settings-menu-copy strong,
+.settings-menu-copy small {
+  overflow-wrap: anywhere;
+}
+
+.settings-menu-copy small {
+  color: var(--on-surface-variant);
+  font-weight: 400;
+}
+
+.settings-menu-chevron {
+  color: var(--on-surface-variant);
+}
+
+.settings-actions {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-lowest);
+  border-top: 1px solid var(--outline-variant);
+}
+
+.settings-actions .primary {
+  min-width: 128px;
+}
+
+@keyframes settings-page-forward {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes settings-page-back {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .dialog-heading {
@@ -1504,7 +1974,7 @@ dialog::backdrop {
   background: var(--surface-low);
   border: 1px solid var(--outline-variant);
   border-radius: var(--radius-md);
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .active-api-status[data-state="success"] {
@@ -1522,7 +1992,7 @@ dialog::backdrop {
 .field-hint,
 .toggle-row small {
   color: #686c74;
-  font-size: 11.9px;
+  font-size: 9.9px;
   font-weight: 400;
 }
 
@@ -1563,7 +2033,7 @@ dialog::backdrop {
 
 .toggle-row strong {
   color: var(--on-surface);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -1649,10 +2119,21 @@ dialog::backdrop {
 }
 
 @media (max-width: 370px) {
+  .product-alias-toolbar,
+  .product-alias-editor {
+    grid-template-columns: 1fr;
+  }
 
   .app-header,
-  main,
-  #settingsForm {
+  main {
+    padding-right: var(--space-3);
+    padding-left: var(--space-3);
+  }
+
+  .settings-header,
+  .settings-page-body,
+  .settings-page[data-settings-page="home"],
+  .settings-actions {
     padding-right: var(--space-3);
     padding-left: var(--space-3);
   }
@@ -1666,9 +2147,14 @@ dialog::backdrop {
   }
 
   .actions,
-  .dialog-actions {
+  .dialog-actions,
+  .settings-actions {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .settings-actions .primary {
+    min-width: 0;
   }
 
   .result-header {
@@ -1680,6 +2166,10 @@ dialog::backdrop {
   }
 
   .alert-action-button {
+    width: 100%;
+  }
+
+  .result-command-bar .button {
     width: 100%;
   }
 }

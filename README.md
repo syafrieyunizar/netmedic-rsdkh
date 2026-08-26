@@ -7,7 +7,7 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 ## Fitur
 
 - Side Panel Chrome dengan 2 tab: Magic SOAP dan Kronologi.
-- Satu identitas anonim bersama untuk Magic SOAP dan Kronologi, dengan gerbang awal dan bar pasien sticky.
+- Satu identitas anonim bersama untuk Magic SOAP dan Kronologi, wajib memuat umur serta jenis kelamin atau honorifik seperti `Tn.`/`Ny.`.
 - Upload foto klinis opsional pada Objektif untuk dianalisis oleh model vision sebelum SOAP dibuat.
 - Generate hasil AI sebagai preview yang bisa diedit.
 - Copy hasil per form/field.
@@ -18,7 +18,11 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 - Mode API pribadi/BYOK.
 - Mode API admin bersama dengan login panel admin, pengaturan API key admin, dan manajemen user.
 - Tombol `Input SOAP` pada eRM RSDKH untuk memilah dan mengisi SOAP secara otomatis.
+- Tombol `Input SOAP` pada hasil Magic SOAP untuk mengirim hasil S/O/A/P yang sudah diedit langsung ke alur pengisian eRM tanpa parsing AI ulang. User memilih rencana status pasien terlebih dahulu: rawat inap memakai `Diagnosa Awal`, sedangkan rawat jalan memakai `Primary / utama`.
 - Tombol `e-Resep otomatis` pada Resep Elektronik V2 untuk merapikan resep, meninjau item secara editable, dan memasukkannya secara berurutan setelah konfirmasi dokter.
+- Katalog final 605 produk RSDKH digunakan untuk mencocokkan hasil AI dengan nama produk eRM secara deterministik.
+- Pengaturan menyediakan Kamus Produk RSDKH yang dapat ditambah, diedit, dihapus, dan direset tanpa mengubah katalog asli.
+- Qty resep dihitung ulang dari bentuk sediaan, kekuatan produk, frekuensi, tpm, dan durasi rawat jalan sebelum ditampilkan untuk konfirmasi.
 
 ## Struktur File
 

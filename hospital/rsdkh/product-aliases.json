@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "aliases": [
+    {
+      "term": "asering",
+      "query": "RING AS",
+      "selection": "unique"
+    },
+    {
+      "term": "antrain",
+      "query": "METAMIZOLE",
+      "selection": "unique"
+    },
+    {
+      "term": "attapulgite",
+      "query": "ATTAPULGITE",
+      "selection": "confirm"
+    },
+    {
+      "term": "sukralfat",
+      "query": "SUCRALFATE",
+      "selection": "unique"
+    }
+  ]
+}

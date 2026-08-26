@@ -9,11 +9,16 @@ const SOAP_DRAFT_KEY = "magicSoapDraft";
 const KRONOLOGI_DRAFT_KEY = "kronologiDraft";
 const HISTORY_KEY = "patientHistory";
 const ACTIVE_PATIENT_KEY = "activePatientEpisode";
+const PRODUCT_ALIASES_KEY = "rsdkhProductAliases";
+const WHATSAPP_SOAP_SETTINGS_KEY = "whatsappSoapSettings";
 const HISTORY_RETENTION_MS = 60 * 24 * 60 * 60 * 1000;
 const MAX_CLINICAL_IMAGE_BYTES = 8 * 1024 * 1024;
 const CLINICAL_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const SOAP_FIELD_IDS = ["identity", "serviceMode", "subjektif", "objektif", "assessment", "planning", "resultS", "resultO", "resultA", "resultP", "requiresChronology", "chronologyReason", "chronologyEffect"];
 const KRONOLOGI_FIELD_IDS = ["skenario", "akibat", "resultKronologi", "resultWarning", "resultWarningRule"];
+const WHATSAPP_STEP_TITLES = ["Pesan Pembuka", "Identitas Pasien", "Subjektif", "Objektif", "Assessment", "Planning", "Kalimat Penutup"];
+const DEFAULT_WHATSAPP_OPENING = "Assalaamu'alaikum wr.wb.\nSelamat {waktu}. Permisi dokter, saya dr. {dokter}\nIzin lapor pasien IGD :";
+const DEFAULT_WHATSAPP_CLOSING = "Mohon advis dari pian dok, Terimakasih banyak dokter.";
 const CLINICAL_VISION_PROMPT = `Anda membantu dokter mendokumentasikan temuan objektif dari foto klinis.
 
 Deskripsikan hanya temuan visual yang benar-benar tampak dan relevan untuk bagian Objektif SOAP.
@@ -28,16 +33,16 @@ const HELP_CONTENT = {
   soap: {
     title: "Cara menggunakan Magic SOAP",
     steps: [
-      "Tetapkan identitas anonim pasien, lalu pilih status pelayanan.",
+      "Tetapkan identitas anonim yang memuat umur dan jenis kelamin atau honorifik, lalu pilih status pelayanan.",
       "Masukkan catatan awal Subjektif, Objektif, Assessment, dan Planning. Foto klinis opsional dapat ditambahkan pada Objektif.",
       "Tekan Generate, lalu tinjau dan edit hasil sebelum digunakan.",
-      "Salin setiap bagian melalui tombol salin. Jika muncul pengingat kronologi, gunakan Buat kronologi."
+      "Salin setiap bagian atau gunakan Input SOAP, pilih rencana status pasien, lalu isi eRM aktif. Jika muncul pengingat kronologi, gunakan Buat kronologi."
     ]
   },
   kronologi: {
     title: "Cara menggunakan Kronologi",
     steps: [
-      "Tetapkan identitas anonim pasien, lalu isi skenario berdasarkan keterangan asli pasien.",
+      "Tetapkan identitas anonim yang memuat umur dan jenis kelamin atau honorifik, lalu isi skenario berdasarkan keterangan asli pasien.",
       "Isi akibat atau cedera yang terjadi. Data dari Magic SOAP dapat terisi otomatis.",
       "Tekan Generate, lalu tinjau dan edit kronologi final sebelum digunakan.",
       "Periksa warning dan aturan JKN bila muncul, kemudian salin hasil melalui tombol salin."
@@ -95,10 +100,78 @@ let activePatientEpisode = null;
 let resultReturnFocus = null;
 let resultCloseTimer = null;
 let historyCloseTimer = null;
+let settingsCloseTimer = null;
 let soapSaveTimer;
 let kronologiSaveTimer;
 let ermIdentityFeedbackTimer;
+let newPatientErmIdentityFeedbackTimer;
 let selectedClinicalImage = null;
+let defaultProductAliases = [];
+let productAliases = [];
+let productCatalogNames = [];
+let whatsappSoapSettings = { doctorName: "", openingTemplate: DEFAULT_WHATSAPP_OPENING };
+let whatsappSettingsSaveTimer;
+let whatsappStep = 0;
+let whatsappGeneratedAt = new Date();
+
+function whatsappTimeOfDay(value = new Date()) {
+  const hour = value.getHours();
+  if (hour >= 4 && hour < 11) return "pagi";
+  if (hour >= 11 && hour < 15) return "siang";
+  if (hour >= 15 && hour < 18) return "sore";
+  return "malam";
+}
+
+function formatWhatsappPatientIdentity(value) {
+  const identity = value && typeof value === "object" ? value : {};
+  const parts = [identity.name, identity.gender, identity.age, identity.medicalRecordNumber]
+    .map((part) => String(part || "").trim());
+  if (parts.some((part) => !part)) throw new Error("Nama, jenis kelamin, umur, atau nomor RM belum lengkap.");
+  return parts.join(" / ");
+}
+
+function buildWhatsappSoapReport({ openingTemplate, doctorName, identity, s, o, a, p, closing, now = new Date() }) {
+  const opening = String(openingTemplate || "")
+    .replaceAll("{waktu}", whatsappTimeOfDay(now))
+    .replaceAll("{dokter}", String(doctorName || "").trim())
+    .trim();
+  return [
+    opening,
+    `*${String(identity || "").trim()}*`,
+    `S)\n${String(s || "").trim()}`,
+    `O)\n${String(o || "").trim()}`,
+    `A)\n${String(a || "").trim()}`,
+    `P)\n${String(p || "").trim()}`,
+    String(closing || "").trim()
+  ].join("\n\n");
+}
+
+function parseAnonymousIdentity(value) {
+  const identity = String(value || "").trim();
+  const ageMatch = identity.match(/\b(\d{1,3})\s*(?:tahun|thn|th)\b/i);
+  const age = ageMatch ? Number(ageMatch[1]) : null;
+  const male = /\b(?:laki[ -]?laki|pria)\b/i.test(identity)
+    || /(?:^|[\s,])(?:tn|tuan|bpk|bapak|sdr)\.?(?=\s|,|$)/i.test(identity);
+  const female = /\b(?:perempuan|wanita)\b/i.test(identity)
+    || /(?:^|[\s,])(?:ny|nyonya|nn|nona|ibu)\.?(?=\s|,|$)/i.test(identity);
+  if (!ageMatch || !Number.isFinite(age) || age > 130) {
+    return { valid: false, message: "Umur wajib ditulis dengan benar, misalnya 45 tahun." };
+  }
+  if (male === female) {
+    return { valid: false, message: "Jenis kelamin belum dikenali. Gunakan Laki-laki/Perempuan atau honorifik seperti Tn./Ny." };
+  }
+  return { valid: true, age, gender: male ? "male" : "female" };
+}
+
+function validateCurrentIdentity(status) {
+  const result = parseAnonymousIdentity($("#identity").value);
+  if (result.valid) return true;
+  syncIdentityUi();
+  status.hidden = false;
+  setStatus(status, "error", result.message);
+  $("#identity").focus();
+  return false;
+}
 
 function buildMagicSoapPrompt({ identity, serviceMode, subjektif, objektif, assessment, planning }) {
   const modeText = {
@@ -452,6 +525,28 @@ function setErmIdentityButtonState(state, message) {
   button.textContent = `[${message}]`;
 }
 
+function setNewPatientErmIdentityButtonState(state, message) {
+  const button = $("#importNewPatientErmIdentity");
+  button.dataset.state = state;
+  button.textContent = `[${message}]`;
+}
+
+async function readIdentityFromActiveErm() {
+  const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!activeTab?.id) throw new Error("Tab aktif tidak ditemukan.");
+  const response = await chrome.tabs.sendMessage(activeTab.id, { type: "rsdkh:get-current-patient-identity" });
+  if (!response?.ok || !response.identity) throw new Error("Identitas pasien tidak ditemukan.");
+  return response.identity;
+}
+
+async function readWhatsappIdentityFromActiveErm() {
+  const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!activeTab?.id) throw new Error("Tab aktif tidak ditemukan.");
+  const response = await chrome.tabs.sendMessage(activeTab.id, { type: "rsdkh:get-current-patient-report-identity" });
+  if (!response?.ok || !response.identity) throw new Error(response?.error || "Identitas lengkap pasien tidak ditemukan.");
+  return formatWhatsappPatientIdentity(response.identity);
+}
+
 function scheduleErmIdentityFeedbackReset(statusElement, statusMessage) {
   clearTimeout(ermIdentityFeedbackTimer);
   const feedbackState = $("#importErmIdentity").dataset.state;
@@ -468,13 +563,7 @@ async function importIdentityFromErm() {
   setErmIdentityButtonState("loading", "mengambil data eRM...");
 
   try {
-    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!activeTab?.id) throw new Error("Tab aktif tidak ditemukan.");
-
-    const response = await chrome.tabs.sendMessage(activeTab.id, { type: "rsdkh:get-current-patient-identity" });
-    if (!response?.ok || !response.identity) throw new Error("Identitas pasien tidak ditemukan.");
-
-    $("#identity").value = response.identity;
+    $("#identity").value = await readIdentityFromActiveErm();
     $("#identity").dispatchEvent(new Event("input", { bubbles: true }));
     setErmIdentityButtonState("success", "data eRM berhasil di input");
     const statusMessage = "Identitas anonim diisi dari eRM saat ini.";
@@ -503,9 +592,54 @@ function resetErmIdentityButton() {
   setErmIdentityButtonState("idle", "dari eRM saat ini");
 }
 
+function resetNewPatientErmIdentityButton() {
+  clearTimeout(newPatientErmIdentityFeedbackTimer);
+  newPatientErmIdentityFeedbackTimer = null;
+  setNewPatientErmIdentityButtonState("idle", "dari eRM saat ini");
+}
+
+function scheduleNewPatientErmIdentityFeedbackReset(statusMessage) {
+  clearTimeout(newPatientErmIdentityFeedbackTimer);
+  const feedbackState = $("#importNewPatientErmIdentity").dataset.state;
+  newPatientErmIdentityFeedbackTimer = setTimeout(() => {
+    if ($("#importNewPatientErmIdentity").dataset.state === feedbackState) resetNewPatientErmIdentityButton();
+    const status = $("#newPatientStatus");
+    if (status.querySelector(".status-text")?.textContent === statusMessage) status.hidden = true;
+  }, 4000);
+}
+
+async function importNewPatientIdentityFromErm() {
+  const button = $("#importNewPatientErmIdentity");
+  const status = $("#newPatientStatus");
+  clearTimeout(newPatientErmIdentityFeedbackTimer);
+  button.disabled = true;
+  setNewPatientErmIdentityButtonState("loading", "mengambil data eRM...");
+
+  try {
+    $("#newPatientIdentity").value = await readIdentityFromActiveErm();
+    $("#newPatientIdentity").dispatchEvent(new Event("input", { bubbles: true }));
+    setNewPatientErmIdentityButtonState("success", "data eRM berhasil di input");
+    const statusMessage = "Identitas pasien baru diisi dari eRM saat ini.";
+    status.hidden = false;
+    setStatus(status, "success", statusMessage);
+    scheduleNewPatientErmIdentityFeedbackReset(statusMessage);
+  } catch (error) {
+    setNewPatientErmIdentityButtonState("error", "nampaknya anda sedang tidak berada di halaman eRM pasien");
+    const contentScriptMissing = /receiving end does not exist|could not establish connection/i.test(error?.message || "");
+    const statusMessage = contentScriptMissing
+      ? "Koneksi eRM belum aktif. Refresh halaman eRM, lalu coba lagi."
+      : "Data identitas pasien tidak ditemukan pada halaman aktif.";
+    status.hidden = false;
+    setStatus(status, "error", statusMessage);
+    scheduleNewPatientErmIdentityFeedbackReset(statusMessage);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function syncIdentityUi() {
   const identity = $("#identity").value.trim();
-  const ready = Boolean(identity);
+  const ready = parseAnonymousIdentity(identity).valid;
   $("#identityGate").hidden = ready;
   $("#patientToolbar").hidden = !ready;
   $("#activePatientIdentity").textContent = identity;
@@ -518,9 +652,10 @@ async function confirmPatientIdentity(event) {
   event.preventDefault();
   const identity = $("#identity").value.trim();
   const status = $("#identityGateStatus");
-  if (!identity) {
+  const validation = parseAnonymousIdentity(identity);
+  if (!validation.valid) {
     status.hidden = false;
-    setStatus(status, "error", "Identitas anonim wajib diisi.");
+    setStatus(status, "error", validation.message);
     $("#identity").focus();
     return;
   }
@@ -1518,6 +1653,7 @@ function createChronologyFromSoap() {
 async function generateSoap() {
   const button = $("#generateSoap");
   const status = $("#soapStatus");
+  if (!validateCurrentIdentity(status)) return;
   let draft = soapDraft();
   if (!draft.subjektif.trim()) {
     setStatus(status, "error", "Error: Subjektif wajib diisi.");
@@ -1553,7 +1689,7 @@ async function generateSoap() {
     openResultView("soap", button);
   } catch (error) {
     setStatus(status, "error", `Error: ${error.message}`);
-    if (settings.apiKeySource === "admin" || !settings.apiKey) openSettingsDialog();
+    if (settings.apiKeySource === "admin" || !settings.apiKey) openSettingsDialog("connection");
   } finally {
     setGenerating(button, status, false);
     $("#uploadClinicalImage").disabled = false;
@@ -1564,6 +1700,7 @@ async function generateSoap() {
 async function generateKronologi() {
   const button = $("#generateKronologi");
   const status = $("#kronologiStatus");
+  if (!validateCurrentIdentity(status)) return;
   const draft = kronologiDraft();
   if (!draft.skenario.trim() || !draft.akibat.trim()) {
     setStatus(status, "error", "Error: Skenario dan akibat/cedera wajib diisi.");
@@ -1584,7 +1721,7 @@ async function generateKronologi() {
     openResultView("kronologi", button);
   } catch (error) {
     setStatus(status, "error", `Error: ${error.message}`);
-    if (settings.apiKeySource === "admin" || !settings.apiKey) openSettingsDialog();
+    if (settings.apiKeySource === "admin" || !settings.apiKey) openSettingsDialog("connection");
   } finally {
     setGenerating(button, status, false);
   }
@@ -1607,6 +1744,195 @@ async function copyField(button) {
   }
 }
 
+function whatsappReportDraft() {
+  return {
+    openingTemplate: $("#whatsappOpeningTemplate").value,
+    doctorName: $("#whatsappDoctorName").value,
+    identity: $("#whatsappPatientIdentity").value,
+    s: $("#whatsappSubjective").value,
+    o: $("#whatsappObjective").value,
+    a: $("#whatsappAssessment").value,
+    p: $("#whatsappPlanning").value,
+    closing: $("#whatsappClosing").value,
+    now: whatsappGeneratedAt
+  };
+}
+
+function syncWhatsappPreview() {
+  $("#whatsappFinalPreview").value = buildWhatsappSoapReport(whatsappReportDraft());
+}
+
+function scheduleWhatsappSettingsSave() {
+  whatsappSoapSettings = {
+    doctorName: $("#whatsappDoctorName").value,
+    openingTemplate: $("#whatsappOpeningTemplate").value
+  };
+  clearTimeout(whatsappSettingsSaveTimer);
+  whatsappSettingsSaveTimer = setTimeout(async () => {
+    await chrome.storage.local.set({ [WHATSAPP_SOAP_SETTINGS_KEY]: whatsappSoapSettings });
+  }, 250);
+}
+
+function showWhatsappStep(nextStep, focus = true) {
+  whatsappStep = Math.max(0, Math.min(WHATSAPP_STEP_TITLES.length - 1, nextStep));
+  document.querySelectorAll(".whatsapp-step").forEach((step) => {
+    step.hidden = Number(step.dataset.whatsappStep) !== whatsappStep;
+  });
+  $("#whatsappSoapTitle").textContent = WHATSAPP_STEP_TITLES[whatsappStep];
+  $("#whatsappStepCounter").textContent = `Langkah ${whatsappStep + 1} dari ${WHATSAPP_STEP_TITLES.length}`;
+  $("#whatsappStepProgress").value = whatsappStep + 1;
+  $("#previousWhatsappStep").disabled = whatsappStep === 0;
+  $("#nextWhatsappStep").hidden = whatsappStep === WHATSAPP_STEP_TITLES.length - 1;
+  $("#copyWhatsappSoap").hidden = whatsappStep !== WHATSAPP_STEP_TITLES.length - 1;
+  if (whatsappStep !== 1) $("#whatsappSoapStatus").hidden = true;
+  if (whatsappStep === WHATSAPP_STEP_TITLES.length - 1) syncWhatsappPreview();
+  if (focus) document.querySelector(`.whatsapp-step[data-whatsapp-step="${whatsappStep}"] input, .whatsapp-step[data-whatsapp-step="${whatsappStep}"] textarea`)?.focus();
+}
+
+function validateWhatsappStep() {
+  const current = $(`.whatsapp-step[data-whatsapp-step="${whatsappStep}"]`);
+  const emptyField = [...current.querySelectorAll("input[required], textarea[required]")]
+    .find((field) => !field.value.trim());
+  if (!emptyField) return true;
+  const label = current.querySelector(`label[for="${emptyField.id}"]`)?.textContent || "Bagian ini";
+  const status = $("#whatsappSoapStatus");
+  status.hidden = false;
+  setStatus(status, "error", `${label} wajib diisi.`);
+  emptyField.focus();
+  return false;
+}
+
+async function loadWhatsappIdentity() {
+  const button = $("#refreshWhatsappIdentity");
+  const status = $("#whatsappSoapStatus");
+  button.disabled = true;
+  status.hidden = false;
+  setStatus(status, "loading", "Mengambil identitas pasien dari eRM aktif...");
+  try {
+    $("#whatsappPatientIdentity").value = await readWhatsappIdentityFromActiveErm();
+    setStatus(status, "success", "Identitas pasien berhasil diambil dari eRM.");
+    syncWhatsappPreview();
+  } catch (error) {
+    const disconnected = /receiving end does not exist|could not establish connection/i.test(error?.message || "");
+    setStatus(status, "error", disconnected
+      ? "Koneksi eRM belum aktif. Refresh halaman eRM pasien, lalu ambil ulang."
+      : `Identitas eRM belum lengkap: ${error.message}`);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function openWhatsappSoapDialog() {
+  const status = $("#resultStatus");
+  if (!hasResult("soap")) {
+    setStatus(status, "error", "SOAP hasil belum lengkap.");
+    return;
+  }
+
+  whatsappGeneratedAt = new Date();
+  $("#whatsappDoctorName").value = whatsappSoapSettings.doctorName;
+  $("#whatsappOpeningTemplate").value = whatsappSoapSettings.openingTemplate;
+  $("#whatsappPatientIdentity").value = "";
+  $("#whatsappSubjective").value = $("#resultS").value.trim();
+  $("#whatsappObjective").value = $("#resultO").value.trim();
+  $("#whatsappAssessment").value = $("#resultA").value.trim();
+  $("#whatsappPlanning").value = $("#resultP").value.trim();
+  $("#whatsappClosing").value = DEFAULT_WHATSAPP_CLOSING;
+  syncWhatsappPreview();
+  showWhatsappStep(0, false);
+  const dialog = $("#whatsappSoapDialog");
+  if (!dialog.open) dialog.showModal();
+  $("#whatsappDoctorName").focus();
+  loadWhatsappIdentity();
+}
+
+function nextWhatsappStep() {
+  if (!validateWhatsappStep()) return;
+  $("#whatsappSoapStatus").hidden = true;
+  showWhatsappStep(whatsappStep + 1);
+}
+
+async function copyWhatsappSoap() {
+  if (!validateWhatsappStep()) return;
+  const button = $("#copyWhatsappSoap");
+  const status = $("#whatsappSoapStatus");
+  button.disabled = true;
+  try {
+    syncWhatsappPreview();
+    await navigator.clipboard.writeText($("#whatsappFinalPreview").value);
+    setStatus(status, "success", "Format SOAP WhatsApp berhasil disalin.");
+    status.hidden = false;
+    button.querySelector("span").textContent = "Tersalin";
+    setTimeout(() => { button.querySelector("span").textContent = "Salin format WA"; }, 1200);
+  } catch {
+    setStatus(status, "error", "Format SOAP WhatsApp gagal disalin.");
+    status.hidden = false;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function openSoapInputStatusDialog() {
+  const status = $("#resultStatus");
+  if (!hasResult("soap")) {
+    setStatus(status, "error", "SOAP hasil belum lengkap.");
+    return;
+  }
+
+  const defaultStatus = $("#serviceMode").value === "rawat_jalan" ? "rawat_jalan" : "rawat_inap";
+  const option = document.querySelector(`input[name="soapPatientStatus"][value="${defaultStatus}"]`);
+  option.checked = true;
+  const dialog = $("#soapInputStatusDialog");
+  if (!dialog.open) dialog.showModal();
+  option.focus();
+}
+
+async function inputSoapFromResult(patientStatus) {
+  const button = $("#inputSoapFromResult");
+  const status = $("#resultStatus");
+  if (!hasResult("soap")) {
+    setStatus(status, "error", "SOAP hasil belum lengkap.");
+    return;
+  }
+
+  button.disabled = true;
+  button.querySelector("span").textContent = "Sedang input...";
+  setStatus(status, "loading", "Mengisi SOAP ke eRM aktif...");
+  try {
+    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!activeTab?.id) throw new Error("Tab eRM aktif tidak ditemukan.");
+    const response = await chrome.tabs.sendMessage(activeTab.id, {
+      type: "rsdkh:input-soap-parts",
+      identity: $("#identity").value.trim(),
+      patientStatus,
+      soap: {
+        s: $("#resultS").value.trim(),
+        o: $("#resultO").value.trim(),
+        a: $("#resultA").value.trim(),
+        p: $("#resultP").value.trim()
+      }
+    });
+    if (!response?.ok) throw new Error(response?.error || "Input SOAP ke eRM gagal.");
+    setStatus(status, "success", "SOAP berhasil diinput. Periksa Asesment IGD 2 sebelum menyimpan.");
+  } catch (error) {
+    const disconnected = /receiving end does not exist|could not establish connection/i.test(error?.message || "");
+    setStatus(status, "error", disconnected
+      ? "Koneksi eRM belum aktif. Refresh halaman eRM pasien, lalu coba lagi."
+      : `Input SOAP gagal: ${error.message}`);
+  } finally {
+    button.disabled = false;
+    button.querySelector("span").textContent = "Input SOAP";
+  }
+}
+
+async function submitSoapInputStatus(event) {
+  event.preventDefault();
+  const patientStatus = new FormData(event.currentTarget).get("soapPatientStatus");
+  if (!patientStatus) return;
+  $("#soapInputStatusDialog").close();
+  await inputSoapFromResult(patientStatus);
+}
+
 function resetFields(ids) {
   ids.forEach((id) => {
     const field = $(`#${id}`);
@@ -1619,6 +1945,7 @@ function openNewPatientDialog() {
   const dialog = $("#newPatientDialog");
   $("#newPatientForm").reset();
   $("#newPatientStatus").hidden = true;
+  resetNewPatientErmIdentityButton();
   if (!dialog.open) dialog.showModal();
   $("#newPatientIdentity").focus();
 }
@@ -1639,10 +1966,11 @@ function openHelpDialog(type) {
 async function startNewPatient(event) {
   event.preventDefault();
   const identity = $("#newPatientIdentity").value.trim();
-  if (!identity) {
+  const validation = parseAnonymousIdentity(identity);
+  if (!validation.valid) {
     const status = $("#newPatientStatus");
     status.hidden = false;
-    setStatus(status, "error", "Identitas anonim wajib diisi.");
+    setStatus(status, "error", validation.message);
     $("#newPatientIdentity").focus();
     return;
   }
@@ -1669,7 +1997,7 @@ async function startNewPatient(event) {
 
 function activateTab(name) {
   const soapActive = name === "soap";
-  const identityReady = Boolean($("#identity").value.trim());
+  const identityReady = parseAnonymousIdentity($("#identity").value).valid;
   $("#soapPanel").hidden = !identityReady || !soapActive;
   $("#kronologiPanel").hidden = !identityReady || soapActive;
   $("#soapTab").classList.toggle("active", soapActive);
@@ -1679,6 +2007,141 @@ function activateTab(name) {
   $("#soapTab").tabIndex = soapActive ? 0 : -1;
   $("#kronologiTab").tabIndex = soapActive ? -1 : 0;
   $(".tabs").dataset.activeTab = name;
+}
+
+function normalizeProductAlias(alias = {}) {
+  const term = String(alias.term || "").trim().replace(/\s+/g, " ");
+  const query = String(alias.query || "").trim().replace(/\s+/g, " ");
+  return {
+    term,
+    query,
+    selection: alias.selection === "confirm" ? "confirm" : "unique"
+  };
+}
+
+function dedupeProductAliases(aliases = []) {
+  const unique = new Map();
+  aliases.map(normalizeProductAlias).forEach((alias) => {
+    if (alias.term && alias.query) unique.set(alias.term.toLocaleLowerCase("id-ID"), alias);
+  });
+  return [...unique.values()];
+}
+
+async function loadProductAliasResources() {
+  const [aliasResponse, catalogResponse] = await Promise.all([
+    fetch(chrome.runtime.getURL("hospital/rsdkh/product-aliases.json")),
+    fetch(chrome.runtime.getURL("hospital/rsdkh/product-catalog.json"))
+  ]);
+  if (!aliasResponse.ok || !catalogResponse.ok) throw new Error("Kamus atau katalog produk RSDKH gagal dimuat.");
+  const [aliasPayload, catalogPayload] = await Promise.all([aliasResponse.json(), catalogResponse.json()]);
+  defaultProductAliases = dedupeProductAliases(aliasPayload.aliases);
+  productCatalogNames = (catalogPayload.products || [])
+    .map((product) => String(product?.namaproduk || "").trim())
+    .filter(Boolean);
+}
+
+function createProductAliasRow(alias = {}) {
+  const normalized = normalizeProductAlias(alias);
+  const row = document.createElement("div");
+  row.className = "product-alias-row";
+  row.innerHTML = `
+    <div class="product-alias-summary">
+      <button class="product-alias-toggle" type="button" aria-expanded="false">
+        <span><strong class="alias-summary-term"></strong><small class="alias-summary-query"></small></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+      <button class="product-alias-remove" type="button" aria-label="Hapus alias" title="Hapus alias"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button>
+    </div>
+    <div class="product-alias-editor" hidden>
+      <label>Istilah dokter<input class="alias-term" type="text" autocomplete="off" placeholder="Contoh: Antrain"></label>
+      <label>Pencarian katalog<input class="alias-query" type="text" list="productCatalogOptions" autocomplete="off" placeholder="Contoh: METAMIZOLE"></label>
+      <label class="alias-selection-field">Perilaku<select class="alias-selection"><option value="unique">Pilih otomatis jika kandidat tunggal</option><option value="confirm">Selalu minta konfirmasi</option></select></label>
+    </div>`;
+  row.querySelector(".alias-term").value = normalized.term;
+  row.querySelector(".alias-query").value = normalized.query;
+  row.querySelector(".alias-selection").value = normalized.selection;
+  const editor = row.querySelector(".product-alias-editor");
+  const toggle = row.querySelector(".product-alias-toggle");
+  const syncSummary = () => {
+    row.querySelector(".alias-summary-term").textContent = row.querySelector(".alias-term").value.trim() || "Alias baru";
+    row.querySelector(".alias-summary-query").textContent = row.querySelector(".alias-query").value.trim() || "Pencarian katalog belum dipilih";
+  };
+  const setExpanded = (expanded) => {
+    editor.hidden = !expanded;
+    toggle.setAttribute("aria-expanded", String(expanded));
+    row.classList.toggle("is-expanded", expanded);
+  };
+  toggle.addEventListener("click", () => setExpanded(editor.hidden));
+  row.querySelectorAll("input,select").forEach((field) => field.addEventListener("input", syncSummary));
+  row.querySelector(".product-alias-remove").addEventListener("click", () => {
+    if (normalized.term && !window.confirm(`Hapus alias '${row.querySelector(".alias-term").value.trim() || normalized.term}'?`)) return;
+    row.remove();
+  });
+  syncSummary();
+  setExpanded(!normalized.term);
+  return row;
+}
+
+function filterProductAliases() {
+  const query = String($("#productAliasSearch")?.value || "").trim().toLocaleLowerCase("id-ID");
+  document.querySelectorAll(".product-alias-row").forEach((row) => {
+    row.hidden = Boolean(query) && !row.textContent.toLocaleLowerCase("id-ID").includes(query);
+  });
+}
+
+function renderProductAliases() {
+  const list = $("#productAliasList");
+  if (!list) return;
+  list.replaceChildren(...productAliases.map(createProductAliasRow));
+  $("#productCatalogOptions").replaceChildren(...productCatalogNames.map((name) => {
+    const option = document.createElement("option");
+    option.value = name;
+    return option;
+  }));
+  filterProductAliases();
+  updateSettingsSummaries();
+}
+
+function collectProductAliases() {
+  const aliases = [...document.querySelectorAll(".product-alias-row")].map((row) => normalizeProductAlias({
+    term: row.querySelector(".alias-term").value,
+    query: row.querySelector(".alias-query").value,
+    selection: row.querySelector(".alias-selection").value
+  }));
+  if (aliases.some((alias) => !alias.term || !alias.query)) throw new Error("Istilah dokter dan pencarian katalog wajib diisi.");
+  const deduped = dedupeProductAliases(aliases);
+  if (deduped.length !== aliases.length) throw new Error("Istilah dokter tidak boleh duplikat.");
+  for (const alias of deduped) {
+    const query = alias.query.toLocaleUpperCase("id-ID");
+    if (!productCatalogNames.some((name) => name.toLocaleUpperCase("id-ID").includes(query))) {
+      throw new Error(`Pencarian '${alias.query}' tidak menemukan kandidat pada katalog.`);
+    }
+  }
+  return deduped;
+}
+
+async function saveProductAliasSettings() {
+  const status = $("#productAliasStatus");
+  status.hidden = false;
+  try {
+    const aliases = collectProductAliases();
+    await chrome.storage.local.set({ [PRODUCT_ALIASES_KEY]: aliases });
+    productAliases = aliases;
+    updateSettingsSummaries();
+    setStatus(status, "success", `${aliases.length} alias produk tersimpan.`);
+  } catch (error) {
+    setStatus(status, "error", error.message);
+  }
+}
+
+async function resetProductAliasSettings() {
+  if (!window.confirm("Kembalikan kamus produk ke bawaan RSDKH?")) return;
+  productAliases = defaultProductAliases.map((alias) => ({ ...alias }));
+  await chrome.storage.local.remove(PRODUCT_ALIASES_KEY);
+  renderProductAliases();
+  const status = $("#productAliasStatus");
+  status.hidden = false;
+  setStatus(status, "success", "Kamus produk dikembalikan ke bawaan RSDKH.");
 }
 
 function normalizeStoredSettings(stored = {}) {
@@ -1721,8 +2184,26 @@ function updateApiStatus() {
   $("#activeApiKeyText").textContent = ready
     ? `${message} · ${useAdmin ? adminPublicConfig?.model || "" : settings.model}`
     : message;
+  $("#settingsApiSummary").textContent = message;
   $("#deleteApiKey").hidden = useAdmin;
   $("#deleteApiKey").disabled = useAdmin || !personalReady;
+}
+
+function updateSettingsSummaries() {
+  const aliasSummary = $("#settingsAliasSummary");
+  if (aliasSummary) {
+    aliasSummary.textContent = productCatalogNames.length
+      ? `${productAliases.length} alias aktif · ${productCatalogNames.length} produk katalog`
+      : `${productAliases.length} alias aktif`;
+  }
+  const adminSummary = $("#settingsAdminSummary");
+  if (adminSummary) {
+    adminSummary.textContent = ownerAdminAuth
+      ? "Panel admin aktif"
+      : adminUserSession
+        ? `API admin digunakan oleh ${adminUserSession.username}`
+        : "Kelola API server dan pengguna";
+  }
 }
 
 function syncApiSourceFields() {
@@ -1738,6 +2219,7 @@ function syncAdminSessionUi() {
   $("#adminLoginFields").hidden = Boolean(adminUserSession);
   $("#adminSessionUsername").textContent = adminUserSession?.username || "";
   updateApiStatus();
+  updateSettingsSummaries();
 }
 
 function syncAdminPublicStatus(error = "") {
@@ -1816,20 +2298,57 @@ function fillSettingsForm() {
   $("#model").value = settings.model;
   $("#validateBeforeSave").checked = true;
   $("#settingsStatus").hidden = true;
+  $("#productAliasStatus").hidden = true;
   $("#provider").dataset.previous = settings.provider;
   syncProviderFields();
   syncApiKeyVisibility(false);
   syncApiSourceFields();
   syncAdminSessionUi();
+  renderProductAliases();
   updateApiStatus();
 }
 
-function openSettingsDialog() {
+const SETTINGS_PAGES = {
+  home: ["KONFIGURASI", "Pengaturan"],
+  connection: ["PENGATURAN", "Koneksi AI"],
+  products: ["PENGATURAN", "Kamus Produk RSDKH"],
+  admin: ["PENGATURAN", "Panel Admin"]
+};
+
+function showSettingsPage(name = "home", direction = "forward", moveFocus = true) {
+  if (!SETTINGS_PAGES[name]) name = "home";
+  document.querySelectorAll(".settings-page").forEach((page) => {
+    page.hidden = page.dataset.settingsPage !== name;
+  });
+  const dialog = $("#settingsDialog");
+  dialog.dataset.settingsPage = name;
+  dialog.dataset.settingsDirection = direction;
+  $("#settingsBack").hidden = name === "home";
+  $("#settingsKicker").textContent = SETTINGS_PAGES[name][0];
+  $("#settingsTitle").textContent = SETTINGS_PAGES[name][1];
+  updateSettingsSummaries();
+  if (moveFocus) requestAnimationFrame(() => $("#settingsTitle").focus({ preventScroll: true }));
+}
+
+function openSettingsDialog(page = "home") {
   fillSettingsForm();
   const dialog = $("#settingsDialog");
+  clearTimeout(settingsCloseTimer);
+  showSettingsPage(page);
   if (!dialog.open) dialog.showModal();
-  $("#apiKeySource").focus();
+  requestAnimationFrame(() => dialog.classList.add("is-visible"));
   refreshAdminSettings();
+}
+
+function closeSettingsDialog() {
+  const dialog = $("#settingsDialog");
+  if (!dialog.open) return;
+  dialog.classList.remove("is-visible");
+  const delay = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 200;
+  settingsCloseTimer = setTimeout(() => {
+    dialog.close();
+    $("#openSettings").focus();
+  }, delay);
 }
 
 function syncApiKeyVisibility(visible) {
@@ -1860,7 +2379,8 @@ function setSettingsBusy(active, message = "Simpan") {
     ? "Gunakan API admin"
     : message;
   $("#deleteApiKey").disabled = active || settings.apiKeySource === "admin" || !settings.apiKey;
-  $("#cancelSettings").disabled = active;
+  $("#settingsBack").disabled = active;
+  $("#closeSettings").disabled = active;
 }
 
 async function saveApiSettings(event) {
@@ -1987,6 +2507,7 @@ function exitOwnerAdminMode() {
   $("#ownerLoginStatus").hidden = true;
   $("#adminUserList").textContent = "";
   activateOwnerAdminTab("apikey");
+  updateSettingsSummaries();
 }
 
 async function loginOwnerAdmin() {
@@ -2014,6 +2535,7 @@ async function loginOwnerAdmin() {
     fillOwnerConfig(config);
     await loadAdminUsers();
     setStatus($("#ownerAdminStatus"), "success", "Panel admin aktif.");
+    updateSettingsSummaries();
   } catch (error) {
     ownerAdminAuth = null;
     setStatus(status, "error", `Login gagal: ${error.message}`);
@@ -2228,7 +2750,15 @@ async function deleteApiSettings() {
 }
 
 async function initialize() {
-  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY]);
+  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, WHATSAPP_SOAP_SETTINGS_KEY]);
+  await loadProductAliasResources();
+  productAliases = Array.isArray(saved[PRODUCT_ALIASES_KEY])
+    ? dedupeProductAliases(saved[PRODUCT_ALIASES_KEY])
+    : defaultProductAliases.map((alias) => ({ ...alias }));
+  whatsappSoapSettings = {
+    doctorName: String(saved[WHATSAPP_SOAP_SETTINGS_KEY]?.doctorName || ""),
+    openingTemplate: String(saved[WHATSAPP_SOAP_SETTINGS_KEY]?.openingTemplate || DEFAULT_WHATSAPP_OPENING)
+  };
   settings = normalizeStoredSettings(saved[SETTINGS_KEY]);
   const hadHistoryStorage = Array.isArray(saved[HISTORY_KEY]);
   const storedHistory = hadHistoryStorage ? saved[HISTORY_KEY] : [];
@@ -2249,6 +2779,7 @@ async function initialize() {
   }
   syncIdentityUi();
   fillSettingsForm();
+  renderProductAliases();
   if (settings.apiKeySource === "admin") await refreshAdminSettings();
   syncResultAlerts();
   if (!hadHistoryStorage && (hasResult("soap") || hasResult("kronologi"))) {
@@ -2286,6 +2817,27 @@ if (typeof document !== "undefined") {
     setStatus($("#soapStatus"), "ready", "Foto klinis dihapus.");
   });
   $("#createChronology").addEventListener("click", createChronologyFromSoap);
+  $("#openWhatsappSoap").addEventListener("click", openWhatsappSoapDialog);
+  $("#closeWhatsappSoap").addEventListener("click", () => $("#whatsappSoapDialog").close());
+  $("#whatsappSoapDialog").addEventListener("cancel", (event) => event.preventDefault());
+  $("#previousWhatsappStep").addEventListener("click", () => showWhatsappStep(whatsappStep - 1));
+  $("#nextWhatsappStep").addEventListener("click", nextWhatsappStep);
+  $("#copyWhatsappSoap").addEventListener("click", copyWhatsappSoap);
+  $("#refreshWhatsappIdentity").addEventListener("click", loadWhatsappIdentity);
+  $("#whatsappSoapForm").addEventListener("submit", (event) => event.preventDefault());
+  ["whatsappDoctorName", "whatsappOpeningTemplate"].forEach((id) => {
+    $(`#${id}`).addEventListener("input", scheduleWhatsappSettingsSave);
+  });
+  document.querySelectorAll("#whatsappSoapForm input, #whatsappSoapForm textarea").forEach((field) => {
+    field.addEventListener("input", syncWhatsappPreview);
+  });
+  $("#inputSoapFromResult").addEventListener("click", openSoapInputStatusDialog);
+  $("#soapInputStatusForm").addEventListener("submit", submitSoapInputStatus);
+  $("#closeSoapInputStatus").addEventListener("click", () => $("#soapInputStatusDialog").close());
+  $("#cancelSoapInputStatus").addEventListener("click", () => $("#soapInputStatusDialog").close());
+  $("#soapInputStatusDialog").addEventListener("click", (event) => {
+    if (event.target === $("#soapInputStatusDialog")) $("#soapInputStatusDialog").close();
+  });
   $("#backToForm").addEventListener("click", closeResultView);
   $("#resultDialog").addEventListener("cancel", (event) => {
     event.preventDefault();
@@ -2308,6 +2860,12 @@ if (typeof document !== "undefined") {
     if (event.target === $("#historyDialog")) closeHistoryDialog();
   });
   $("#newPatient").addEventListener("click", openNewPatientDialog);
+  $("#importNewPatientErmIdentity").addEventListener("click", importNewPatientIdentityFromErm);
+  $("#newPatientIdentity").addEventListener("input", (event) => {
+    if (!event.isTrusted) return;
+    resetNewPatientErmIdentityButton();
+    $("#newPatientStatus").hidden = true;
+  });
   $("#closeNewPatient").addEventListener("click", () => $("#newPatientDialog").close());
   $("#cancelNewPatient").addEventListener("click", () => $("#newPatientDialog").close());
   $("#newPatientForm").addEventListener("submit", startNewPatient);
@@ -2322,9 +2880,12 @@ if (typeof document !== "undefined") {
   $("#helpDialog").addEventListener("click", (event) => {
     if (event.target === $("#helpDialog")) $("#helpDialog").close();
   });
-  $("#openSettings").addEventListener("click", openSettingsDialog);
-  $("#closeSettings").addEventListener("click", () => $("#settingsDialog").close());
-  $("#cancelSettings").addEventListener("click", () => $("#settingsDialog").close());
+  $("#openSettings").addEventListener("click", () => openSettingsDialog());
+  $("#closeSettings").addEventListener("click", closeSettingsDialog);
+  $("#settingsBack").addEventListener("click", () => showSettingsPage("home", "back"));
+  document.querySelectorAll("[data-settings-target]").forEach((button) => {
+    button.addEventListener("click", () => showSettingsPage(button.dataset.settingsTarget));
+  });
   $("#provider").addEventListener("change", () => syncProviderFields(true));
   $("#apiKeySource").addEventListener("change", () => {
     syncApiSourceFields();
@@ -2335,6 +2896,21 @@ if (typeof document !== "undefined") {
   $("#deleteApiKey").addEventListener("click", deleteApiSettings);
   $("#loginAdminUser").addEventListener("click", loginAdminUserFromSettings);
   $("#logoutAdminUser").addEventListener("click", logoutAdminUserFromSettings);
+  $("#addProductAlias").addEventListener("click", () => {
+    $("#productAliasSearch").value = "";
+    filterProductAliases();
+    const row = createProductAliasRow();
+    $("#productAliasList").append(row);
+    row.querySelector(".alias-term").focus();
+  });
+  $("#productAliasSearch").addEventListener("input", filterProductAliases);
+  $("#saveProductAliases").addEventListener("click", saveProductAliasSettings);
+  $("#resetProductAliases").addEventListener("click", resetProductAliasSettings);
+  $("#productAliasList").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    saveProductAliasSettings();
+  });
   $("#ownerProvider").addEventListener("change", () => syncOwnerProviderFields(true));
   $("#loginOwnerAdmin").addEventListener("click", loginOwnerAdmin);
   $("#exitOwnerAdmin").addEventListener("click", exitOwnerAdminMode);
@@ -2363,10 +2939,14 @@ if (typeof document !== "undefined") {
   $("#cancelResetAdminUser").addEventListener("click", cancelAdminUserReset);
   $("#confirmResetAdminUser").addEventListener("click", confirmAdminUserReset);
   $("#settingsForm").addEventListener("submit", saveApiSettings);
-  $("#settingsDialog").addEventListener("click", (event) => {
-    if (event.target === $("#settingsDialog")) $("#settingsDialog").close();
+  $("#settingsDialog").addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeSettingsDialog();
   });
-  $("#settingsDialog").addEventListener("close", exitOwnerAdminMode);
+  $("#settingsDialog").addEventListener("close", () => {
+    exitOwnerAdminMode();
+    showSettingsPage("home", "back", false);
+  });
 
   initialize().catch((error) => setStatus($("#soapStatus"), "error", `Error: ${error.message}`));
 }
@@ -2383,7 +2963,13 @@ if (typeof module !== "undefined") {
     extractOpenAiContent,
     parseProviderPayload,
     embeddedProviderError,
-    pruneExpiredHistory
+    pruneExpiredHistory,
+    parseAnonymousIdentity,
+    whatsappTimeOfDay,
+    formatWhatsappPatientIdentity,
+    buildWhatsappSoapReport,
+    normalizeProductAlias,
+    dedupeProductAliases
   };
   if (require.main === module) {
     const assert = require("node:assert/strict");
@@ -2399,6 +2985,22 @@ if (typeof module !== "undefined") {
     assert.equal(embeddedProviderError({ success: false, message: "Model tidak tersedia" }), "Model tidak tersedia");
     assert.equal(normalizeSoapResult({ S: "Keluhan", O: "Temuan", A: "Diagnosis", P: "Terapi", requiresChronology: "false" }).requires_chronology, false);
     assert.equal(normalizeKronologiResult({ chronology: "Kejadian" }).kronologi, "Kejadian");
+    assert.deepEqual(parseAnonymousIdentity("Tn. X, 45 tahun"), { valid: true, age: 45, gender: "male" });
+    assert.deepEqual(parseAnonymousIdentity("Ny. X 31 thn"), { valid: true, age: 31, gender: "female" });
+    assert.equal(parseAnonymousIdentity("Laki laki 45 tahun").valid, true);
+    assert.equal(parseAnonymousIdentity("Perempuan 71 thn 9 bln").valid, true);
+    assert.equal(parseAnonymousIdentity("Boss, 22 tahun").valid, false);
+    assert.equal(parseAnonymousIdentity("Tn. X").valid, false);
+    assert.equal(whatsappTimeOfDay(new Date(2026, 0, 1, 5)), "pagi");
+    assert.equal(whatsappTimeOfDay(new Date(2026, 0, 1, 12)), "siang");
+    assert.equal(whatsappTimeOfDay(new Date(2026, 0, 1, 16)), "sore");
+    assert.equal(whatsappTimeOfDay(new Date(2026, 0, 1, 22)), "malam");
+    assert.equal(formatWhatsappPatientIdentity({ name: "SALIMUDDIN", gender: "Laki-laki", age: "48 tahun 6 bln", medicalRecordNumber: "051462" }), "SALIMUDDIN / Laki-laki / 48 tahun 6 bln / 051462");
+    assert.match(buildWhatsappSoapReport({ openingTemplate: "Selamat {waktu}, dr. {dokter}", doctorName: "Syafrie", identity: "SALIMUDDIN / Laki-laki / 48 tahun / 051462", s: "Nyeri", o: "CM", a: "ACS", p: "O2", closing: "Mohon advis.", now: new Date(2026, 0, 1, 5) }), /Selamat pagi, dr\. Syafrie[\s\S]*\*SALIMUDDIN[\s\S]*S\)\nNyeri[\s\S]*A\)\nACS[\s\S]*Mohon advis\./);
+    assert.deepEqual(dedupeProductAliases([
+      { term: " Antrain ", query: "METAMIZOLE", selection: "unique" },
+      { term: "antrain", query: "METAMIZOLE 1GR", selection: "confirm" }
+    ]), [{ term: "antrain", query: "METAMIZOLE 1GR", selection: "confirm" }]);
     const retentionNow = Date.UTC(2026, 7, 12);
     assert.deepEqual(pruneExpiredHistory([
       { id: "expired", updatedAt: new Date(retentionNow - (61 * 24 * 60 * 60 * 1000)).toISOString() },

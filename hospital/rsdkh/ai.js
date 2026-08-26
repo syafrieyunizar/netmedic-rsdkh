@@ -76,13 +76,20 @@ ${soapText}
 </SOAP_DOKTER>`;
   }
 
-  function buildPrescriptionPrompt(mode, prescriptionText) {
+  function buildPrescriptionPrompt(mode, prescriptionText, includeSupplies = false) {
     const modeText = {
       inpatient: "RAWAT INAP",
       outpatient: "RAWAT JALAN",
-      emergency_inpatient: "RESEP IGD (RANAP)"
+      emergency_inpatient: "RESEP PERGANTIAN IGD"
     }[mode];
     if (!modeText) throw new Error("Mode resep tidak valid.");
+
+    const suppliesRule = includeSupplies
+      ? "Tambahkan alat medis habis pakai yang langsung diperlukan terapi secara konservatif dan tandai is_supply true."
+      : "JANGAN menambahkan alat medis atau bahan habis pakai. Hanya hasilkan obat yang ditulis dokter.";
+    const suppliesExample = includeSupplies
+      ? "Item dapat mencakup Pantoprazole 40 mg, Ondansetron 4 mg, NaCl 0,9% 500 cc, infusion set, Surflo 22, spuit 5 cc, dan spuit 3 cc, masing-masing qty 1 bila sesuai."
+      : "Item hanya mencakup Pantoprazole 40 mg, Ondansetron 4 mg, dan NaCl 0,9% 500 cc. Jangan tambahkan infusion set, Surflo, atau spuit.";
 
     return `Kamu adalah asisten penulisan resep elektronik rumah sakit Indonesia.
 
@@ -96,14 +103,16 @@ ATURAN KESELAMATAN WAJIB:
 4. Pisahkan nama obat, bentuk sediaan, kekuatan, jumlah, dan aturan pakai. Qty wajib berupa jumlah item/pcs dan minimal 1.
 5. search_term harus singkat dan cocok untuk pencarian produk e-Resep. Jangan masukkan aturan pakai ke search_term.
 6. Jangan menganggap hasil pasti benar. Gunakan needs_review dan review_note bila nama, sediaan, kekuatan, jumlah, atau aturan pakai ambigu.
-7. Kembalikan hanya JSON valid tanpa markdown dan tanpa key tambahan.
+7. ${suppliesRule}
+8. Pertahankan frekuensi, dosis setiap pemberian, durasi, dan kecepatan infus seperti tpm di dalam directions bila tersedia pada input.
+9. Kembalikan hanya JSON valid tanpa markdown dan tanpa key tambahan.
 
 ATURAN MODE:
 - RAWAT JALAN: utamakan sediaan oral hanya bila selaras dengan input. Pertahankan injeksi/non-oral bila dokter menuliskannya. Aturan pakai harus dirapikan, tetapi jangan dikarang bila tidak ada.
 - RAWAT INAP: pertahankan rute, dosis, frekuensi, dan aturan pakai secara jelas. Bila detail tidak tersedia, kosongkan directions dan tandai untuk ditinjau.
-- RESEP IGD (RANAP): qty menggunakan pcs dan directions boleh kosong. Boleh menambahkan alat habis pakai yang langsung diperlukan oleh terapi IV/injeksi, seperti infusion set, Surflo, dan spuit, dalam jumlah konservatif dan tetap editable. Jangan menambahkan alat yang tidak relevan.
+- RESEP PERGANTIAN IGD: qty menggunakan pcs. Pertahankan directions bila input memuat frekuensi, dosis, durasi, atau tpm. Ikuti aturan alat medis pada poin 7.
 
-CONTOH KHUSUS RESEP IGD (RANAP):
+CONTOH KHUSUS RESEP PERGANTIAN IGD:
 Input:
 panto 1
 ns 1
@@ -114,7 +123,7 @@ IVFD. NaCl 0,9% 500 cc
 Inj. Pantoprazole 40 mg
 Inj. Ondansetron 4 mg
 
-Item dapat mencakup Pantoprazole 40 mg, Ondansetron 4 mg, NaCl 0,9% 500 cc, infusion set, Surflo 22, spuit 5 cc, dan spuit 3 cc, masing-masing qty 1 bila sesuai.
+${suppliesExample}
 
 FORMAT OUTPUT:
 {
@@ -399,9 +408,9 @@ ${prescriptionText}
     return normalizeSoap(await generateStructured(prompt, SOAP_SCHEMA, "rsdkh_input_soap"));
   }
 
-  async function generatePrescription(mode, prescriptionText) {
+  async function generatePrescription(mode, prescriptionText, includeSupplies = false) {
     if (!String(prescriptionText || "").trim()) throw new Error("Daftar obat belum diisi.");
-    const prompt = buildPrescriptionPrompt(mode, String(prescriptionText).trim());
+    const prompt = buildPrescriptionPrompt(mode, String(prescriptionText).trim(), includeSupplies === true);
     return normalizePrescription(await generateStructured(prompt, PRESCRIPTION_SCHEMA, "rsdkh_e_resep"));
   }
 
@@ -419,6 +428,8 @@ if (typeof module !== "undefined" && require.main === module) {
     warning: "",
     items: [{ display_name: "NaCl", search_term: "NaCl", form: "", strength: "", qty: 1, unit: "pcs", directions: "", is_supply: false, needs_review: false, review_note: "" }]
   });
-  assert.match(module.exports.buildPrescriptionPrompt("emergency_inpatient", "panto 1"), /RESEP IGD \(RANAP\)/);
+  assert.match(module.exports.buildPrescriptionPrompt("emergency_inpatient", "panto 1"), /RESEP PERGANTIAN IGD/);
+  assert.match(module.exports.buildPrescriptionPrompt("emergency_inpatient", "panto 1", true), /Tambahkan alat medis habis pakai/);
+  assert.match(module.exports.buildPrescriptionPrompt("emergency_inpatient", "panto 1", false), /JANGAN menambahkan alat medis/);
   console.log("RSDKH AI self-check ok");
 }

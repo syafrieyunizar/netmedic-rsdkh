@@ -7,26 +7,32 @@ Integrasi ini aktif hanya pada halaman rekam medis SIAPMEDIS RSDKH di `rsudbalan
 - `ai.js`: memilah SOAP dan menyusun preview e-Resep terstruktur menggunakan API pribadi atau API admin `netmedic-rsdkh`.
 - `erm.js`: menyisipkan tombol `Input SOAP`, menampilkan modal, dan menjalankan urutan pengisian eRM.
 - `erm.css`: tampilan tombol, modal, progres, error, dan toast yang terisolasi dari CSS SIAPMEDIS.
-- `prescription.js`: menyisipkan tombol `e-Resep otomatis`, menampilkan preview editable, dan memasukkan produk secara serial ke Resep Non Racikan.
+- `prescription.js`: menyisipkan tombol `e-Resep otomatis`, menyediakan pintasan `Buat Resep` dari form Pengantar Opname baru di menu `Asesmen UGD` (dengan fallback modal lama), menampilkan preview editable, dan memasukkan produk secara serial ke Resep Non Racikan.
 - `prescription.css`: tampilan modal, kartu item, status, dan tombol e-Resep yang terisolasi.
 - `product-catalog.json`: katalog final produk eRM RSDKH.
 - `product-aliases.json`: kamus istilah dokter bawaan untuk pencarian katalog.
 
 Side panel membaca profil pasien aktif dari eRM untuk memilih memori lokal berdasarkan nomor RM, menampilkan nama pasien, dan mengelola label BED. Nama dan nomor RM tidak dimasukkan ke prompt AI; prompt Magic SOAP tetap hanya menerima umur dan jenis kelamin anonim. Nilai BED dapat memaksa judul tab eRM menjadi `<bed> <nama pasien>` selama halaman pasien tersebut aktif.
 
+Jika sesi Jaga IGD aktif, profil pasien yang dibuka otomatis dimasukkan satu kali ke dashboard berdasarkan nomor RM. Dashboard menyimpan tab dan URL eRM secara lokal agar klik pasien dapat memfokuskan tab lama atau membuka kembali halaman tersebut. Status `SOAP siap` dan `Sudah diinput` diperbarui dari alur side panel, sedangkan status disposisi tetap dapat dipilih dokter pada dashboard.
+
+Saat halaman Pengkajian Dokter IGD dimuat, content script membaca isian dan baris tersimpan tanpa memindahkan menu eRM secara otomatis. Dashboard menampilkan indikator hijau dengan centang bila ada isi dan indikator merah dengan silang bila kosong atau belum terkonfirmasi.
+
 ## Alur Input SOAP
 
-1. User menekan `Input SOAP` di sebelah tombol Alergi.
+1. User menekan `Input SOAP` di sebelah judul Pengkajian Dokter IGD.
 2. SOAP dikirim ke provider API yang aktif untuk dipilah tanpa mengubah isi klinis.
-3. Subjektif disimpan ke Anamnesis sebagai Keluhan Utama.
-4. Objektif disimpan ke Pemeriksaan Fisik sebagai Pemeriksaan Lokal.
-5. Assessment disimpan ke Diagnosis dengan jenis `Diagnosa Awal`.
-6. Asesment IGD 2 dibuka, Assessment diisikan ke Diagnosa Kerja, dan Planning diisikan ke baris Instruksi Dokter baru.
-7. Asesment IGD 2 sengaja tidak disimpan agar dokter dapat memeriksa hasil akhir.
+3. Bila Anamnesa, Pemeriksaan Fisik, atau draft Diagnosa Medis sudah berisi, user diminta mengonfirmasi sebelum isi lama ditimpa.
+4. Subjektif diisikan ke Anamnesa dan Objektif diisikan ke Pemeriksaan Fisik.
+5. Assessment diisikan sebagai satu `Diagnosa Medis` free-text. Rawat inap memilih `Diagnosa Awal`; rawat jalan memilih `Primary / utama`. Extension lalu menekan `Simpan` pada panel ICD 10 FreeText.
+6. Planning memakai baris Instruksi Dokter yang kosong. Bila semua baris sudah berisi, extension menekan `Tambah` pada container tabel tersebut lalu mengisi baris baru.
+7. Selain penyimpanan Diagnosis pada langkah 5, extension tidak menekan tombol Simpan lain. Dokter meninjau S, O, dan P lalu menyimpan Pengkajian melalui eRM.
 
-Hasil Magic SOAP pada side panel juga memiliki tombol `Input SOAP`. Sebelum proses berjalan, user memilih rencana status pasien. Rawat inap memilih jenis `Diagnosa Awal`, sedangkan rawat jalan memilih `Primary / utama`; langkah lain tetap sama. Tombol ini mengirim empat hasil editable S/O/A/P langsung ke content script dan menjalankan langkah 3-7 tanpa memanggil parser AI lagi. Tab aktif wajib berada pada halaman eRM pasien, dan umur serta jenis kelaminnya harus sesuai dengan identitas side panel sebelum field pertama ditulis.
+Hasil Magic SOAP pada side panel juga memiliki tombol `Input SOAP`. Sebelum proses berjalan, user memilih rencana status pasien. Tombol ini mengirim empat hasil editable S/O/A/P langsung ke content script dan menjalankan langkah 3-7 pada Pengkajian Dokter IGD tanpa memanggil parser AI lagi. Tab aktif wajib berada pada halaman tersebut, dan umur serta jenis kelaminnya harus sesuai dengan identitas side panel sebelum field pertama ditulis.
 
 Selector mengandalkan label dan teks komponen SIAPMEDIS, bukan atribut Angular sementara seperti `_ngcontent-*`. Bila struktur target tidak ditemukan, proses berhenti dan menunjukkan tahap yang gagal.
+
+Resep Pergantian IGD mengambil sumber dari Planning Pengkajian Dokter IGD yang baru, bukan Assessment IGD 2. Resep Rawat Inap mengambil obat dari `Rencana Terapi` Pengantar Opname baru pada route `pengantar-opname-new` dan tidak memasukkan `Rencana Tindakan`; jenis rekam medis lama tetap dipakai sebagai fallback. Setiap alur e-Resep mewajibkan dokter memilih depo pengambilan; extension menyelaraskan pilihan itu ke dropdown `Ruangan` eRM sebelum Generate dan memeriksanya kembali sebelum item dimasukkan.
 
 ## Alur e-Resep Otomatis
 

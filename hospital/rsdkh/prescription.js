@@ -3,6 +3,7 @@
 
   const BUTTON_ID = "netmedic-rsdkh-erx-button";
   const SLOT_ID = `${BUTTON_ID}-slot`;
+  const OPNAME_BUTTON_ID = "netmedic-rsdkh-opname-prescription";
   const UI_ID = "netmedic-rsdkh-erx-ui";
   const PRODUCT_ALIASES_KEY = "rsdkhProductAliases";
   const NETMEDIC_LOGIN_KEY = "RUdJRVJBTURBTg==";
@@ -17,9 +18,11 @@
     salep: ["salep", "cream", "krim", "ointment"],
     tetes: ["tetes", "drop"]
   };
+  const DEPOT_NAMES = ["DEPO GAWAT DARURAT", "DEPO OK", "DEPO RAJAL", "DEPO RAWAT INAP"];
 
   let ui;
   let running = false;
+  let pendingAutoGenerate = false;
   let injectQueued = false;
   let productCatalog = [];
   let productCatalogByName = new Map();
@@ -36,15 +39,21 @@
     return location.hash.includes("/order-resep-v2");
   }
 
-  function extractIgdInstructions(records = []) {
-    return records.flatMap((record) => Array.isArray(record?.json?.datasource) ? record.json.datasource : [])
-      .map((row) => String(row?.instruksidokter || "").trim())
-      .filter(Boolean)
-      .join("\n");
+  function isNewOpnamePage() {
+    return location.hash.includes("/pengantar-opname-new");
   }
 
-  function extractOpnamePlans(records = []) {
-    return records.map((record) => String(record?.json?.rencanatindakan || "").trim())
+  function extractIgdInstructions(records = []) {
+    const values = records.flatMap((record) => {
+      const json = record?.json || {};
+      const rows = Array.isArray(json.datasource) ? json.datasource : [];
+      return [json.planning, json.instruksidokter, ...rows.map((row) => row?.instruksidokter)];
+    }).map((value) => String(value || "").trim()).filter(Boolean);
+    return [...new Set(values)].join("\n");
+  }
+
+  function extractOpnameTherapies(records = []) {
+    return records.map((record) => String(record?.json?.rencanaterapi || record?.json?.rencanaTerapi || "").trim())
       .filter(Boolean)
       .join("\n");
   }
@@ -392,8 +401,39 @@
       .find((element) => normalize(element.textContent) === label) || null;
   }
 
+  function exactTextIn(scope, label, selector = "a,button,span,div,label,li") {
+    if (!scope) return null;
+    return [...scope.querySelectorAll(selector)]
+      .filter(isVisible)
+      .sort((left, right) => left.children.length - right.children.length)
+      .find((element) => normalize(element.textContent) === label) || null;
+  }
+
   function findButton(label, scope = document) {
     return [...scope.querySelectorAll("button")].find((button) => isVisible(button) && normalize(button.textContent) === label) || null;
+  }
+
+  function roomDropdown() {
+    const label = exactText("Ruangan", "label,span,div");
+    return label?.parentElement?.querySelector(".p-dropdown")
+      || label?.closest(".p-field,.p-col-12,[class*='p-col']")?.querySelector(".p-dropdown")
+      || null;
+  }
+
+  async function selectErmDepot(depot) {
+    if (!DEPOT_NAMES.includes(depot)) throw new Error("Pilih depo pengambilan obat terlebih dahulu.");
+    const dropdown = await waitFor(roomDropdown, "Dropdown Ruangan untuk depo tidak ditemukan.");
+    const selected = () => normalize(dropdown.querySelector(".p-dropdown-label")?.textContent);
+    if (selected() === depot) return;
+    const trigger = dropdown.querySelector(".p-dropdown-trigger") || dropdown;
+    clickButtonLikeUser(trigger);
+    const option = await waitFor(
+      () => [...document.querySelectorAll(".p-dropdown-item,[role='option']")]
+        .find((item) => isVisible(item) && normalize(item.textContent) === depot),
+      `Pilihan ${depot} tidak ditemukan pada dropdown Ruangan.`
+    );
+    clickButtonLikeUser(option);
+    await waitFor(() => selected() === depot, `Depo belum berhasil diubah menjadi ${depot}.`);
   }
 
   async function waitFor(getter, errorMessage, timeout = 15000) {
@@ -883,6 +923,7 @@
   function setRunning(active) {
     running = active;
     ui.generate.disabled = active;
+    ui.depot.disabled = active;
     ui.addItem.disabled = active;
     ui.close.disabled = active;
     ui.closeIcon.disabled = active;
@@ -938,6 +979,19 @@
       ui.source.focus();
       return;
     }
+    const depot = ui.depot.value;
+    if (!depot) {
+      setStatus("error", "Pilih depo pengambilan obat terlebih dahulu.");
+      ui.depot.focus();
+      return;
+    }
+    setStatus("loading", `Memilih ${depot} pada eRM.`);
+    try {
+      await selectErmDepot(depot);
+    } catch (error) {
+      setStatus("error", error.message || "Depo pengambilan gagal dipilih.");
+      return;
+    }
     const mode = ui.shadow.querySelector('input[name="erx-mode"]:checked').value;
     let outpatientDays = 0;
     if (mode === "outpatient") {
@@ -979,16 +1033,18 @@
   function sourceConfig() {
     const mode = ui.shadow.querySelector('input[name="erx-mode"]:checked')?.value;
     if (mode === "emergency_inpatient") return {
-      kind: "ASESMENT 2",
+      kinds: ["PENGKAJIAN DOKTER IGD", "PENGKAJIAN DOKTER"],
       label: "Ambil Resep dari Tatalaksana IGD",
-      empty: "Instruksi Dokter pada Assessment IGD 2 belum tersedia.",
+      sourceName: "Planning Pengkajian Dokter IGD",
+      empty: "Planning pada Pengkajian Dokter IGD belum tersedia.",
       extract: extractIgdInstructions
     };
     if (mode === "inpatient") return {
-      kind: "PENGANTAR OPNAME",
+      kinds: ["PENGANTAR OPNAME NEW", "PENGANTAR OPNAME"],
       label: "Ambil resep dari pengantar opname",
-      empty: "Rencana Tindakan pada Pengantar Opname belum tersedia.",
-      extract: extractOpnamePlans
+      sourceName: "Pengantar Opname",
+      empty: "Rencana Terapi pada Pengantar Opname belum tersedia.",
+      extract: extractOpnameTherapies
     };
     return null;
   }
@@ -999,20 +1055,47 @@
     if (config) ui.importSource.querySelector("span").textContent = config.label;
   }
 
+  async function loadPrescriptionSource(config) {
+    let lastError;
+    let loaded = false;
+    for (const kind of config.kinds) {
+      try {
+        const records = await loadMedicalRecords(kind);
+        loaded = true;
+        const source = config.extract(records);
+        if (source) return source;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!loaded && lastError) throw lastError;
+    return "";
+  }
+
+  async function autoGenerateAfterDepotChoice(message) {
+    if (ui.depot.value) {
+      pendingAutoGenerate = false;
+      await generatePrescription();
+      return;
+    }
+    pendingAutoGenerate = true;
+    setStatus("success", message);
+    ui.depot.focus();
+  }
+
   async function importPrescriptionSource() {
     const config = sourceConfig();
     if (!config || running) return;
     ui.importSource.disabled = true;
     ui.modeInputs.forEach((input) => { input.disabled = true; });
     ui.importSource.querySelector("span").textContent = "Mengambil data...";
-    setStatus("loading", `Mengambil ${config.kind === "ASESMENT 2" ? "Instruksi Dokter" : "Pengantar Opname"}.`);
+    setStatus("loading", `Mengambil ${config.sourceName}.`);
     try {
-      const source = config.extract(await loadMedicalRecords(config.kind));
+      const source = await loadPrescriptionSource(config);
       if (!source) throw new Error(config.empty);
-      ui.source.value = source;
+      setNativeValue(ui.source, source);
       ui.source.dispatchEvent(new Event("input", { bubbles: true }));
-      setStatus("success", "Data resep berhasil diambil. Melanjutkan ke generate e-Resep.");
-      await generatePrescription();
+      await autoGenerateAfterDepotChoice("Data resep berhasil diambil. Pilih depo untuk melanjutkan Generate.");
     } catch (error) {
       setStatus("error", error.message || "Data resep gagal diambil.");
     } finally {
@@ -1033,6 +1116,17 @@
     if (!ui.confirm.checked || running) return;
     const entries = collectItems().filter(({ card }) => card.dataset.state !== "done");
     if (!entries.length) return;
+    if (!ui.depot.value) {
+      setStatus("error", "Pilih depo pengambilan obat terlebih dahulu.");
+      ui.depot.focus();
+      return;
+    }
+    try {
+      await selectErmDepot(ui.depot.value);
+    } catch (error) {
+      setStatus("error", error.message || "Depo pengambilan gagal dipilih.");
+      return;
+    }
     setRunning(true);
     setStatus("loading", `Memasukkan 0 dari ${entries.length} item.`);
     if (ui.dialog.open) ui.dialog.close();
@@ -1114,6 +1208,10 @@
               <label><input type="radio" name="erx-mode" value="outpatient"><span>Rawat jalan</span></label>
               <label><input type="radio" name="erx-mode" value="emergency_inpatient" checked><span>Resep Pergantian IGD</span></label>
             </div></fieldset>
+            <label class="erx-depot-label" for="erx-depot"><span>Depo pengambilan *</span><select id="erx-depot" required>
+              <option value="">Pilih depo</option>
+              ${DEPOT_NAMES.map((name) => `<option value="${name}">${name}</option>`).join("")}
+            </select></label>
             <label class="erx-source-label" for="erx-source"><span>Tulis obat-obatan di sini</span><textarea id="erx-source" rows="6" placeholder="panto 1&#10;ns 1&#10;ondan 1"></textarea></label>
             <button class="erx-import-source" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg><span></span></button>
           </section>
@@ -1161,6 +1259,7 @@
     ui = {
       shadow,
       dialog: shadow.querySelector("dialog"),
+      depot: shadow.querySelector("#erx-depot"),
       source: shadow.querySelector("#erx-source"),
       importSource: shadow.querySelector(".erx-import-source"),
       modeInputs: [...shadow.querySelectorAll('input[name="erx-mode"]')],
@@ -1184,10 +1283,19 @@
       durationContinue: shadow.querySelector(".erx-duration-continue"),
       durationCancel: shadow.querySelector(".erx-duration-cancel")
     };
-    const close = () => { if (!running) ui.dialog.close(); };
+    const close = () => {
+      if (running) return;
+      pendingAutoGenerate = false;
+      ui.dialog.close();
+    };
     ui.generate.addEventListener("click", generatePrescription);
     ui.importSource.addEventListener("click", importPrescriptionSource);
     ui.modeInputs.forEach((input) => input.addEventListener("change", syncSourceButton));
+    ui.depot.addEventListener("change", () => {
+      if (!pendingAutoGenerate || !ui.depot.value) return;
+      pendingAutoGenerate = false;
+      generatePrescription();
+    });
     ui.insert.addEventListener("click", insertPrescription);
     ui.addItem.addEventListener("click", () => {
       ui.items.append(createItemCard({ qty: 1 }));
@@ -1210,13 +1318,75 @@
 
   function openModal() {
     createUi();
+    pendingAutoGenerate = false;
+    ui.depot.value = "";
     setStatus("", "");
     ui.dialog.showModal();
     ui.source.focus();
   }
 
-  function injectButton() {
-    injectQueued = false;
+  function opnameDetailDialog() {
+    const title = exactText("Detail Pengantar Opname", ".p-dialog-title,h1,h2,h3,h4,span");
+    return title?.closest(".p-dialog,[role='dialog']") || null;
+  }
+
+  function opnameEditor() {
+    return opnameDetailDialog()
+      || (isNewOpnamePage() ? document.querySelector("app-pengantar-opname-new") : null);
+  }
+
+  function opnameTherapyLabel(root) {
+    return [...(root?.querySelectorAll("label,span,div") || [])]
+      .filter(isVisible)
+      .sort((left, right) => left.children.length - right.children.length)
+      .find((element) => /^rencana terapi\s*:?$/i.test(normalize(element.textContent)));
+  }
+
+  function opnameTherapy(root) {
+    const label = opnameTherapyLabel(root);
+    const container = label?.closest(".p-field,.p-col-12,[class*='p-col']") || label?.parentElement;
+    return String(container?.querySelector("textarea")?.value || "").trim();
+  }
+
+  async function startOpnamePrescription(button) {
+    if (running || button.disabled) return;
+    const source = opnameTherapy(opnameEditor());
+    if (!source) {
+      showToast("Rencana Terapi pada Pengantar Opname masih kosong.");
+      return;
+    }
+    button.disabled = true;
+    button.textContent = "Menyiapkan...";
+    try {
+      const menuText = exactText("Resep Elektronik V2", "a,button,span,li");
+      const menu = menuText?.closest("a,button,[role='menuitem']") || menuText;
+      if (!menu) throw new Error("Menu Resep Elektronik V2 tidak ditemukan.");
+      menu.click();
+      await waitFor(isPrescriptionPage, "Halaman Resep Elektronik V2 gagal dibuka.", 20000);
+      queueInject();
+      const prescriptionButton = await waitFor(
+        () => document.getElementById(BUTTON_ID),
+        "Tombol e-Resep otomatis tidak ditemukan."
+      );
+      if (!ui?.dialog?.open) prescriptionButton.click();
+      await waitFor(() => ui?.dialog?.open && ui, "Modal e-Resep otomatis gagal dibuka.");
+      const inpatient = ui.modeInputs.find((input) => input.value === "inpatient");
+      if (!inpatient) throw new Error("Pilihan Rawat inap tidak ditemukan.");
+      inpatient.click();
+      setNativeValue(ui.source, source);
+      ui.source.dispatchEvent(new Event("input", { bubbles: true }));
+      await autoGenerateAfterDepotChoice("Rencana Terapi berhasil dimuat. Pilih depo untuk melanjutkan Generate.");
+    } catch (error) {
+      showToast(error.message || "Buat Resep gagal dijalankan.");
+    } finally {
+      if (button.isConnected) {
+        button.disabled = false;
+        button.textContent = "Buat Resep";
+      }
+    }
+  }
+
+  function injectPrescriptionButton() {
     if (!isPrescriptionPage()) {
       document.getElementById(SLOT_ID)?.remove();
       return;
@@ -1240,10 +1410,39 @@
     }
   }
 
+  function injectOpnameButton() {
+    const existing = document.getElementById(OPNAME_BUTTON_ID);
+    const editor = opnameEditor();
+    const isNewPage = editor?.matches?.("app-pengantar-opname-new");
+    const title = isNewPage
+      ? exactTextIn(editor, "Pengantar Opname New", "h1,h2,h3,h4,h5")
+      : editor && exactTextIn(editor, "Detail Pengantar Opname", ".p-dialog-title,h1,h2,h3,h4,span");
+    const target = title && (!isNewPage || opnameTherapyLabel(editor)) ? title : null;
+    if (!target) {
+      existing?.remove();
+      document.querySelector(".netmedic-rsdkh-opname-heading")?.classList.remove("netmedic-rsdkh-opname-heading");
+      return;
+    }
+    if (existing) return;
+    const button = document.createElement("button");
+    button.id = OPNAME_BUTTON_ID;
+    button.type = "button";
+    button.textContent = "Buat Resep";
+    button.addEventListener("click", () => startOpnamePrescription(button));
+    if (isNewPage) target.classList.add("netmedic-rsdkh-opname-heading");
+    target.insertAdjacentElement("afterend", button);
+  }
+
+  function injectButtons() {
+    injectQueued = false;
+    injectPrescriptionButton();
+    injectOpnameButton();
+  }
+
   function queueInject() {
     if (injectQueued) return;
     injectQueued = true;
-    requestAnimationFrame(injectButton);
+    requestAnimationFrame(injectButtons);
   }
 
   if (typeof module !== "undefined") module.exports = {
@@ -1268,7 +1467,7 @@
     calculatePrescriptionQty,
     applyCalculatedQuantities,
     extractIgdInstructions,
-    extractOpnamePlans,
+    extractOpnameTherapies,
     formatInsertionReport
   };
   if (typeof document !== "undefined") {
@@ -1332,12 +1531,12 @@ if (typeof module !== "undefined" && require.main === module) {
     "2 item berhasil, 1 item gagal.\n3. SPASMINAL: Produk tidak ditemukan.\nItem hijau tidak akan diulang saat mencoba kembali."
   );
   assert.equal(module.exports.extractIgdInstructions([
-    { json: { datasource: [{ instruksidokter: "NS 20 tpm" }, { instruksidokter: "  Inj. Antrain 1 gr  " }] } },
+    { json: { planning: "NS 20 tpm", datasource: [{ instruksidokter: "NS 20 tpm" }, { instruksidokter: "  Inj. Antrain 1 gr  " }] } },
     { json: { datasource: [{ instruksidokter: "Pantoprazole 40 mg" }, { instruksidokter: "" }] } }
   ]), "NS 20 tpm\nInj. Antrain 1 gr\nPantoprazole 40 mg");
-  assert.equal(module.exports.extractOpnamePlans([
-    { json: { rencanatindakan: "Futrolit 20 tpm" } },
-    { json: { diagnosis: "Tidak boleh ikut", rencanatindakan: "Ondansetron 3x4 mg" } }
+  assert.equal(module.exports.extractOpnameTherapies([
+    { json: { rencanaterapi: "Futrolit 20 tpm", rencanatindakan: "Observasi" } },
+    { json: { diagnosis: "Tidak boleh ikut", rencanaTerapi: "Ondansetron 3x4 mg" } }
   ]), "Futrolit 20 tpm\nOndansetron 3x4 mg");
   console.log("RSDKH prescription self-check ok");
 }

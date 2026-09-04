@@ -80,7 +80,11 @@ Manrope must be bundled locally so the extension works offline and complies with
 
 Before a valid patient context is set, both feature tabs expose one shared identity gate as a manual fallback. On an active RSDKH eRM patient page, the side panel reads the local patient profile and keys its SOAP/Kronologi drafts by medical record number. The pastel-green patient bar shows only the patient name plus a compact editable `BED` control; the hidden form identity remains age and gender only, and that anonymous value is the only identity included in AI prompts. Saving a BED value updates the patient memory and forces the eRM browser-tab title to `<bed> <patient name>` until the patient or route changes.
 
-The Magic SOAP result view exposes one primary `Input SOAP` command after the editable S/O/A/P fields. It first opens a compact required status choice: inpatient maps to `Diagnosa Awal`, while outpatient maps to `Primary / utama`. It then sends the current edited values to the active RSDKH eRM tab, verifies that age and gender match the active eRM patient before writing, and reports progress or recoverable connection errors in the existing result status region.
+A compact duty-shift strip sits below the segmented tabs. With no active shift it exposes one `Mulai Jaga` command. During an active shift it shows the start time and patient count plus icon actions for the dashboard and finishing the shift. Starting a shift opens exactly one pinned `dashboard.html` tab. The dashboard is a dense operational surface: patients are sorted by BED, final dispositions are separated from active patients, status changes are inline, and completed shifts are grouped by their start date. The side panel remains the editor for one active patient; the dashboard remains the overview for the whole shift.
+
+Each active dashboard row exposes an independent Pengkajian Dokter IGD indicator above the operational-status select. It is green with a check when the loaded assessment page contains meaningful form content or a saved row; it is red with a cross when empty or not yet confirmed. Assessment completeness must not overwrite disposition statuses such as inpatient or discharged.
+
+The Magic SOAP result view exposes one primary `Input SOAP` command after the editable S/O/A/P fields. It first opens a compact required status choice: inpatient maps to `Diagnosa Awal`, while outpatient maps to `Primary / utama`. It then sends the current edited values to the active Pengkajian Dokter IGD page, verifies that age and gender match before writing, confirms any S/O/A overwrite, and fills the same one-page workflow used by the in-page button. Both entry points save the Diagnosis inside ICD 10 FreeText; S, O, and P remain unsaved for clinical review.
 
 The desktop navigation drawer in the reference must not be rendered inside the Side Panel. At widths below 370px, the API status label must collapse visually to its status dot while preserving its accessible name.
 
@@ -116,7 +120,7 @@ The desktop navigation drawer in the reference must not be rendered inside the S
 ### e-Resep Automation
 
 - The hospital-specific Resep Elektronik V2 page may expose one compact `e-Resep otomatis` action beside Racikan.
-- Its native dialog uses a three-option segmented control, one free-form source field, an editable therapy summary, and repeated 8px-radius prescription item cards.
+- Its native dialog uses a three-option segmented control, one required medication-depot select, one free-form source field, an editable therapy summary, and repeated 8px-radius prescription item cards. The selected depot is mirrored to the eRM `Ruangan` dropdown before generation and rechecked before insertion.
 - Every item exposes product name, Qty in pcs, directions, review warning, and insertion status. Dosage form and strength remain internal matching metadata rather than separate visible fields.
 - AI generation never writes directly to eRM. `Masukkan e-Resep` remains disabled until the clinician confirms therapy suitability.
 - Rawat Jalan opens a compact optional duration dialog; an empty value means 10 pcs per eligible medicine, while syrup/infusion/injection rules retain their specific calculations.

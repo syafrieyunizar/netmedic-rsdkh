@@ -65,6 +65,46 @@
   outline-offset: 2px;
 }
 
+#netmedic-rsdkh-opname-prescription {
+  min-height: 34px;
+  margin-left: 12px;
+  padding: 0 14px;
+  color: #ffffff;
+  background: #006874;
+  border: 1px solid #006874;
+  border-radius: 8px;
+  cursor: pointer;
+  font: 600 13px/1 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0;
+  transition: background-color 200ms ease, border-color 200ms ease, opacity 200ms ease;
+}
+
+app-pengantar-opname-new .netmedic-rsdkh-opname-heading {
+  display: inline-block;
+  margin-right: 12px;
+  vertical-align: middle;
+}
+
+app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
+  margin-left: 0;
+  vertical-align: middle;
+}
+
+#netmedic-rsdkh-opname-prescription:hover {
+  background: #005861;
+  border-color: #005861;
+}
+
+#netmedic-rsdkh-opname-prescription:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+#netmedic-rsdkh-opname-prescription:focus-visible {
+  outline: 3px solid rgba(0, 104, 116, 0.3);
+  outline-offset: 2px;
+}
+
 [hidden] {
   display: none !important;
 }
@@ -312,6 +352,7 @@
 }
 
 .erx-mode legend,
+.erx-depot-label > span,
 .erx-source-label > span,
 .erx-preview > label > span,
 .erx-item-grid label > span {
@@ -367,6 +408,7 @@
 }
 
 .erx-source-label textarea,
+.erx-depot-label select,
 .erx-preview textarea,
 .erx-item-grid input,
 .erx-item-grid textarea {
@@ -384,7 +426,13 @@
   transition: border-color 200ms ease, box-shadow 200ms ease;
 }
 
+.erx-depot-label select {
+  appearance: auto;
+  resize: none;
+}
+
 .erx-source-label textarea:focus,
+.erx-depot-label select:focus,
 .erx-preview textarea:focus,
 .erx-item-grid input:focus,
 .erx-item-grid textarea:focus {
@@ -594,6 +642,7 @@ input:focus-visible {
 
 button:disabled,
 input:disabled,
+select:disabled,
 textarea:disabled {
   cursor: not-allowed;
   opacity: 0.5;

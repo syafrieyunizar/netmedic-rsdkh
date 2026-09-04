@@ -36,6 +36,25 @@
       <button id="kronologiTab" class="tab" type="button" role="tab" aria-selected="false" aria-controls="kronologiPanel">Kronologi</button>
     </nav>
 
+    <section id="shiftStrip" class="shift-strip" aria-label="Sesi jaga IGD">
+      <div class="shift-strip-copy">
+        <span id="shiftStateDot" class="shift-state-dot" aria-hidden="true"></span>
+        <div><strong id="shiftStateTitle">Belum ada sesi jaga</strong><span id="shiftStateMeta">IGD</span></div>
+      </div>
+      <button id="startShift" class="button shift-start-button" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>
+        <span>Mulai Jaga</span>
+      </button>
+      <div id="activeShiftActions" class="shift-strip-actions" hidden>
+        <button id="openShiftDashboard" class="icon-button" type="button" aria-label="Buka dashboard jaga" title="Buka dashboard jaga">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </button>
+        <button id="finishShift" class="icon-button finish-shift-button" type="button" aria-label="Selesai jaga" title="Selesai jaga">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+        </button>
+      </div>
+    </section>
+
     <section id="identityGate" class="identity-gate" aria-labelledby="identityGateTitle">
       <form id="identityGateForm" class="input-card identity-gate-card">
         <div class="card-heading">
@@ -164,7 +183,7 @@
 
   <footer class="app-footer">
     <span><span class="footer-dot" aria-hidden="true"></span>Siap digunakan</span>
-    <span>v1.7.0</span>
+    <span>v1.8.0</span>
   </footer>
 
   <dialog id="historyDialog" class="history-dialog" aria-labelledby="historyTitle">
@@ -368,7 +387,7 @@
           <span>Rawat inap</span>
         </label>
       </fieldset>
-      <p class="field-hint">Pilihan ini hanya menentukan jenis diagnosis yang diinput ke eRM.</p>
+      <p class="field-hint">Pilihan ini menentukan jenis diagnosis. Diagnosis disimpan otomatis; S, O, dan P tetap ditinjau sebelum Pengkajian disimpan.</p>
       <div class="dialog-actions">
         <button id="cancelSoapInputStatus" class="button" type="button">Batal</button>
         <button class="button primary" type="submit"><span>Lanjut input SOAP</span></button>
@@ -641,6 +660,7 @@
     </form>
   </dialog>
 
+  <script src="shift.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

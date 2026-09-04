@@ -1,0 +1,31 @@
+#netmedic-rsdkh-lab-capture {
+  margin-right: 0.5rem;
+  color: #fff;
+  background: #007c91;
+  border-color: #007c91;
+}
+
+#netmedic-rsdkh-lab-capture:hover { background: #006675; border-color: #006675; }
+#netmedic-rsdkh-lab-capture[data-state="success"] { background: #188653; border-color: #188653; }
+#netmedic-rsdkh-lab-capture[data-state="error"] { background: #c62828; border-color: #c62828; }
+
+#netmedic-rsdkh-lab-capture:focus-visible {
+  outline: 3px solid rgba(0, 124, 145, 0.28);
+  outline-offset: 2px;
+}
+
+#netmedic-rsdkh-lab-capture-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 2147483647;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 11px 14px;
+  color: #fff;
+  background: #26332f;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(21, 31, 28, 0.24);
+  font: 600 13px/1.4 "Poppins", "Segoe UI", sans-serif;
+}
+
+#netmedic-rsdkh-lab-capture-toast[data-state="error"] { background: #b3261e; }

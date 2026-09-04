@@ -7,6 +7,10 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 ## Fitur
 
 - Side Panel Chrome dengan 2 tab: Magic SOAP dan Kronologi.
+- Sesi `Jaga IGD` lokal dengan tombol Mulai Jaga, Selesai Jaga, dan pinned dashboard tunggal.
+- Dashboard mengurutkan pasien berdasarkan BED, menyediakan pencarian dan status operasional, serta membuka kembali tab eRM pasien.
+- Dashboard menandai kelengkapan Pengkajian Dokter IGD dengan indikator hijau centang atau merah silang tanpa mengubah status disposisi pasien.
+- Riwayat sesi jaga dan riwayat hasil pasien dikelompokkan per tanggal, dengan retensi maksimal 60 hari.
 - Memori SOAP/Kronologi terpisah per pasien berdasarkan nomor RM pada eRM aktif.
 - Bar pasien menampilkan nama dan BED secara lokal, sedangkan prompt AI tetap hanya memakai umur serta jenis kelamin anonim.
 - BED pasien dapat diubah dan dipakai untuk memaksa judul tab eRM menjadi `<bed> <nama pasien>`.
@@ -19,9 +23,9 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 - Warning JKN tampil kondisional hanya saat ada isi dari respons AI.
 - Mode API pribadi/BYOK.
 - Mode API admin bersama dengan login panel admin, pengaturan API key admin, dan manajemen user.
-- Tombol `Input SOAP` pada eRM RSDKH untuk memilah dan mengisi SOAP secara otomatis.
-- Tombol `Input SOAP` pada hasil Magic SOAP untuk mengirim hasil S/O/A/P yang sudah diedit langsung ke alur pengisian eRM tanpa parsing AI ulang. User memilih rencana status pasien terlebih dahulu: rawat inap memakai `Diagnosa Awal`, sedangkan rawat jalan memakai `Primary / utama`.
-- Tombol `e-Resep otomatis` pada Resep Elektronik V2 untuk merapikan resep, meninjau item secara editable, dan memasukkannya secara berurutan setelah konfirmasi dokter.
+- Tombol `Input SOAP` di sebelah judul Pengkajian Dokter IGD untuk memilah dan mengisi S/O/A/P pada satu halaman. Diagnosis disimpan melalui panel ICD 10 FreeText; S/O/P tetap ditinjau sebelum Pengkajian disimpan.
+- Tombol `Input SOAP` pada hasil Magic SOAP untuk mengirim hasil S/O/A/P yang sudah diedit ke alur satu halaman yang sama tanpa parsing AI ulang. User memilih rencana status pasien terlebih dahulu: rawat inap memakai `Diagnosa Awal`, sedangkan rawat jalan memakai `Primary / utama`.
+- Tombol `e-Resep otomatis` pada Resep Elektronik V2 untuk mengambil Planning Pengkajian Dokter IGD atau Pengantar Opname, mewajibkan pilihan depo, merapikan resep, dan memasukkannya secara berurutan setelah konfirmasi dokter.
 - Katalog final 605 produk RSDKH digunakan untuk mencocokkan hasil AI dengan nama produk eRM secara deterministik.
 - Pengaturan menyediakan Kamus Produk RSDKH yang dapat ditambah, diedit, dihapus, dan direset tanpa mengubah katalog asli.
 - Qty resep dihitung ulang dari bentuk sediaan, kekuatan produk, frekuensi, tpm, dan durasi rawat jalan sebelum ditampilkan untuk konfirmasi.
@@ -31,6 +35,10 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 ```text
 manifest.json
 background.js
+shift.js
+dashboard.html
+dashboard.css
+dashboard.js
 sidepanel.html
 sidepanel.css
 sidepanel.js
@@ -107,6 +115,8 @@ Jalankan:
 ```bash
 node --check sidepanel.js
 node --check background.js
+node --check dashboard.js
+node shift.js
 node --check hospital/rsdkh/erm.js
 node --check hospital/rsdkh/ai.js
 node hospital/rsdkh/ai.js
@@ -121,9 +131,10 @@ node sidepanel.js
 - e-Resep otomatis tidak langsung menulis hasil AI. Dokter harus meninjau item, mencentang konfirmasi kesesuaian terapi, lalu menekan `Masukkan e-Resep`.
 - Produk hanya dipilih otomatis bila dropdown menyisakan satu kandidat yang sesuai. Kandidat ambigu menghentikan proses pada item tersebut dan tidak dilewati diam-diam.
 - Item resep dimasukkan secara serial. Item yang sudah berhasil ditandai dan tidak diulang saat user memperbaiki item berikutnya.
-- Anamnesis, Pemeriksaan Fisik, dan Diagnosis disimpan otomatis. Asesment IGD 2 tetap belum disimpan untuk pemeriksaan dokter.
+- Diagnosis disimpan melalui tombol Simpan di panel ICD 10 FreeText. S, O, dan P hanya diisikan agar dokter dapat meninjaunya sebelum menyimpan Pengkajian Dokter IGD.
 - SOAP yang ditempel dikirim ke provider API yang aktif untuk dipilah menjadi S/O/A/P.
 - Identitas pada side panel tetap anonim, dapat diisi manual atau ditarik sebagai jenis kelamin dan umur dari halaman eRM pasien aktif.
+- Nama, nomor RM, BED, status sesi, dan URL eRM untuk dashboard hanya disimpan di `chrome.storage.local`; data tersebut tidak ditambahkan ke prompt AI.
 - Hasil Magic SOAP dan Kronologi di side panel tetap tampil sebagai preview/editable result sebelum dipakai user.
 - Foto klinis hanya disimpan sementara di memori side panel, dikirim ke provider saat Generate, lalu dilepas setelah analisis berhasil.
 - Admin credential hanya dipakai untuk sesi panel admin dan tidak disimpan permanen di extension.

@@ -8,11 +8,14 @@
 
 .netmedic-rsdkh-soap-slot {
   align-items: center;
-  display: flex;
-  flex: 0 0 auto;
-  list-style: none;
-  margin-right: 6px;
-  padding: 2px 0;
+  display: inline-flex;
+  margin: 0 0 14px 10px;
+  vertical-align: middle;
+}
+
+.netmedic-rsdkh-soap-heading {
+  display: inline-flex;
+  vertical-align: middle;
 }
 
 #netmedic-rsdkh-input-soap {
@@ -56,6 +59,168 @@
   stroke-linejoin: round;
   stroke-width: 2;
   width: 16px;
+}
+
+#netmedic-rsdkh-icd9-quick-slot {
+  display: inline-flex;
+  margin-left: auto;
+  padding-left: 10px;
+}
+
+#netmedic-rsdkh-icd9-quick {
+  align-items: center;
+  appearance: none;
+  background: #006874;
+  border: 1px solid #006874;
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font: 600 12px/1 "Manrope RSDKH", "Segoe UI", sans-serif;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 11px;
+  white-space: nowrap;
+}
+
+#netmedic-rsdkh-icd9-quick:hover {
+  background: #005861;
+  border-color: #005861;
+}
+
+#netmedic-rsdkh-icd9-quick:focus-visible {
+  outline: 3px solid rgba(0, 104, 116, 0.28);
+  outline-offset: 2px;
+}
+
+#netmedic-rsdkh-icd9-quick svg {
+  height: 15px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 2;
+  width: 15px;
+}
+
+.netmedic-rsdkh-resume-slot {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 100%;
+  max-width: 100%;
+  padding: 8px;
+  width: 100%;
+}
+
+#netmedic-rsdkh-resume-ai {
+  --resume-progress: 0%;
+  align-items: center;
+  appearance: none;
+  background: #006874;
+  border: 1px solid #006874;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  flex-direction: column;
+  font-family: "Manrope RSDKH", "Segoe UI", sans-serif;
+  font-size: 12px;
+  font-weight: 650;
+  justify-content: center;
+  letter-spacing: 0;
+  min-height: 48px;
+  overflow: hidden;
+  padding: 7px 14px;
+  position: relative;
+  transition: background-color 200ms ease, border-color 200ms ease, opacity 200ms ease;
+  width: min(320px, 100%);
+}
+
+#netmedic-rsdkh-resume-ai::before {
+  background: #004f58;
+  bottom: 0;
+  content: "";
+  left: 0;
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  transition: width 900ms linear, opacity 150ms ease;
+  width: var(--resume-progress);
+}
+
+#netmedic-rsdkh-resume-ai[data-loading="true"]::before {
+  opacity: 1;
+}
+
+#netmedic-rsdkh-resume-ai:hover:not(:disabled) {
+  background: #005861;
+  border-color: #005861;
+}
+
+#netmedic-rsdkh-resume-ai:focus-visible,
+.netmedic-rsdkh-resume-undo:focus-visible {
+  outline: 3px solid rgba(0, 104, 116, 0.28);
+  outline-offset: 3px;
+}
+
+#netmedic-rsdkh-resume-ai:disabled {
+  cursor: wait;
+}
+
+.netmedic-rsdkh-resume-button-content,
+#netmedic-rsdkh-resume-ai small {
+  position: relative;
+  z-index: 1;
+}
+
+.netmedic-rsdkh-resume-button-content {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+#netmedic-rsdkh-resume-ai svg,
+.netmedic-rsdkh-resume-undo svg {
+  fill: none;
+  flex: 0 0 auto;
+  height: 17px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  width: 17px;
+}
+
+#netmedic-rsdkh-resume-ai small {
+  display: block;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.2;
+  margin-top: 3px;
+}
+
+#netmedic-rsdkh-resume-ai small[hidden] {
+  display: none;
+}
+
+.netmedic-rsdkh-resume-undo {
+  align-items: center;
+  appearance: none;
+  background: #fff;
+  border: 1px solid #006874;
+  border-radius: 8px;
+  color: #006874;
+  cursor: pointer;
+  display: flex;
+  height: 30px;
+  justify-content: center;
+  margin: 2px 0 6px auto;
+  padding: 0;
+  transition: background-color 160ms ease, color 160ms ease;
+  width: 30px;
+}
+
+.netmedic-rsdkh-resume-undo:hover {
+  background: #d5f6e6;
+  color: #005861;
 }
 
 .netmedic-rsdkh-soap-toast {
@@ -120,6 +285,113 @@
 .soap-dialog::backdrop {
   background: rgba(26, 26, 26, 0.48);
   backdrop-filter: blur(2px);
+}
+
+.icd9-dialog {
+  max-width: min(520px, calc(100vw - 32px));
+}
+
+.icd9-shell {
+  gap: 16px;
+  padding: 20px;
+}
+
+.icd9-header {
+  justify-content: space-between;
+}
+
+.icd9-groups h3 {
+  margin: 0;
+}
+
+.icd9-close {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--soap-error);
+  border-radius: 8px;
+  color: var(--soap-error);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 36px;
+  height: 36px;
+  justify-content: center;
+  padding: 0;
+}
+
+.icd9-close:hover {
+  background: var(--soap-error-container);
+}
+
+.icd9-close svg {
+  height: 19px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 2;
+  width: 19px;
+}
+
+.icd9-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.icd9-groups section {
+  border-bottom: 1px solid #e3e3e3;
+  display: grid;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+
+.icd9-groups section:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.icd9-groups h3 {
+  color: var(--soap-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.icd9-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.icd9-chip {
+  align-items: center;
+  background: var(--soap-surface-low);
+  border: 1px solid var(--soap-outline-variant);
+  border-radius: 999px;
+  color: var(--soap-text);
+  cursor: pointer;
+  display: inline-flex;
+  font: 600 12px/1 "Manrope RSDKH", "Segoe UI", sans-serif;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 11px;
+}
+
+.icd9-chip b {
+  display: none;
+  font-size: 13px;
+}
+
+.icd9-chip[aria-pressed="true"] {
+  background: var(--soap-success-container);
+  border-color: var(--soap-success);
+  color: #0d5634;
+}
+
+.icd9-chip[aria-pressed="true"] b {
+  display: inline;
+}
+
+.icd9-chip:focus-visible,
+.icd9-close:focus-visible {
+  outline: 3px solid rgba(0, 104, 116, 0.28);
+  outline-offset: 2px;
 }
 
 .soap-shell {
@@ -424,12 +696,19 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
   }
+
+  .icd9-shell {
+    padding: 16px;
+  }
+
 }
 
 @media (prefers-reduced-motion: reduce) {
   #netmedic-rsdkh-input-soap,
+  #netmedic-rsdkh-icd9-quick,
   .netmedic-rsdkh-soap-toast,
-  .soap-actions button {
+  .soap-actions button,
+  .icd9-chip {
     scroll-behavior: auto;
     transition: none;
   }

@@ -320,6 +320,74 @@ main {
   box-shadow: var(--shadow-card);
 }
 
+.shift-strip {
+  display: flex;
+  width: min(100%, 760px);
+  min-height: 46px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 8px 6px var(--space-3);
+  margin: 0 auto var(--space-3);
+  background: var(--surface-lowest);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+}
+
+.shift-strip-copy,
+.shift-strip-actions {
+  display: flex;
+  align-items: center;
+}
+
+.shift-strip-copy {
+  min-width: 0;
+  margin-right: auto;
+  gap: var(--space-2);
+}
+
+.shift-strip-copy > div {
+  display: grid;
+  min-width: 0;
+}
+
+.shift-strip-copy strong,
+.shift-strip-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shift-strip-copy strong { font-size: 10.5px; }
+.shift-strip-copy span { color: var(--on-surface-variant); font-size: 9px; }
+
+.shift-state-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  background: var(--outline);
+  border-radius: 50%;
+}
+
+.shift-strip[data-active="true"] .shift-state-dot { background: #217a56; }
+
+.shift-start-button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 4px 10px;
+  color: var(--on-primary);
+  background: var(--primary);
+  border-color: var(--primary);
+  font-size: 10px;
+}
+
+.shift-start-button:hover { background: var(--primary-hover); }
+.shift-start-button svg { width: 14px; height: 14px; }
+.shift-strip-actions { flex: 0 0 auto; gap: var(--space-1); }
+.shift-strip-actions .icon-button { width: 30px; height: 30px; min-height: 30px; }
+.shift-strip-actions .icon-button svg { width: 15px; height: 15px; }
+.finish-shift-button { color: var(--error); border-color: #e5a39c; }
+.finish-shift-button:hover { color: var(--on-primary); background: var(--error); border-color: var(--error); }
+
 .patient-toolbar {
   position: sticky;
   top: 34px;
@@ -1043,6 +1111,15 @@ summary:focus-visible,
   background: #217a56;
 }
 
+.status[data-state="warning"] {
+  color: var(--warning);
+  background: var(--warning-container);
+}
+
+.status[data-state="warning"] .status-dot {
+  background: var(--warning);
+}
+
 .status[data-state="error"] {
   color: #8c1010;
   background: var(--error-container);
@@ -1446,6 +1523,15 @@ dialog::backdrop {
   gap: var(--space-4);
   padding: var(--space-5);
 }
+
+.history-date-heading {
+  margin: var(--space-3) 0 var(--space-1);
+  color: var(--on-surface-variant);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.history-date-heading:first-child { margin-top: 0; }
 
 .compact-dialog-form {
   display: grid;

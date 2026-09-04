@@ -1,4 +1,5 @@
 const $ = (selector) => document.querySelector(selector);
+const SHIFT = globalThis.NetmedicShift || (typeof require !== "undefined" ? require("./shift.js") : null);
 
 const SETTINGS_KEY = "apiSettings";
 const APP_ID = "netmedic-rsdkh";
@@ -118,6 +119,7 @@ let patientMemories = {};
 let activePatientProfile = null;
 let patientSyncRunning = false;
 let patientMemoryReady = false;
+let shiftState = SHIFT.normalizeState({});
 
 function patientMemoryKey(profile) {
   return String(profile?.medicalRecordNumber || "").trim();
@@ -139,6 +141,96 @@ function patientTabTitle(profile, bed) {
   const patientName = String(profile?.name || "").trim();
   const bedName = String(bed || "").trim();
   return patientName && bedName ? `${bedName} ${patientName}` : "";
+}
+
+function formatShiftDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const dateLabel = new Intl.DateTimeFormat("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long"
+  }).format(date);
+  const timeLabel = new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
+  return `${dateLabel} · ${timeLabel}`;
+}
+
+async function shiftAction(type, payload = {}) {
+  const response = await chrome.runtime.sendMessage({ type, ...payload });
+  if (!response?.ok) throw new Error(response?.error || "Operasi sesi jaga gagal.");
+  return response.result;
+}
+
+function syncShiftUi() {
+  const active = SHIFT.getActiveShift(shiftState);
+  const patientCount = active ? Object.keys(active.patients).length : 0;
+  $("#shiftStrip").dataset.active = String(Boolean(active));
+  $("#shiftStateTitle").textContent = active ? `Jaga IGD · ${patientCount} pasien` : "Belum ada sesi jaga";
+  $("#shiftStateMeta").textContent = active ? formatShiftDateTime(active.startedAt) : "IGD";
+  $("#startShift").hidden = Boolean(active);
+  $("#activeShiftActions").hidden = !active;
+}
+
+async function registerActivePatientToShift(profile = activePatientProfile) {
+  if (!profile || !SHIFT.getActiveShift(shiftState)) return;
+  const memory = patientMemories[patientMemoryKey(profile)] || {};
+  shiftState = await shiftAction("rsdkh:shift-upsert-patient", {
+    patient: {
+      medicalRecordNumber: profile.medicalRecordNumber,
+      name: profile.name,
+      gender: profile.gender,
+      age: profile.age,
+      bed: memory.bed || "",
+      assessmentState: profile.assessmentState,
+      tabId: profile.tabId,
+      ermUrl: profile.ermUrl
+    }
+  });
+  syncShiftUi();
+}
+
+async function updateActiveShiftPatient(patch) {
+  const key = patientMemoryKey(activePatientProfile);
+  const active = SHIFT.getActiveShift(shiftState);
+  const patient = active?.patients?.[key];
+  if (!key || !active || !patient) return;
+  if (patch.status && SHIFT.FINAL_STATUSES.has(patient.status)) return;
+  if (patch.status === "soap_ready" && patient.status !== "baru") return;
+  shiftState = await shiftAction("rsdkh:shift-update-patient", { medicalRecordNumber: key, patch });
+  syncShiftUi();
+}
+
+async function startDutyShift() {
+  const button = $("#startShift");
+  button.disabled = true;
+  try {
+    shiftState = await shiftAction("rsdkh:shift-start");
+    await registerActivePatientToShift();
+    syncShiftUi();
+  } catch (error) {
+    window.alert(`Sesi jaga gagal dimulai: ${error.message}`);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function openShiftDashboard() {
+  try {
+    await shiftAction("rsdkh:open-dashboard");
+  } catch (error) {
+    window.alert(`Dashboard gagal dibuka: ${error.message}`);
+  }
+}
+
+async function finishDutyShift() {
+  const active = SHIFT.getActiveShift(shiftState);
+  if (!active || !window.confirm(`Selesaikan sesi jaga dengan ${Object.keys(active.patients).length} pasien?`)) return;
+  try {
+    shiftState = await shiftAction("rsdkh:shift-finish");
+    syncShiftUi();
+  } catch (error) {
+    window.alert(`Sesi jaga gagal diselesaikan: ${error.message}`);
+  }
 }
 
 function whatsappTimeOfDay(value = new Date()) {
@@ -574,7 +666,11 @@ async function readPatientProfileFromActiveErm() {
   if (!patientMemoryKey(response.identity) || !anonymousIdentityForProfile(response.identity)) {
     throw new Error("Nomor RM, umur, atau jenis kelamin pasien belum lengkap.");
   }
-  return response.identity;
+  return {
+    ...response.identity,
+    tabId: activeTab.id,
+    ermUrl: String(activeTab.url || response.ermUrl || "")
+  };
 }
 
 async function readWhatsappIdentityFromActiveErm() {
@@ -1425,6 +1521,7 @@ async function activatePatientProfile(profile) {
       $("#identity").value = anonymousIdentity;
       syncIdentityUi();
       await setActivePatientTabTitle(patientTabTitle(profile, patientMemories[key].bed), key).catch(() => {});
+      await registerActivePatientToShift(profile).catch(() => {});
     }
     return;
   }
@@ -1466,6 +1563,7 @@ async function activatePatientProfile(profile) {
   setStatus($("#kronologiStatus"), "ready", `Pasien: ${profile.name}`);
   await persistActivePatientMemory();
   await setActivePatientTabTitle(patientTabTitle(profile, patientMemories[key].bed), key).catch(() => {});
+  await registerActivePatientToShift(profile).catch(() => {});
 }
 
 async function syncPatientFromActiveErm() {
@@ -1594,6 +1692,17 @@ function formatHistoryTime(value) {
   }).format(date);
 }
 
+function formatHistoryDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Tanggal tidak tersedia";
+  return new Intl.DateTimeFormat("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  }).format(date);
+}
+
 function appendHistoryField(parent, label, value) {
   if (!value) return;
   const field = document.createElement("div");
@@ -1685,7 +1794,16 @@ function renderHistoryList() {
   $("#historyEmpty").hidden = entries.length > 0;
   list.hidden = entries.length === 0;
 
+  let previousDateLabel = "";
   entries.forEach((entry) => {
+    const dateLabel = formatHistoryDate(entry.updatedAt || entry.createdAt);
+    if (dateLabel !== previousDateLabel) {
+      const heading = document.createElement("h3");
+      heading.className = "history-date-heading";
+      heading.textContent = dateLabel;
+      list.append(heading);
+      previousDateLabel = dateLabel;
+    }
     const row = document.createElement("div");
     row.className = "history-item-row";
     const button = document.createElement("button");
@@ -1843,6 +1961,7 @@ async function generateSoap() {
     $("#chronologyEffect").value = result.chronology_effect;
     await chrome.storage.local.set({ [SOAP_DRAFT_KEY]: soapDraft() });
     await saveEpisodeResult("soap");
+    await updateActiveShiftPatient({ status: "soap_ready" }).catch(() => {});
     setStatus(status, "success", "Berhasil: hasil siap ditinjau.");
     openResultView("soap", button);
   } catch (error) {
@@ -2070,8 +2189,13 @@ async function inputSoapFromResult(patientStatus) {
         p: $("#resultP").value.trim()
       }
     });
+    if (response?.cancelled) {
+      setStatus(status, "warning", "Input SOAP dibatalkan. Isian eRM tidak diubah.");
+      return;
+    }
     if (!response?.ok) throw new Error(response?.error || "Input SOAP ke eRM gagal.");
-    setStatus(status, "success", "SOAP berhasil diinput. Periksa Asesment IGD 2 sebelum menyimpan.");
+    await updateActiveShiftPatient({ status: "soap_input" }).catch(() => {});
+    setStatus(status, "success", "Diagnosis tersimpan. Tinjau S, O, dan P lalu simpan Pengkajian Dokter IGD melalui eRM.");
   } catch (error) {
     const disconnected = /receiving end does not exist|could not establish connection/i.test(error?.message || "");
     setStatus(status, "error", disconnected
@@ -2127,6 +2251,7 @@ async function savePatientBed(event) {
   try {
     await persistActivePatientMemory();
     await setActivePatientTabTitle(patientTabTitle(activePatientProfile, bed), key);
+    await updateActiveShiftPatient({ bed }).catch(() => {});
     $("#patientBedDialog").close();
   } catch (error) {
     status.hidden = false;
@@ -2947,7 +3072,7 @@ async function deleteApiSettings() {
 }
 
 async function initialize() {
-  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, WHATSAPP_SOAP_SETTINGS_KEY, PATIENT_MEMORIES_KEY]);
+  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, WHATSAPP_SOAP_SETTINGS_KEY, PATIENT_MEMORIES_KEY, SHIFT.STORAGE_KEY]);
   await loadProductAliasResources();
   productAliases = Array.isArray(saved[PRODUCT_ALIASES_KEY])
     ? dedupeProductAliases(saved[PRODUCT_ALIASES_KEY])
@@ -2961,6 +3086,8 @@ async function initialize() {
     && !Array.isArray(saved[PATIENT_MEMORIES_KEY])
     ? saved[PATIENT_MEMORIES_KEY]
     : {};
+  shiftState = SHIFT.normalizeState(saved[SHIFT.STORAGE_KEY]);
+  syncShiftUi();
   settings = normalizeStoredSettings(saved[SETTINGS_KEY]);
   const hadHistoryStorage = Array.isArray(saved[HISTORY_KEY]);
   const storedHistory = hadHistoryStorage ? saved[HISTORY_KEY] : [];
@@ -2998,6 +3125,9 @@ if (typeof document !== "undefined") {
   KRONOLOGI_FIELD_IDS.forEach((id) => $(`#${id}`).addEventListener("input", scheduleKronologiSave));
   $("#soapTab").addEventListener("click", () => activateTab("soap"));
   $("#kronologiTab").addEventListener("click", () => activateTab("kronologi"));
+  $("#startShift").addEventListener("click", startDutyShift);
+  $("#openShiftDashboard").addEventListener("click", openShiftDashboard);
+  $("#finishShift").addEventListener("click", finishDutyShift);
   $(".tabs").addEventListener("keydown", (event) => {
     if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
     event.preventDefault();
@@ -3159,6 +3289,20 @@ if (typeof document !== "undefined") {
   window.addEventListener("focus", syncPatientFromActiveErm);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) syncPatientFromActiveErm();
+  });
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local") return;
+    if (changes[SHIFT.STORAGE_KEY]) {
+      shiftState = SHIFT.normalizeState(changes[SHIFT.STORAGE_KEY].newValue);
+      syncShiftUi();
+    }
+    if (changes[PATIENT_MEMORIES_KEY]) {
+      const nextMemories = changes[PATIENT_MEMORIES_KEY].newValue;
+      patientMemories = nextMemories && typeof nextMemories === "object" && !Array.isArray(nextMemories)
+        ? nextMemories
+        : {};
+      syncIdentityUi();
+    }
   });
   setInterval(() => {
     if (!document.hidden) syncPatientFromActiveErm();

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Jaga IGD</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <header class="dashboard-header">
+    <div class="brand">
+      <img src="icons/icon-64.png" alt="" aria-hidden="true">
+      <div><strong>Netmedic RSDKH</strong><span>Dashboard Jaga IGD</span></div>
+    </div>
+    <div class="local-state"><span aria-hidden="true"></span>Data lokal</div>
+  </header>
+
+  <main>
+    <section id="noActiveShift" class="empty-shift" aria-labelledby="emptyShiftTitle">
+      <span class="section-kicker">SESI JAGA</span>
+      <h1 id="emptyShiftTitle">Belum ada sesi jaga aktif</h1>
+      <button id="startShift" class="button primary" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>
+        <span>Mulai Jaga</span>
+      </button>
+    </section>
+
+    <section id="activeShift" class="active-shift" hidden>
+      <header class="shift-heading">
+        <div>
+          <span class="section-kicker">JAGA IGD AKTIF</span>
+          <h1 id="activeShiftDate"></h1>
+          <p id="activeShiftMeta"></p>
+        </div>
+        <button id="finishShift" class="button danger" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+          <span>Selesai Jaga</span>
+        </button>
+      </header>
+
+      <div class="shift-toolbar">
+        <label class="search-field" for="patientSearch">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+          <input id="patientSearch" type="search" placeholder="Cari nama, RM, atau BED" autocomplete="off">
+        </label>
+        <span id="activePatientCount" class="patient-count"></span>
+      </div>
+
+      <section class="patient-section" aria-labelledby="activePatientsTitle">
+        <div class="section-heading">
+          <h2 id="activePatientsTitle">Pasien aktif</h2>
+          <span id="unfinishedPatientCount"></span>
+        </div>
+        <div id="activePatientEmpty" class="list-empty">Belum ada pasien pada sesi ini.</div>
+        <div id="activePatientList" class="patient-list"></div>
+      </section>
+
+      <section id="completedPatientSection" class="patient-section completed-section" aria-labelledby="completedPatientsTitle" hidden>
+        <div class="section-heading">
+          <h2 id="completedPatientsTitle">Selesai</h2>
+          <span id="completedPatientCount"></span>
+        </div>
+        <div id="completedPatientList" class="patient-list"></div>
+      </section>
+    </section>
+
+    <section class="history-section" aria-labelledby="historyTitle">
+      <div class="history-heading">
+        <div><span class="section-kicker">ARSIP LOKAL</span><h2 id="historyTitle">Riwayat jaga</h2></div>
+        <span>Maksimal 60 hari</span>
+      </div>
+      <div id="shiftHistoryEmpty" class="history-empty">Belum ada sesi jaga yang selesai.</div>
+      <div id="shiftHistory" class="shift-history"></div>
+    </section>
+  </main>
+
+  <div id="dashboardToast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="shift.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

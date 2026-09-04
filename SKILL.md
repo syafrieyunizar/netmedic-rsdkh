@@ -172,3 +172,14 @@ node sidepanel.js
 ```
 
 Then verify Magic SOAP, Kronologi, settings, API validation states, copy actions, and responsive layout in Chromium before delivery.
+
+## Release Packaging
+
+Whenever the user asks to bump the extension version:
+
+1. Update `manifest.json` and every visible version label.
+2. Run the delivery checks, commit, and push the source changes.
+3. Run `powershell -ExecutionPolicy Bypass -File .\build-release.ps1` after the commit.
+4. Verify and report the ZIP path and embedded manifest version.
+
+The Chrome Web Store package must be named `netmedic-rsdkh-v<version>.zip` and stored in the repository root. Never place it beside the repository or include `.git` in the archive.

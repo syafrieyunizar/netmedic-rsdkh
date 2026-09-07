@@ -72,7 +72,7 @@ async function focusPatientTab(patient) {
     try {
       const tab = await chrome.tabs.get(patient.tabId);
       const response = await chrome.tabs.sendMessage(tab.id, { type: "rsdkh:get-current-patient-report-identity" });
-      if (!response?.ok || response.identity?.medicalRecordNumber !== patient.medicalRecordNumber) {
+      if (!response?.ok || SHIFT.patientKey(response.identity) !== SHIFT.patientKey(patient)) {
         throw new Error("Tab lama tidak lagi memuat pasien ini.");
       }
       await chrome.windows.update(tab.windowId, { focused: true });
@@ -92,22 +92,22 @@ async function focusPatientTab(patient) {
 }
 
 async function updatePatientBed(patient, bed) {
-  const medicalRecordNumber = String(patient?.medicalRecordNumber || "").trim();
+  const patientKey = SHIFT.patientKey(patient);
   const nextBed = String(bed || "").trim();
-  if (!medicalRecordNumber || !nextBed) throw new Error("Pasien atau BED tidak valid.");
-  const state = await mutateShiftState((current) => SHIFT.updatePatient(current, medicalRecordNumber, { bed: nextBed }));
+  if (!patientKey || !nextBed) throw new Error("Pasien atau BED tidak valid.");
+  const state = await mutateShiftState((current) => SHIFT.updatePatient(current, patientKey, { bed: nextBed }));
   const saved = await chrome.storage.local.get(PATIENT_MEMORIES_KEY);
   const memories = saved[PATIENT_MEMORIES_KEY]
     && typeof saved[PATIENT_MEMORIES_KEY] === "object"
     && !Array.isArray(saved[PATIENT_MEMORIES_KEY])
     ? saved[PATIENT_MEMORIES_KEY]
     : {};
-  memories[medicalRecordNumber] = { ...memories[medicalRecordNumber], bed: nextBed };
+  memories[patientKey] = { ...memories[patientKey], bed: nextBed };
   await chrome.storage.local.set({ [PATIENT_MEMORIES_KEY]: memories });
   if (Number.isInteger(patient.tabId)) {
     chrome.tabs.sendMessage(patient.tabId, {
       type: "rsdkh:set-patient-tab-title",
-      medicalRecordNumber,
+      patient,
       title: `${nextBed} ${String(patient.name || "").trim()}`.trim()
     }).catch(() => {});
   }
@@ -125,8 +125,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     "rsdkh:shift-finish": () => mutateShiftState((current) => SHIFT.finishShift(current)),
     "rsdkh:shift-delete": () => mutateShiftState((current) => SHIFT.deleteShift(current, message.shiftId)),
     "rsdkh:shift-upsert-patient": () => mutateShiftState((current) => SHIFT.upsertPatient(current, message.patient)),
-    "rsdkh:shift-update-patient": () => mutateShiftState((current) => SHIFT.updatePatient(current, message.medicalRecordNumber, message.patch)),
-    "rsdkh:assessment-status-observed": () => mutateShiftState((current) => SHIFT.updatePatient(current, message.medicalRecordNumber, { assessmentState: message.assessmentState })),
+    "rsdkh:shift-update-patient": () => mutateShiftState((current) => SHIFT.updatePatient(current, message.patientKey || message.medicalRecordNumber, message.patch)),
+    "rsdkh:assessment-status-observed": () => mutateShiftState((current) => SHIFT.updatePatient(current, message.patientKey || message.medicalRecordNumber, { assessmentState: message.assessmentState })),
     "rsdkh:patient-bed-update": () => updatePatientBed(message.patient, message.bed),
     "rsdkh:open-dashboard": async () => ({ tabId: await openDashboard() }),
     "rsdkh:focus-patient": async () => ({ tabId: await focusPatientTab(message.patient) }),

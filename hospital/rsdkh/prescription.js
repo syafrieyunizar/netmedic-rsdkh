@@ -35,6 +35,10 @@
   const isVisible = (element) => Boolean(element && element.getClientRects().length && getComputedStyle(element).visibility !== "hidden");
   const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
+  function setAiButtonContent(button, label) {
+    button.innerHTML = `<span class="netmedic-rsdkh-ai-brain" aria-hidden="true">&#129504;</span><span class="netmedic-rsdkh-ai-label">${label}</span>`;
+  }
+
   function isPrescriptionPage() {
     return location.hash.includes("/order-resep-v2");
   }
@@ -781,6 +785,17 @@
     ui.status.textContent = message;
   }
 
+  function resizeTextarea(field) {
+    if (!field) return;
+    field.style.height = "0";
+    const minimum = Number.parseFloat(getComputedStyle(field).minHeight) || 0;
+    field.style.height = `${Math.max(field.scrollHeight, minimum)}px`;
+  }
+
+  function resizeTextareas(root) {
+    root.querySelectorAll("textarea").forEach(resizeTextarea);
+  }
+
   function createField(labelText, className, value, type = "text") {
     const label = document.createElement("label");
     const text = document.createElement("span");
@@ -803,10 +818,23 @@
     card.querySelectorAll("input,textarea,button.erx-remove").forEach((control) => { control.disabled = done || running; });
   }
 
+  function catalogMatchState(item) {
+    if (!normalize(item?.search_term)) return "unresolved";
+    return item.needs_review || item.review_note ? "review" : "matched";
+  }
+
+  function setMatchState(card, state) {
+    const labels = { matched: "Cocok", review: "Periksa", unresolved: "Pilih produk" };
+    card.dataset.matchState = state;
+    const badge = card.querySelector(".erx-match-state");
+    if (badge) badge.textContent = labels[state] || labels.unresolved;
+  }
+
   function createItemCard(item = {}) {
     const card = document.createElement("article");
     card.className = "erx-item";
     card.dataset.state = "pending";
+    card.dataset.matchState = catalogMatchState(item);
     card.dataset.form = item.form || "";
     card.dataset.strength = item.strength || "";
     const index = document.createElement("strong");
@@ -851,17 +879,25 @@
         product.value = canonical;
         const review = card.querySelector(".erx-review-note");
         if (/^Produk katalog belum dapat dipastikan/i.test(review?.textContent || "")) review.hidden = true;
+        setMatchState(card, review?.hidden === false ? "review" : "matched");
         if (card.dataset.state === "error") setItemStatus(card, "pending", "");
       } else if (product.value.trim()) {
+        setMatchState(card, "unresolved");
         setItemStatus(card, "error", "Nama produk tidak tersedia pada katalog eRM.");
+      } else {
+        setMatchState(card, "unresolved");
       }
       syncInsertButton();
     });
-    grid.addEventListener("input", () => {
+    grid.addEventListener("input", (event) => {
+      if (event.target === product && !productCatalogByName.has(catalogKey(product.value))) setMatchState(card, "unresolved");
       if (card.dataset.state === "error") setItemStatus(card, "pending", "");
       syncInsertButton();
     });
 
+    const matchState = document.createElement("span");
+    matchState.className = "erx-match-state";
+    matchState.textContent = { matched: "Cocok", review: "Periksa", unresolved: "Pilih produk" }[card.dataset.matchState];
     const review = document.createElement("p");
     review.className = "erx-review-note";
     review.hidden = !item.needs_review && !item.review_note;
@@ -871,7 +907,7 @@
     status.hidden = true;
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
-    card.append(grid, review, status);
+    card.append(grid, matchState, review, status);
     return card;
   }
 
@@ -892,6 +928,7 @@
       return option;
     }));
     ui.items.replaceChildren(...result.items.map(createItemCard));
+    requestAnimationFrame(() => resizeTextareas(ui.dialog));
     renumberItems();
     ui.preview.hidden = false;
     ui.confirm.checked = false;
@@ -1002,7 +1039,7 @@
     const includeSupplies = await chooseSupplyPreference();
     if (includeSupplies === null) return;
     setRunning(true);
-    ui.generate.querySelector("span").textContent = "Sedang generate...";
+    ui.generate.querySelector(".erx-generate-label").textContent = "Sedang generate...";
     setStatus("loading", "AI sedang merapikan resep.");
     try {
       const response = await chrome.runtime.sendMessage({
@@ -1026,7 +1063,7 @@
       setStatus("error", error.message || "AI gagal merapikan resep.");
     } finally {
       setRunning(false);
-      ui.generate.querySelector("span").textContent = "Generate";
+      ui.generate.querySelector(".erx-generate-label").textContent = "Generate";
     }
   }
 
@@ -1052,7 +1089,7 @@
   function syncSourceButton() {
     const config = sourceConfig();
     ui.importSource.hidden = !config;
-    if (config) ui.importSource.querySelector("span").textContent = config.label;
+    if (config) ui.importSource.querySelector(".erx-import-source-label").textContent = config.label;
   }
 
   async function loadPrescriptionSource(config) {
@@ -1088,7 +1125,7 @@
     if (!config || running) return;
     ui.importSource.disabled = true;
     ui.modeInputs.forEach((input) => { input.disabled = true; });
-    ui.importSource.querySelector("span").textContent = "Mengambil data...";
+    ui.importSource.querySelector(".erx-import-source-label").textContent = "Mengambil data...";
     setStatus("loading", `Mengambil ${config.sourceName}.`);
     try {
       const source = await loadPrescriptionSource(config);
@@ -1213,7 +1250,7 @@
               ${DEPOT_NAMES.map((name) => `<option value="${name}">${name}</option>`).join("")}
             </select></label>
             <label class="erx-source-label" for="erx-source"><span>Tulis obat-obatan di sini</span><textarea id="erx-source" rows="6" placeholder="panto 1&#10;ns 1&#10;ondan 1"></textarea></label>
-            <button class="erx-import-source" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg><span></span></button>
+            <button class="erx-import-source" type="button"><span class="netmedic-rsdkh-ai-brain" aria-hidden="true">&#129504;</span><span class="erx-import-source-label"></span></button>
           </section>
           <section class="erx-preview" hidden>
             <label for="erx-summary"><span>Terapi yang dirapikan</span><textarea id="erx-summary" rows="4"></textarea></label>
@@ -1226,7 +1263,7 @@
           <p class="erx-status" hidden role="status" aria-live="polite"></p>
           <footer class="erx-actions">
             <button class="secondary erx-close" type="button">Batal</button>
-            <button class="secondary erx-generate" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-1 7h7l-8 13 1-8H5l8-12Z"/></svg><span>Generate</span></button>
+            <button class="secondary erx-generate" type="button"><span class="netmedic-rsdkh-ai-brain" aria-hidden="true">&#129504;</span><span class="erx-generate-label">Generate</span></button>
             <button class="primary erx-insert" type="button" hidden disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg><span>Masukkan e-Resep</span></button>
           </footer>
         </div>
@@ -1312,6 +1349,9 @@
     ui.close.addEventListener("click", close);
     ui.closeIcon.addEventListener("click", close);
     ui.dialog.addEventListener("cancel", (event) => { if (running) event.preventDefault(); });
+    shadow.addEventListener("input", (event) => {
+      if (event.target.matches("textarea")) resizeTextarea(event.target);
+    });
     syncSourceButton();
     return ui;
   }
@@ -1322,6 +1362,7 @@
     ui.depot.value = "";
     setStatus("", "");
     ui.dialog.showModal();
+    requestAnimationFrame(() => resizeTextareas(ui.dialog));
     ui.source.focus();
   }
 
@@ -1356,7 +1397,7 @@
       return;
     }
     button.disabled = true;
-    button.textContent = "Menyiapkan...";
+    setAiButtonContent(button, "Menyiapkan...");
     try {
       const menuText = exactText("Resep Elektronik V2", "a,button,span,li");
       const menu = menuText?.closest("a,button,[role='menuitem']") || menuText;
@@ -1381,7 +1422,7 @@
     } finally {
       if (button.isConnected) {
         button.disabled = false;
-        button.textContent = "Buat Resep";
+        setAiButtonContent(button, "Buat Resep");
       }
     }
   }
@@ -1402,7 +1443,7 @@
         const button = document.createElement("button");
         button.id = BUTTON_ID;
         button.type = "button";
-        button.textContent = "e-Resep otomatis";
+        setAiButtonContent(button, "e-Resep otomatis");
         button.addEventListener("click", openModal);
         slot.append(button);
         tabItem.insertAdjacentElement("afterend", slot);
@@ -1427,7 +1468,7 @@
     const button = document.createElement("button");
     button.id = OPNAME_BUTTON_ID;
     button.type = "button";
-    button.textContent = "Buat Resep";
+    setAiButtonContent(button, "Buat Resep");
     button.addEventListener("click", () => startOpnamePrescription(button));
     if (isNewPage) target.classList.add("netmedic-rsdkh-opname-heading");
     target.insertAdjacentElement("afterend", button);
@@ -1468,7 +1509,8 @@
     applyCalculatedQuantities,
     extractIgdInstructions,
     extractOpnameTherapies,
-    formatInsertionReport
+    formatInsertionReport,
+    catalogMatchState
   };
   if (typeof document !== "undefined") {
     new MutationObserver(queueInject).observe(document.documentElement, { childList: true, subtree: true });
@@ -1526,6 +1568,9 @@ if (typeof module !== "undefined" && require.main === module) {
   assert.equal(module.exports.calculatePrescriptionQty({ search_term: "AKITA (ATTAPULGITE 600, PECTIN 50)", form: "tablet", directions: "3x2 tab selama 5 hari" }, "outpatient"), 30);
   assert.equal(module.exports.calculatePrescriptionQty({ search_term: "PARACETAMOL SYRUP", form: "sirup", directions: "3x1" }, "outpatient", 5), 1);
   assert.equal(module.exports.matchCatalogItem({ search_term: "Pantoprazole", form: "injeksi" }, products).search_term, "");
+  assert.equal(module.exports.catalogMatchState({ search_term: "GENTAMICIN 40 MG/ML INJ" }), "matched");
+  assert.equal(module.exports.catalogMatchState({ search_term: "GENTAMICIN 40 MG/ML INJ", needs_review: true }), "review");
+  assert.equal(module.exports.catalogMatchState({ search_term: "" }), "unresolved");
   assert.equal(
     module.exports.formatInsertionReport(2, [{ index: 3, name: "SPASMINAL", message: "Produk tidak ditemukan." }]),
     "2 item berhasil, 1 item gagal.\n3. SPASMINAL: Produk tidak ditemukan.\nItem hijau tidak akan diulang saat mencoba kembali."

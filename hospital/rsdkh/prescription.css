@@ -1,9 +1,17 @@
 @font-face {
-  font-family: "Manrope RSDKH";
+  font-family: "Nimbus Sans RSDKH";
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 400;
   font-display: swap;
-  src: url("../../fonts/Manrope-Variable.ttf") format("truetype");
+  src: url("../../fonts/NimbusSans-Regular.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "Nimbus Sans RSDKH";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../../fonts/NimbusSans-Bold.otf") format("opentype");
 }
 
 :host,
@@ -27,7 +35,7 @@
   --erx-error: #ba1a1a;
   --erx-error-container: #ffdad6;
   color: var(--erx-text);
-  font-family: "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  font-family: "Nimbus Sans RSDKH", Arial, sans-serif;
   letter-spacing: 0;
 }
 
@@ -39,6 +47,10 @@
 }
 
 #netmedic-rsdkh-erx-button {
+  align-items: center;
+  display: inline-flex;
+  gap: 7px;
+  justify-content: center;
   min-height: 36px;
   padding: 0 14px;
   color: #ffffff;
@@ -46,7 +58,7 @@
   border: 1px solid #006874;
   border-radius: 8px;
   cursor: pointer;
-  font: 600 13px/1 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  font: 600 13px/1 "Nimbus Sans RSDKH", Arial, sans-serif;
   letter-spacing: 0;
   transition: background-color 200ms ease, border-color 200ms ease, opacity 200ms ease;
 }
@@ -66,6 +78,10 @@
 }
 
 #netmedic-rsdkh-opname-prescription {
+  align-items: center;
+  display: inline-flex;
+  gap: 7px;
+  justify-content: center;
   min-height: 34px;
   margin-left: 12px;
   padding: 0 14px;
@@ -74,7 +90,7 @@
   border: 1px solid #006874;
   border-radius: 8px;
   cursor: pointer;
-  font: 600 13px/1 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  font: 600 13px/1 "Nimbus Sans RSDKH", Arial, sans-serif;
   letter-spacing: 0;
   transition: background-color 200ms ease, border-color 200ms ease, opacity 200ms ease;
 }
@@ -105,6 +121,13 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
   outline-offset: 2px;
 }
 
+.netmedic-rsdkh-ai-brain {
+  flex: 0 0 auto;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  font-size: 17px;
+  line-height: 1;
+}
+
 [hidden] {
   display: none !important;
 }
@@ -125,7 +148,7 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
   border: 1px solid var(--erx-outline-variant);
   border-radius: 16px;
   box-shadow: 0 16px 48px rgba(26, 26, 26, 0.22);
-  font: 400 14px/1.5 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  font: 400 14px/1.5 "Nimbus Sans RSDKH", Arial, sans-serif;
   letter-spacing: 0;
 }
 
@@ -143,7 +166,7 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
   border: 1px solid var(--erx-outline-variant);
   border-radius: 14px;
   box-shadow: 0 16px 48px rgba(26, 26, 26, 0.24);
-  font: 400 14px/1.5 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  font: 400 14px/1.5 "Nimbus Sans RSDKH", Arial, sans-serif;
 }
 
 .erx-supply-dialog::backdrop,
@@ -190,7 +213,7 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
   padding: 8px 14px;
   border-radius: 10px;
   cursor: pointer;
-  font: 650 12px/1.35 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  font: 650 12px/1.35 "Nimbus Sans RSDKH", Arial, sans-serif;
 }
 
 .erx-supply-dialog .secondary,
@@ -223,7 +246,7 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
   background: var(--erx-surface);
   border: 1px solid var(--erx-outline-variant);
   border-radius: 10px;
-  font: 400 14px/1.5 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  font: 400 14px/1.5 "Nimbus Sans RSDKH", Arial, sans-serif;
 }
 
 .erx-duration-dialog small {
@@ -324,7 +347,7 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
   border: 1px solid var(--erx-primary);
   border-radius: 8px;
   cursor: pointer;
-  font: 650 12px/1.35 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  font: 650 12px/1.35 "Nimbus Sans RSDKH", Arial, sans-serif;
   text-align: left;
   white-space: normal;
 }
@@ -420,9 +443,11 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
   border: 1px solid var(--erx-outline-variant);
   border-radius: 12px;
   outline: none;
-  font: 400 14px/1.5 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  font: 400 14px/1.5 "Nimbus Sans RSDKH", Arial, sans-serif;
   letter-spacing: 0;
-  resize: vertical;
+  overflow-y: hidden;
+  resize: none;
+  field-sizing: content;
   transition: border-color 200ms ease, box-shadow 200ms ease;
 }
 
@@ -464,7 +489,7 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
   border: 1px solid var(--erx-outline-variant);
   border-radius: 10px;
   cursor: pointer;
-  font: 650 12px/1 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  font: 650 12px/1 "Nimbus Sans RSDKH", Arial, sans-serif;
 }
 
 .erx-warning,
@@ -495,6 +520,44 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
   background: var(--erx-surface-lowest);
   border: 1px solid var(--erx-outline-variant);
   border-radius: 8px;
+}
+
+.erx-item[data-match-state="matched"] {
+  border-color: var(--erx-success);
+  background: color-mix(in srgb, var(--erx-success-container) 55%, white);
+}
+
+.erx-item[data-match-state="review"] {
+  border-color: #c2a400;
+  background: color-mix(in srgb, var(--erx-warning-container) 55%, white);
+}
+
+.erx-item[data-match-state="unresolved"] {
+  border-color: var(--erx-error);
+  background: color-mix(in srgb, var(--erx-error-container) 42%, white);
+}
+
+.erx-match-state {
+  justify-self: start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.erx-item[data-match-state="matched"] .erx-match-state {
+  color: #155c43;
+  background: var(--erx-success-container);
+}
+
+.erx-item[data-match-state="review"] .erx-match-state {
+  color: var(--erx-warning);
+  background: var(--erx-warning-container);
+}
+
+.erx-item[data-match-state="unresolved"] .erx-match-state {
+  color: #76000a;
+  background: var(--erx-error-container);
 }
 
 .erx-item-index {
@@ -534,6 +597,7 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
 }
 
 .erx-item[data-state="error"] {
+  background: var(--erx-error-container);
   border-color: var(--erx-error);
 }
 
@@ -601,7 +665,7 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
   padding: 0 16px;
   border-radius: 12px;
   cursor: pointer;
-  font: 650 13px/1 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  font: 650 13px/1 "Nimbus Sans RSDKH", Arial, sans-serif;
   transition: background-color 200ms ease, border-color 200ms ease, opacity 200ms ease;
 }
 
@@ -660,7 +724,7 @@ textarea:disabled {
   border: 1px solid #237a57;
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(26, 26, 26, 0.18);
-  font: 600 13px/1.5 "Manrope RSDKH", "Segoe UI", Arial, sans-serif;
+  font: 600 13px/1.5 "Nimbus Sans RSDKH", Arial, sans-serif;
   opacity: 0;
   transform: translateY(8px);
   transition: opacity 200ms ease, transform 200ms ease;

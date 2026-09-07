@@ -1,8 +1,25 @@
+@font-face {
+  font-family: "Nimbus Sans RSDKH";
+  src: url("../../fonts/NimbusSans-Regular.otf") format("opentype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nimbus Sans RSDKH";
+  src: url("../../fonts/NimbusSans-Bold.otf") format("opentype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
 #netmedic-rsdkh-lab-capture {
   margin-right: 0.5rem;
   color: #fff;
   background: #007c91;
   border-color: #007c91;
+  font-family: "Nimbus Sans RSDKH", Arial, sans-serif;
 }
 
 #netmedic-rsdkh-lab-capture:hover { background: #006675; border-color: #006675; }
@@ -25,7 +42,7 @@
   background: #26332f;
   border-radius: 6px;
   box-shadow: 0 8px 24px rgba(21, 31, 28, 0.24);
-  font: 600 13px/1.4 "Poppins", "Segoe UI", sans-serif;
+  font: 600 13px/1.4 "Nimbus Sans RSDKH", Arial, sans-serif;
 }
 
 #netmedic-rsdkh-lab-capture-toast[data-state="error"] { background: #b3261e; }

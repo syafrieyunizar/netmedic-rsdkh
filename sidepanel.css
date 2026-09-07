@@ -1,9 +1,33 @@
 @font-face {
-  font-family: "Manrope";
+  font-family: "Nimbus Sans";
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 400;
   font-display: swap;
-  src: url("fonts/Manrope-Variable.ttf") format("truetype");
+  src: url("fonts/NimbusSans-Regular.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "Nimbus Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/NimbusSans-Bold.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fonts/Inter-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("fonts/Inter-SemiBold.woff2") format("woff2");
 }
 
 :root {
@@ -57,7 +81,7 @@ body {
   margin: 0;
   color: var(--on-surface);
   background: var(--surface);
-  font-family: "Manrope", "Segoe UI", Arial, sans-serif;
+  font-family: "Nimbus Sans", Arial, sans-serif;
   font-size: 12px;
   font-weight: 400;
   line-height: 1.5;
@@ -80,6 +104,7 @@ textarea {
 
 button {
   cursor: pointer;
+  font-family: "Inter", Arial, sans-serif;
 }
 
 button:disabled {
@@ -820,7 +845,7 @@ main {
   background: var(--surface-low);
   border: 1px solid var(--outline-variant);
   border-radius: 50%;
-  font-family: "Segoe UI", Arial, sans-serif;
+  font-family: "Nimbus Sans", Arial, sans-serif;
   font-size: 12px;
   font-weight: 700;
   font-style: normal;
@@ -856,7 +881,7 @@ label,
 
 label {
   color: var(--on-surface-variant);
-  font-family: "Manrope", "Segoe UI", Arial, sans-serif;
+  font-family: "Nimbus Sans", Arial, sans-serif;
   font-size: 9.9px;
   font-weight: 600;
 }
@@ -1036,7 +1061,7 @@ textarea {
   border: 1px solid var(--outline-variant);
   border-radius: var(--radius-md);
   outline: none;
-  font-family: "Manrope", "Segoe UI", Arial, sans-serif;
+  font-family: "Nimbus Sans", Arial, sans-serif;
   font-size: 12px;
   font-weight: 400;
   letter-spacing: 0;
@@ -1057,10 +1082,12 @@ select {
 }
 
 textarea {
-  min-height: 84px;
+  min-height: 52px;
   padding: 10px var(--space-3);
   line-height: 1.5;
-  resize: vertical;
+  overflow-y: hidden;
+  resize: none;
+  field-sizing: content;
 }
 
 input::placeholder,
@@ -1156,6 +1183,13 @@ summary:focus-visible,
   min-height: 44px;
   padding: 9px var(--space-4);
   gap: var(--space-2);
+}
+
+.ai-brain-icon {
+  flex: 0 0 auto;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  font-size: 18px;
+  line-height: 1;
 }
 
 .button svg,
@@ -1537,6 +1571,27 @@ dialog::backdrop {
   display: grid;
   gap: var(--space-4);
   padding: var(--space-5);
+}
+
+.soap-input-target {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  background: var(--primary-container);
+}
+
+.soap-input-target span,
+.soap-input-target small {
+  color: var(--on-surface-variant);
+  font-size: 10px;
+}
+
+.soap-input-target strong {
+  color: var(--on-surface);
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .whatsapp-soap-dialog {

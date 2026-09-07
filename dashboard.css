@@ -1,9 +1,17 @@
 @font-face {
-  font-family: "Manrope";
+  font-family: "Nimbus Sans";
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 400;
   font-display: swap;
-  src: url("fonts/Manrope-Variable.ttf") format("truetype");
+  src: url("fonts/NimbusSans-Regular.otf") format("opentype");
+}
+
+@font-face {
+  font-family: "Nimbus Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fonts/NimbusSans-Bold.otf") format("opentype");
 }
 
 :root {
@@ -35,7 +43,7 @@ body {
   margin: 0;
   color: var(--text);
   background: var(--surface);
-  font-family: "Manrope", "Segoe UI", Arial, sans-serif;
+  font-family: "Nimbus Sans", Arial, sans-serif;
   font-size: 13px;
   line-height: 1.5;
   letter-spacing: 0;
@@ -140,8 +148,9 @@ h2 { font-size: 16px; line-height: 1.3; }
 
 .active-shift { display: grid; gap: 24px; }
 .shift-heading { justify-content: space-between; gap: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--outline); }
-.shift-heading > div { display: grid; gap: 4px; }
+.shift-heading > div:first-child { display: grid; gap: 4px; }
 .shift-heading p { color: var(--muted); }
+.shift-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 
 .shift-toolbar { justify-content: space-between; gap: 16px; }
 .search-field {
@@ -240,8 +249,9 @@ h2 { font-size: 16px; line-height: 1.3; }
 
 .history-section { display: grid; gap: 16px; padding-top: 24px; border-top: 1px solid var(--outline); }
 .history-heading { justify-content: space-between; gap: 16px; }
-.history-heading > div { display: grid; gap: 2px; }
-.history-heading > span { color: var(--muted); font-size: 11px; }
+.history-heading > div:first-child { display: grid; gap: 2px; }
+.history-tools { display: flex; align-items: center; gap: 12px; }
+.history-tools > span { color: var(--muted); font-size: 11px; }
 .shift-history { display: grid; gap: 22px; }
 .history-date { display: grid; gap: 8px; }
 .history-date > h3 { margin: 0; font-size: 13px; }
@@ -291,7 +301,10 @@ h2 { font-size: 16px; line-height: 1.3; }
   .dashboard-header { padding-inline: 12px; }
   .local-state { display: none; }
   .shift-heading { align-items: flex-start; flex-direction: column; }
+  .shift-actions { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
   .shift-toolbar { align-items: stretch; flex-direction: column; }
+  .history-heading { align-items: flex-start; flex-direction: column; }
+  .history-tools { width: 100%; align-items: flex-start; flex-direction: column; }
   .patient-row { grid-template-columns: 1fr; }
   .patient-actions { border-top: 1px solid var(--outline); border-left: 0; }
   .history-patient { grid-template-columns: 72px minmax(0, 1fr); }

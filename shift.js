@@ -17,6 +17,13 @@
 
   const clean = (value) => String(value || "").trim().replace(/\s+/g, " ");
 
+  function patientKey(patient) {
+    const medicalRecordNumber = clean(patient?.medicalRecordNumber);
+    if (!medicalRecordNumber) return "";
+    const encounter = clean(patient?.visitId || patient?.registrationNumber);
+    return encounter ? `${medicalRecordNumber}:${encounter}` : medicalRecordNumber;
+  }
+
   function localDateKey(value = new Date()) {
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) return "";
@@ -33,6 +40,8 @@
     const assessmentState = ASSESSMENT_STATES.has(patient?.assessmentState) ? patient.assessmentState : "unknown";
     return {
       medicalRecordNumber,
+      registrationNumber: clean(patient.registrationNumber),
+      visitId: clean(patient.visitId),
       name: clean(patient.name) || "Tanpa nama",
       gender: clean(patient.gender),
       age: clean(patient.age),
@@ -51,7 +60,7 @@
     const patients = {};
     Object.values(shift.patients || {}).forEach((patient) => {
       const normalized = normalizePatient(patient);
-      if (normalized) patients[normalized.medicalRecordNumber] = normalized;
+      if (normalized) patients[patientKey(normalized)] = normalized;
     });
     return {
       id: clean(shift.id),
@@ -126,7 +135,7 @@
   }
 
   function patientFieldsChanged(existing, incoming) {
-    return ["name", "gender", "age", "bed", "tabId", "ermUrl", "assessmentState"]
+    return ["registrationNumber", "visitId", "name", "gender", "age", "bed", "tabId", "ermUrl", "assessmentState"]
       .some((field) => existing[field] !== incoming[field]);
   }
 
@@ -135,9 +144,12 @@
     const active = getActiveShift(current);
     const incoming = normalizePatient(patient);
     if (!active || !incoming) return current;
-    const existing = active.patients[incoming.medicalRecordNumber];
+    const key = patientKey(incoming);
+    const legacyKey = incoming.medicalRecordNumber;
+    const existingKey = active.patients[key] ? key : key !== legacyKey && active.patients[legacyKey] ? legacyKey : "";
+    const existing = active.patients[existingKey];
     if (existing && incoming.assessmentState === "unknown") incoming.assessmentState = existing.assessmentState;
-    if (existing && !patientFieldsChanged(existing, incoming)) return current;
+    if (existingKey === key && !patientFieldsChanged(existing, incoming)) return current;
     const timestamp = now.toISOString();
     const nextPatient = {
       ...existing,
@@ -146,23 +158,22 @@
       arrivedAt: existing?.arrivedAt || timestamp,
       updatedAt: timestamp
     };
-    const nextShift = {
-      ...active,
-      patients: { ...active.patients, [nextPatient.medicalRecordNumber]: nextPatient }
-    };
+    const patients = { ...active.patients, [key]: nextPatient };
+    if (key !== legacyKey) delete patients[legacyKey];
+    const nextShift = { ...active, patients };
     return {
       ...current,
       shifts: current.shifts.map((shift) => shift.id === nextShift.id ? nextShift : shift)
     };
   }
 
-  function updatePatient(state, medicalRecordNumber, patch, now = new Date()) {
+  function updatePatient(state, patientReference, patch, now = new Date()) {
     const current = normalizeState(state, now.getTime());
     const active = getActiveShift(current);
-    const key = clean(medicalRecordNumber);
+    const key = typeof patientReference === "string" ? clean(patientReference) : patientKey(patientReference);
     const existing = active?.patients?.[key];
     if (!active || !existing) return current;
-    const candidate = normalizePatient({ ...existing, ...patch, medicalRecordNumber: key });
+    const candidate = normalizePatient({ ...existing, ...patch });
     if (!candidate || !patientFieldsChanged(existing, candidate) && existing.status === candidate.status) return current;
     const nextPatient = { ...candidate, arrivedAt: existing.arrivedAt, updatedAt: now.toISOString() };
     const nextShift = { ...active, patients: { ...active.patients, [key]: nextPatient } };
@@ -191,6 +202,7 @@
     STATUS_OPTIONS,
     FINAL_STATUSES,
     ASSESSMENT_STATES,
+    patientKey,
     localDateKey,
     normalizeState,
     getActiveShift,
@@ -211,16 +223,22 @@
     const started = new Date(2026, 7, 25, 19, 0);
     let state = startShift({}, started);
     assert.equal(getActiveShift(state).dateKey, "2026-08-25");
-    state = upsertPatient(state, { medicalRecordNumber: "051462", name: "SALIMUDDIN", bed: "6" }, started);
+    state = upsertPatient(state, { medicalRecordNumber: "051462", visitId: "visit-a", name: "SALIMUDDIN", bed: "6" }, started);
     assert.equal(sortPatients(getActiveShift(state).patients)[0].name, "SALIMUDDIN");
-    const unchanged = upsertPatient(state, { medicalRecordNumber: "051462", name: "SALIMUDDIN", bed: "6" }, started);
+    const unchanged = upsertPatient(state, { medicalRecordNumber: "051462", visitId: "visit-a", name: "SALIMUDDIN", bed: "6" }, started);
     assert.deepEqual(unchanged, state);
-    state = updatePatient(state, "051462", { status: "soap_ready" }, new Date(2026, 7, 25, 20, 0));
-    assert.equal(getActiveShift(state).patients["051462"].status, "soap_ready");
-    state = updatePatient(state, "051462", { assessmentState: "complete" }, new Date(2026, 7, 25, 20, 5));
-    assert.equal(getActiveShift(state).patients["051462"].assessmentState, "complete");
-    state = upsertPatient(state, { medicalRecordNumber: "051462", name: "SALIMUDDIN", bed: "6" }, started);
-    assert.equal(getActiveShift(state).patients["051462"].assessmentState, "complete");
+    state = updatePatient(state, "051462:visit-a", { status: "soap_ready" }, new Date(2026, 7, 25, 20, 0));
+    assert.equal(getActiveShift(state).patients["051462:visit-a"].status, "soap_ready");
+    state = updatePatient(state, "051462:visit-a", { assessmentState: "complete" }, new Date(2026, 7, 25, 20, 5));
+    assert.equal(getActiveShift(state).patients["051462:visit-a"].assessmentState, "complete");
+    state = upsertPatient(state, { medicalRecordNumber: "051462", visitId: "visit-a", name: "SALIMUDDIN", bed: "6" }, started);
+    assert.equal(getActiveShift(state).patients["051462:visit-a"].assessmentState, "complete");
+    state = upsertPatient(state, { medicalRecordNumber: "051462", visitId: "visit-b", name: "SALIMUDDIN", bed: "9" }, started);
+    assert.equal(Object.keys(getActiveShift(state).patients).length, 2);
+    let migrated = startShift({}, started);
+    migrated = upsertPatient(migrated, { medicalRecordNumber: "090533", name: "ARNIYATI", bed: "2" }, started);
+    migrated = upsertPatient(migrated, { medicalRecordNumber: "090533", visitId: "visit-new", name: "ARNIYATI", bed: "2" }, started);
+    assert.deepEqual(Object.keys(getActiveShift(migrated).patients), ["090533:visit-new"]);
     state = finishShift(state, new Date(2026, 7, 26, 7, 0));
     assert.equal(state.activeShiftId, "");
     assert.equal(state.shifts[0].dateKey, "2026-08-25");

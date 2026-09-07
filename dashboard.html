@@ -19,10 +19,16 @@
     <section id="noActiveShift" class="empty-shift" aria-labelledby="emptyShiftTitle">
       <span class="section-kicker">SESI JAGA</span>
       <h1 id="emptyShiftTitle">Belum ada sesi jaga aktif</h1>
-      <button id="startShift" class="button primary" type="button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>
-        <span>Mulai Jaga</span>
-      </button>
+      <div class="shift-actions">
+        <button id="startShift" class="button primary" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>
+          <span>Mulai Jaga</span>
+        </button>
+        <button class="button show-shift-history" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg>
+          <span>Riwayat Jaga</span>
+        </button>
+      </div>
     </section>
 
     <section id="activeShift" class="active-shift" hidden>
@@ -32,10 +38,16 @@
           <h1 id="activeShiftDate"></h1>
           <p id="activeShiftMeta"></p>
         </div>
-        <button id="finishShift" class="button danger" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
-          <span>Selesai Jaga</span>
-        </button>
+        <div class="shift-actions">
+          <button class="button show-shift-history" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg>
+            <span>Riwayat Jaga</span>
+          </button>
+          <button id="finishShift" class="button danger" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+            <span>Selesai Jaga</span>
+          </button>
+        </div>
       </header>
 
       <div class="shift-toolbar">
@@ -64,10 +76,16 @@
       </section>
     </section>
 
-    <section class="history-section" aria-labelledby="historyTitle">
+    <section id="historySection" class="history-section" aria-labelledby="historyTitle" hidden>
       <div class="history-heading">
         <div><span class="section-kicker">ARSIP LOKAL</span><h2 id="historyTitle">Riwayat jaga</h2></div>
-        <span>Maksimal 60 hari</span>
+        <div class="history-tools">
+          <span>Maksimal 60 hari</span>
+          <button id="backToShift" class="button" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+            <span>Kembali ke Jaga</span>
+          </button>
+        </div>
       </div>
       <div id="shiftHistoryEmpty" class="history-empty">Belum ada sesi jaga yang selesai.</div>
       <div id="shiftHistory" class="shift-history"></div>

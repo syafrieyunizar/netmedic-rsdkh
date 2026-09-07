@@ -4,6 +4,7 @@ const SHIFT = globalThis.NetmedicShift;
 const $ = (selector) => document.querySelector(selector);
 let shiftState = SHIFT.normalizeState({});
 let searchTerm = "";
+let dashboardView = "shift";
 let toastTimer;
 
 function formatDate(value) {
@@ -40,7 +41,7 @@ async function extensionAction(type, payload = {}) {
 
 function patientMatchesSearch(patient) {
   if (!searchTerm) return true;
-  return [patient.name, patient.medicalRecordNumber, patient.bed]
+  return [patient.name, patient.medicalRecordNumber, patient.registrationNumber, patient.bed]
     .some((value) => String(value || "").toLocaleLowerCase("id-ID").includes(searchTerm));
 }
 
@@ -71,7 +72,7 @@ async function editPatientBed(patient) {
 async function updatePatientStatus(patient, status) {
   try {
     shiftState = await extensionAction("rsdkh:shift-update-patient", {
-      medicalRecordNumber: patient.medicalRecordNumber,
+      patientKey: SHIFT.patientKey(patient),
       patch: { status }
     });
     render();
@@ -114,6 +115,7 @@ function createPatientRow(patient) {
   meta.className = "patient-meta";
   [
     `RM ${patient.medicalRecordNumber}`,
+    patient.registrationNumber ? `Reg ${patient.registrationNumber}` : "",
     [patient.gender, patient.age].filter(Boolean).join(" · "),
     `Masuk ${formatTime(patient.arrivedAt)}`
   ].filter(Boolean).forEach((value) => {
@@ -249,17 +251,19 @@ function renderHistory() {
 function render() {
   shiftState = SHIFT.normalizeState(shiftState);
   const active = SHIFT.getActiveShift(shiftState);
-  $("#noActiveShift").hidden = Boolean(active);
-  $("#activeShift").hidden = !active;
+  const historyVisible = dashboardView === "history";
+  $("#historySection").hidden = !historyVisible;
+  $("#noActiveShift").hidden = historyVisible || Boolean(active);
+  $("#activeShift").hidden = historyVisible || !active;
   if (active) {
     const patientCount = Object.keys(active.patients).length;
     $("#activeShiftDate").textContent = formatDate(active.startedAt);
     $("#activeShiftMeta").textContent = `Mulai ${formatTime(active.startedAt)} · ${patientCount} pasien`;
     $("#activePatientCount").textContent = `${patientCount} pasien dalam sesi`;
-    document.title = `Jaga IGD · ${patientCount} pasien`;
+    document.title = historyVisible ? "Riwayat Jaga IGD" : `Jaga IGD · ${patientCount} pasien`;
     renderPatientList();
   } else {
-    document.title = "Dashboard Jaga IGD";
+    document.title = historyVisible ? "Riwayat Jaga IGD" : "Dashboard Jaga IGD";
   }
   renderHistory();
 }
@@ -269,6 +273,7 @@ async function startShift() {
   button.disabled = true;
   try {
     shiftState = await extensionAction("rsdkh:shift-start");
+    dashboardView = "shift";
     render();
   } catch (error) {
     showToast(error.message, "error");
@@ -282,6 +287,7 @@ async function finishShift() {
   if (!active || !window.confirm(`Selesaikan sesi jaga dengan ${Object.keys(active.patients).length} pasien?`)) return;
   try {
     shiftState = await extensionAction("rsdkh:shift-finish");
+    dashboardView = "history";
     render();
     showToast("Sesi jaga selesai dan masuk ke riwayat.");
   } catch (error) {
@@ -297,6 +303,16 @@ async function initialize() {
 
 $("#startShift").addEventListener("click", startShift);
 $("#finishShift").addEventListener("click", finishShift);
+document.querySelectorAll(".show-shift-history").forEach((button) => {
+  button.addEventListener("click", () => {
+    dashboardView = "history";
+    render();
+  });
+});
+$("#backToShift").addEventListener("click", () => {
+  dashboardView = "shift";
+  render();
+});
 $("#patientSearch").addEventListener("input", (event) => {
   searchTerm = event.currentTarget.value.trim().toLocaleLowerCase("id-ID");
   renderPatientList();

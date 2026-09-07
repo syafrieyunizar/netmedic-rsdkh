@@ -65,13 +65,20 @@
   let diagnosisSaved = false;
   let injectQueued = false;
   let forcedTabTitle = "";
-  let forcedPatientMedicalRecord = "";
+  let forcedPatientKey = "";
   let originalTabTitle = "";
   let lastAssessmentReport = "";
 
   const normalize = (value) => String(value || "").trim().replace(/\s+/g, " ");
   const isVisible = (element) => Boolean(element && element.getClientRects().length && getComputedStyle(element).visibility !== "hidden");
   const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+  function resizeTextarea(field) {
+    if (!field) return;
+    field.style.height = "0";
+    const minimum = Number.parseFloat(getComputedStyle(field).minHeight) || 0;
+    field.style.height = `${Math.max(field.scrollHeight, minimum)}px`;
+  }
 
   function assessmentStateFromValues(pageReady, values) {
     if (!pageReady) return "unknown";
@@ -84,6 +91,23 @@
 
   function isErmPage() {
     return location.hash.startsWith("#/rekam-medis/");
+  }
+
+  function encounterIdFromHash(hash) {
+    const parts = String(hash || "").replace(/^#\/?/, "").split("/");
+    return parts[0] === "rekam-medis" ? decodeURIComponent(parts[2] || "") : "";
+  }
+
+  function patientEncounterKey(patient) {
+    const medicalRecordNumber = normalize(patient?.medicalRecordNumber);
+    const encounter = normalize(patient?.visitId || patient?.registrationNumber);
+    return medicalRecordNumber && encounter ? `${medicalRecordNumber}:${encounter}` : medicalRecordNumber;
+  }
+
+  function samePatientEncounter(expected, current) {
+    const expectedKey = patientEncounterKey(expected);
+    const currentKey = patientEncounterKey(current);
+    return Boolean(expectedKey && currentKey && expectedKey === currentKey);
   }
 
   function isDoctorAssessmentPage() {
@@ -112,7 +136,7 @@
 
   function isReportPatientName(value) {
     const text = normalize(value);
-    const name = text.replace(/\s*[.,]?\s*(?:Tn|Ny|Nn|An|By|Sdr)\.?$/i, "").trim();
+    const name = text.replace(/\s*[.,]?\s*(?:(?:By|Bayi)\.?\s+(?:Ny|Ibu)\.?|Tn|Ny|Nn|An|By|Bayi|Sdr)\.?$/i, "").trim();
     const excluded = /^(?:BPJS\b|JKN\b|PBI\b|NON PBI\b|UMUM\b|PEGAWAI SWASTA\b|INFO REGISTRASI|GAWAT DARURAT|PLAFON|TAGIHAN|ALERGI|WEIGHT|HEIGHT|NON KELAS|I-CARE)/i;
     return name.length >= 3
       && text.length <= 60
@@ -143,6 +167,7 @@
       .filter((element) => isVisible(element) && !element.children.length && normalize(element.textContent));
     const medicalRecord = leaves.find((element) => isReportMedicalRecord(element.textContent));
     if (!medicalRecord) return null;
+    const registrationNumber = normalize(leaves.find((element) => /^\d{9,11}$/.test(normalize(element.textContent)))?.textContent);
 
     const nameSpans = [...scope.querySelectorAll("span")]
       .filter((element) => isVisible(element) && !element.children.length && isReportPatientName(element.textContent));
@@ -167,16 +192,18 @@
       name: normalize(name.textContent),
       gender: normalize(gender.textContent),
       age: normalize(age.textContent).replace(/\bthn\b/i, "tahun"),
-      medicalRecordNumber: normalize(medicalRecord.textContent)
+      medicalRecordNumber: normalize(medicalRecord.textContent),
+      registrationNumber,
+      visitId: encounterIdFromHash(location.hash)
     };
   }
 
-  function setForcedPatientTabTitle(title, medicalRecordNumber) {
+  function setForcedPatientTabTitle(title, patient) {
     const nextTitle = normalize(title);
     const previousTitle = forcedTabTitle;
     if (nextTitle && !previousTitle) originalTabTitle = document.title;
     forcedTabTitle = nextTitle;
-    forcedPatientMedicalRecord = normalize(medicalRecordNumber);
+    forcedPatientKey = patientEncounterKey(patient);
     if (nextTitle) document.title = nextTitle;
     else if (previousTitle && document.title === previousTitle) document.title = originalTabTitle || "Netmedic";
   }
@@ -188,8 +215,8 @@
       return;
     }
     const patient = getCurrentPatientReportIdentity();
-    if (patient && patient.medicalRecordNumber !== forcedPatientMedicalRecord) {
-      setForcedPatientTabTitle("", "");
+    if (patient && patientEncounterKey(patient) !== forcedPatientKey) {
+      setForcedPatientTabTitle("", null);
       return;
     }
     if (document.title !== forcedTabTitle) document.title = forcedTabTitle;
@@ -501,12 +528,12 @@
     const patient = getCurrentPatientReportIdentity();
     const assessmentState = currentAssessmentIgdState();
     if (!patient || assessmentState === "unknown") return;
-    const signature = `${patient.medicalRecordNumber}:${assessmentState}`;
+    const signature = `${patientEncounterKey(patient)}:${assessmentState}`;
     if (signature === lastAssessmentReport) return;
     lastAssessmentReport = signature;
     chrome.runtime.sendMessage({
       type: "rsdkh:assessment-status-observed",
-      medicalRecordNumber: patient.medicalRecordNumber,
+      patientKey: patientEncounterKey(patient),
       assessmentState
     }).catch(() => {
       if (lastAssessmentReport === signature) lastAssessmentReport = "";
@@ -570,7 +597,7 @@
     ui.status.hidden = true;
     ui.error.hidden = true;
     ui.generate.disabled = false;
-    ui.generate.querySelector("span").textContent = "Generate";
+    ui.generate.querySelector(".soap-generate-label").textContent = "Generate";
     ui.cancel.disabled = false;
     ui.cancel.textContent = "Batal";
     ui.patientStatus.querySelector('input[value="rawat_inap"]').checked = true;
@@ -726,13 +753,17 @@
     return true;
   }
 
-  async function importSoapPartsFromSidePanel(value, expectedIdentity, patientStatus) {
+  async function importSoapPartsFromSidePanel(value, expectedIdentity, expectedPatient, patientStatus) {
     if (running) throw new Error("Input SOAP lain masih berjalan.");
     if (!isErmPage()) throw new Error("Halaman aktif bukan eRM pasien.");
     await waitFor(isDoctorAssessmentPage, "Buka halaman Pengkajian Dokter IGD pasien terlebih dahulu.");
     const expected = identityFacts(expectedIdentity);
     const current = identityFacts(getCurrentPatientIdentity());
     if (!expected || !current) throw new Error("Identitas pasien tidak dapat diverifikasi pada eRM aktif.");
+    const currentPatient = getCurrentPatientReportIdentity();
+    if (!samePatientEncounter(expectedPatient, currentPatient)) {
+      throw new Error("Nomor RM atau kunjungan pasien eRM aktif berbeda dari tujuan Input SOAP.");
+    }
     if (expected.age !== current.age || expected.gender !== current.gender) {
       throw new Error("Umur atau jenis kelamin pasien eRM aktif berbeda dari identitas side panel.");
     }
@@ -775,7 +806,7 @@
     ui.status.hidden = false;
     ui.error.hidden = true;
     ui.generate.disabled = true;
-    ui.generate.querySelector("span").textContent = "Memproses...";
+    ui.generate.querySelector(".soap-generate-label").textContent = "Memproses...";
     ui.cancel.disabled = true;
 
     try {
@@ -790,7 +821,7 @@
         ui.error.hidden = false;
         ui.error.textContent = "Input SOAP dibatalkan. Isian eRM tidak diubah.";
         ui.generate.disabled = false;
-        ui.generate.querySelector("span").textContent = "Generate";
+        ui.generate.querySelector(".soap-generate-label").textContent = "Generate";
         ui.cancel.disabled = false;
         ui.textarea.focus();
         return;
@@ -842,7 +873,7 @@
           <p class="soap-error" hidden role="alert"></p>
           <footer class="soap-actions">
             <button type="button" class="secondary soap-cancel">Batal</button>
-            <button type="submit" class="primary soap-generate"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m13 2-1 7h7l-8 13 1-8H5l8-12Z"/></svg><span>Generate</span></button>
+            <button type="submit" class="primary soap-generate"><span class="netmedic-rsdkh-ai-brain" aria-hidden="true">&#129504;</span><span class="soap-generate-label">Generate</span></button>
           </footer>
         </form>
       </dialog>`;
@@ -862,6 +893,7 @@
       cancel: shadow.querySelector(".soap-cancel")
     };
     shadow.querySelector("form").addEventListener("submit", runSoapImport);
+    ui.textarea.addEventListener("input", () => resizeTextarea(ui.textarea));
     ui.cancel.addEventListener("click", () => dialog.close());
     dialog.addEventListener("cancel", (event) => { if (running) event.preventDefault(); });
     return ui;
@@ -871,6 +903,7 @@
     createUi();
     resetModal();
     ui.dialog.showModal();
+    requestAnimationFrame(() => resizeTextarea(ui.textarea));
     ui.textarea.focus();
   }
 
@@ -893,7 +926,7 @@
       button.id = BUTTON_ID;
       button.type = "button";
       button.setAttribute("aria-label", "Input SOAP otomatis");
-      button.innerHTML = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 5h6M9 9h6M9 13h3M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/></svg><span>Input SOAP</span>`;
+      button.innerHTML = `<span class="netmedic-rsdkh-ai-brain" aria-hidden="true">&#129504;</span><span>Input SOAP</span>`;
       button.addEventListener("click", openModal);
       slot.append(button);
     }
@@ -922,11 +955,7 @@
       button.dataset.loading = "false";
       button.innerHTML = `
         <span class="netmedic-rsdkh-resume-button-content">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M9.5 4A2.5 2.5 0 0 0 7 6.5v.2a3 3 0 0 0-1.5 5.6 3 3 0 0 0 .5 5.4A2.5 2.5 0 0 0 9.5 20Z"/>
-            <path d="M14.5 4A2.5 2.5 0 0 1 17 6.5v.2a3 3 0 0 1 1.5 5.6 3 3 0 0 1-.5 5.4 2.5 2.5 0 0 1-3.5 2.3Z"/>
-            <path d="M12 5v14M7 16a3 3 0 0 0 3-3M17 16a3 3 0 0 1-3-3"/>
-          </svg>
+          <span class="netmedic-rsdkh-ai-brain" aria-hidden="true">&#129504;</span>
           <span>Rapikan Penunjang dan Terapi</span>
         </span>
         <small hidden aria-live="polite"></small>`;
@@ -973,7 +1002,7 @@
   }
 
   if (typeof module !== "undefined") {
-    module.exports = { diagnosisTypeFor, isReportMedicalRecord, isReportPatientName, assessmentStateFromValues, resumeProgressStage, mergeIcd9Actions };
+    module.exports = { diagnosisTypeFor, isReportMedicalRecord, isReportPatientName, encounterIdFromHash, patientEncounterKey, samePatientEncounter, assessmentStateFromValues, resumeProgressStage, mergeIcd9Actions };
     if (require.main === module) {
       const assert = require("node:assert/strict");
       assert.equal(diagnosisTypeFor("rawat_inap"), "Diagnosa Awal");
@@ -982,8 +1011,18 @@
       assert.equal(isReportMedicalRecord("051462"), true);
       assert.equal(isReportMedicalRecord("2608000067"), false);
       assert.equal(isReportMedicalRecord("1978"), false);
+      assert.equal(encounterIdFromHash("#/rekam-medis/patient-a/visit-b/pengkajian-dokter-igd"), "visit-b");
+      assert.equal(samePatientEncounter(
+        { medicalRecordNumber: "051462", visitId: "visit-a" },
+        { medicalRecordNumber: "051462", visitId: "visit-a" }
+      ), true);
+      assert.equal(samePatientEncounter(
+        { medicalRecordNumber: "051462", visitId: "visit-a" },
+        { medicalRecordNumber: "051462", visitId: "visit-b" }
+      ), false);
       assert.equal(isReportPatientName("SALIMUDDIN"), true);
       assert.equal(isReportPatientName("ARNIYATI. Ny."), true);
+      assert.equal(isReportPatientName("NAILA RAHMAH By Ny"), true);
       assert.equal(isReportPatientName("INFO REGISTRASI"), false);
       assert.equal(isReportPatientName("BPJS - - -"), false);
       assert.equal(isReportPatientName("JKN NON PBI"), false);
@@ -1016,16 +1055,16 @@
     }
     if (message?.type === "rsdkh:set-patient-tab-title") {
       const patient = getCurrentPatientReportIdentity();
-      if (!patient || (message.medicalRecordNumber && patient.medicalRecordNumber !== normalize(message.medicalRecordNumber))) {
-        sendResponse({ ok: false, error: "Nomor RM pada tab aktif tidak cocok." });
+      if (!patient || !samePatientEncounter(message.patient, patient)) {
+        sendResponse({ ok: false, error: "Nomor RM atau kunjungan pada tab aktif tidak cocok." });
         return false;
       }
-      setForcedPatientTabTitle(message.title, patient.medicalRecordNumber);
+      setForcedPatientTabTitle(message.title, patient);
       sendResponse({ ok: true });
       return false;
     }
     if (message?.type === "rsdkh:input-soap-parts") {
-      importSoapPartsFromSidePanel(message.soap, message.identity, message.patientStatus)
+      importSoapPartsFromSidePanel(message.soap, message.identity, message.patient, message.patientStatus)
         .then(sendResponse)
         .catch((error) => sendResponse({ ok: false, error: error.message || "Input SOAP gagal." }));
       return true;

@@ -1,8 +1,16 @@
 @font-face {
-  font-family: "Manrope RSDKH";
-  src: url("../../fonts/Manrope-Variable.ttf") format("truetype");
+  font-family: "Nimbus Sans RSDKH";
+  src: url("../../fonts/NimbusSans-Regular.otf") format("opentype");
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nimbus Sans RSDKH";
+  src: url("../../fonts/NimbusSans-Bold.otf") format("opentype");
+  font-style: normal;
+  font-weight: 700;
   font-display: swap;
 }
 
@@ -27,7 +35,7 @@
   color: #fff;
   cursor: pointer;
   display: inline-flex;
-  font-family: "Manrope RSDKH", "Segoe UI", sans-serif;
+  font-family: "Nimbus Sans RSDKH", Arial, sans-serif;
   font-size: 12px;
   font-weight: 600;
   gap: 8px;
@@ -61,6 +69,13 @@
   width: 16px;
 }
 
+.netmedic-rsdkh-ai-brain {
+  flex: 0 0 auto;
+  font-family: "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  font-size: 17px;
+  line-height: 1;
+}
+
 #netmedic-rsdkh-icd9-quick-slot {
   display: inline-flex;
   margin-left: auto;
@@ -76,7 +91,7 @@
   color: #fff;
   cursor: pointer;
   display: inline-flex;
-  font: 600 12px/1 "Manrope RSDKH", "Segoe UI", sans-serif;
+  font: 600 12px/1 "Nimbus Sans RSDKH", Arial, sans-serif;
   gap: 6px;
   min-height: 30px;
   padding: 0 11px;
@@ -121,7 +136,7 @@
   cursor: pointer;
   display: inline-flex;
   flex-direction: column;
-  font-family: "Manrope RSDKH", "Segoe UI", sans-serif;
+  font-family: "Nimbus Sans RSDKH", Arial, sans-serif;
   font-size: 12px;
   font-weight: 650;
   justify-content: center;
@@ -230,7 +245,7 @@
   bottom: 24px;
   box-shadow: 0 8px 28px rgba(26, 26, 26, 0.18);
   color: #123c2a;
-  font: 600 14px/1.5 "Manrope RSDKH", "Segoe UI", sans-serif;
+  font: 600 14px/1.5 "Nimbus Sans RSDKH", Arial, sans-serif;
   max-width: min(420px, calc(100vw - 32px));
   opacity: 0;
   padding: 14px 18px;
@@ -263,7 +278,7 @@
   --soap-error-container: #ffdad6;
   --soap-info-container: #dae2ff;
   color: var(--soap-text);
-  font-family: "Manrope RSDKH", "Segoe UI", sans-serif;
+  font-family: "Nimbus Sans RSDKH", Arial, sans-serif;
   letter-spacing: 0;
 }
 
@@ -367,7 +382,7 @@
   color: var(--soap-text);
   cursor: pointer;
   display: inline-flex;
-  font: 600 12px/1 "Manrope RSDKH", "Segoe UI", sans-serif;
+  font: 600 12px/1 "Nimbus Sans RSDKH", Arial, sans-serif;
   gap: 5px;
   min-height: 32px;
   padding: 0 11px;
@@ -531,10 +546,12 @@
   border-radius: 12px;
   box-sizing: border-box;
   color: var(--soap-text);
-  font: 400 15px/1.55 "Manrope RSDKH", "Segoe UI", sans-serif;
-  min-height: 220px;
+  font: 400 15px/1.55 "Nimbus Sans RSDKH", Arial, sans-serif;
+  min-height: 72px;
+  overflow-y: hidden;
   padding: 14px;
-  resize: vertical;
+  resize: none;
+  field-sizing: content;
   width: 100%;
 }
 
@@ -643,7 +660,7 @@
   border-radius: 12px;
   cursor: pointer;
   display: inline-flex;
-  font: 600 14px/1 "Manrope RSDKH", "Segoe UI", sans-serif;
+  font: 600 14px/1 "Nimbus Sans RSDKH", Arial, sans-serif;
   gap: 8px;
   justify-content: center;
   min-height: 44px;

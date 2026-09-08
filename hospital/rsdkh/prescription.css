@@ -495,6 +495,7 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
 .erx-warning,
 .erx-status,
 .erx-review-note,
+.erx-alias-note,
 .erx-item-status {
   margin: 0;
   padding: 10px 12px;
@@ -511,6 +512,11 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
 .erx-review-note {
   color: var(--erx-warning);
   background: var(--erx-warning-container);
+}
+
+.erx-alias-note {
+  color: var(--erx-success);
+  background: var(--erx-success-container);
 }
 
 .erx-item {
@@ -713,6 +719,9 @@ textarea:disabled {
 }
 
 .netmedic-rsdkh-erx-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   position: fixed;
   z-index: 2147483647;
   right: 20px;
@@ -728,6 +737,21 @@ textarea:disabled {
   opacity: 0;
   transform: translateY(8px);
   transition: opacity 200ms ease, transform 200ms ease;
+}
+
+.netmedic-rsdkh-erx-toast span {
+  min-width: 0;
+}
+
+.netmedic-rsdkh-erx-toast button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 10px;
+  color: #155c43;
+  background: transparent;
+  border: 1px solid #237a57;
+  border-radius: 6px;
+  font: inherit;
 }
 
 .netmedic-rsdkh-erx-toast.is-visible {

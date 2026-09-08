@@ -116,16 +116,39 @@
     return {
       term: normalize(alias.term),
       query: normalize(alias.query),
-      selection: alias.selection === "confirm" ? "confirm" : "unique"
+      selection: alias.selection === "confirm" ? "confirm" : "unique",
+      form: normalize(alias.form),
+      strength: normalize(alias.strength),
+      source: alias.source === "learned" ? "learned" : "manual"
     };
+  }
+
+  function productAliasKey(alias = {}) {
+    const normalized = normalizeProductAlias(alias);
+    return [
+      normalized.term.toLocaleLowerCase("id-ID"),
+      normalized.form.toLocaleLowerCase("id-ID"),
+      normalized.strength.toLocaleLowerCase("id-ID").replace(/,/g, ".").replace(/\s+/g, "")
+    ].join("::");
   }
 
   function findProductAlias(item, aliases = []) {
     const source = ` ${normalizeProductMatchText(`${item.display_name || ""} ${item.search_term || ""}`)} `;
-    return aliases.map(normalizeProductAlias).find((alias) => {
-      const term = normalizeProductMatchText(alias.term);
-      return term && source.includes(` ${term} `);
-    }) || null;
+    const itemForm = normalizeProductMatchText(requestedProductForm(item));
+    const itemStrength = normalizeProductMatchText(`${item.strength || ""} ${item.display_name || ""} ${item.search_term || ""}`).replace(/\s+/g, "");
+    return aliases
+      .map(normalizeProductAlias)
+      .map((alias) => {
+        const term = normalizeProductMatchText(alias.term);
+        const form = normalizeProductMatchText(alias.form);
+        const strength = normalizeProductMatchText(alias.strength).replace(/\s+/g, "");
+        if (!term || !source.includes(` ${term} `)) return null;
+        if (form && form !== itemForm) return null;
+        if (strength && !itemStrength.includes(strength)) return null;
+        return { alias, score: (form ? 2 : 0) + (strength ? 4 : 0) + (term.length / 1000) };
+      })
+      .filter(Boolean)
+      .sort((left, right) => right.score - left.score)[0]?.alias || null;
   }
 
 
@@ -201,6 +224,7 @@
   }
 
   function matchCatalogItem(item, catalog, aliases = []) {
+    const aliasTerm = normalize(item.alias_term || item.search_term || item.display_name);
     const alias = findProductAlias(item, aliases);
     const aliasQuery = normalizeProductMatchText(alias?.query);
     const aliasCandidates = aliasQuery
@@ -224,6 +248,9 @@
         : `Produk katalog belum dapat dipastikan untuk '${item.display_name || item.search_term || "item"}'. Pilih produk yang sesuai.`;
     return {
       ...item,
+      alias_term: aliasTerm,
+      alias_form: normalize(item.alias_form || requestedProductForm(item)),
+      alias_strength: normalize(item.alias_strength || item.strength),
       search_term: matchedName,
       catalog_candidates: ranked.slice(0, 8).map((candidate) => candidate.name),
       needs_review: Boolean(item.needs_review || !confident),
@@ -250,6 +277,48 @@
       });
     }
     return productAliasesPromise;
+  }
+
+  async function saveLearnedProductAliases(candidates = []) {
+    const uniqueCandidates = new Map();
+    candidates.map(normalizeProductAlias).forEach((alias) => {
+      if (alias.term && alias.query) uniqueCandidates.set(productAliasKey(alias), alias);
+    });
+    if (!uniqueCandidates.size) return null;
+
+    const stored = await chrome.storage.local.get(PRODUCT_ALIASES_KEY);
+    const hadStoredAliases = Array.isArray(stored[PRODUCT_ALIASES_KEY]);
+    const previousStoredAliases = hadStoredAliases ? stored[PRODUCT_ALIASES_KEY] : null;
+    const nextAliases = (await loadProductAliases()).map(normalizeProductAlias);
+    const learned = [];
+
+    for (const candidate of uniqueCandidates.values()) {
+      const index = nextAliases.findIndex((alias) => productAliasKey(alias) === productAliasKey(candidate));
+      if (index >= 0) {
+        if (catalogKey(nextAliases[index].query) === catalogKey(candidate.query)) continue;
+        const replace = window.confirm(
+          `Alias '${candidate.term}' sebelumnya mengarah ke '${nextAliases[index].query}'. Ubah menjadi '${candidate.query}'?`
+        );
+        if (!replace) continue;
+        nextAliases[index] = candidate;
+      } else {
+        nextAliases.push(candidate);
+      }
+      learned.push(candidate);
+    }
+
+    if (!learned.length) return null;
+    await chrome.storage.local.set({ [PRODUCT_ALIASES_KEY]: nextAliases });
+    productAliases = nextAliases;
+    productAliasesPromise = Promise.resolve(nextAliases);
+    return {
+      aliases: learned,
+      undo: async () => {
+        if (hadStoredAliases) await chrome.storage.local.set({ [PRODUCT_ALIASES_KEY]: previousStoredAliases });
+        else await chrome.storage.local.remove(PRODUCT_ALIASES_KEY);
+        productAliasesPromise = null;
+      }
+    };
   }
 
   async function loadProductCatalog() {
@@ -834,9 +903,15 @@
     const card = document.createElement("article");
     card.className = "erx-item";
     card.dataset.state = "pending";
-    card.dataset.matchState = catalogMatchState(item);
+    const initialMatchState = catalogMatchState(item);
+    card.dataset.matchState = initialMatchState;
     card.dataset.form = item.form || "";
     card.dataset.strength = item.strength || "";
+    card.dataset.aliasEligible = String(initialMatchState !== "matched");
+    card.dataset.initialProduct = item.search_term || "";
+    card.dataset.aliasTerm = item.alias_term || item.display_name || "";
+    card.dataset.aliasForm = item.alias_form || requestedProductForm(item);
+    card.dataset.aliasStrength = item.alias_strength || item.strength || "";
     const index = document.createElement("strong");
     index.className = "erx-item-index";
     const remove = document.createElement("button");
@@ -875,16 +950,30 @@
     });
     product.addEventListener("change", () => {
       const canonical = productCatalogByName.get(catalogKey(product.value));
+      const aliasNote = card.querySelector(".erx-alias-note");
       if (canonical) {
         product.value = canonical;
         const review = card.querySelector(".erx-review-note");
         if (/^Produk katalog belum dapat dipastikan/i.test(review?.textContent || "")) review.hidden = true;
         setMatchState(card, review?.hidden === false ? "review" : "matched");
+        const correctedProduct = catalogKey(canonical) !== catalogKey(card.dataset.initialProduct);
+        if ((card.dataset.aliasEligible === "true" || correctedProduct) && normalize(card.dataset.aliasTerm)) {
+          card.dataset.pendingAliasQuery = canonical;
+          aliasNote.textContent = `Alias akan dipelajari setelah item berhasil dimasukkan: ${card.dataset.aliasTerm} → ${canonical}`;
+          aliasNote.hidden = false;
+        } else {
+          delete card.dataset.pendingAliasQuery;
+          aliasNote.hidden = true;
+        }
         if (card.dataset.state === "error") setItemStatus(card, "pending", "");
       } else if (product.value.trim()) {
+        delete card.dataset.pendingAliasQuery;
+        aliasNote.hidden = true;
         setMatchState(card, "unresolved");
         setItemStatus(card, "error", "Nama produk tidak tersedia pada katalog eRM.");
       } else {
+        delete card.dataset.pendingAliasQuery;
+        aliasNote.hidden = true;
         setMatchState(card, "unresolved");
       }
       syncInsertButton();
@@ -902,12 +991,15 @@
     review.className = "erx-review-note";
     review.hidden = !item.needs_review && !item.review_note;
     review.textContent = item.review_note || (item.needs_review ? "Item ini perlu diperiksa dokter." : "");
+    const aliasNote = document.createElement("p");
+    aliasNote.className = "erx-alias-note";
+    aliasNote.hidden = true;
     const status = document.createElement("p");
     status.className = "erx-item-status";
     status.hidden = true;
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
-    card.append(grid, matchState, review, status);
+    card.append(grid, matchState, review, aliasNote, status);
     return card;
   }
 
@@ -946,7 +1038,15 @@
         qty: Math.max(1, Math.ceil(Number(card.querySelector(".erx-qty").value) || 1)),
         directions: card.querySelector(".erx-directions").value.trim(),
         catalog_product: true
-      }
+      },
+      learnedAlias: card.dataset.pendingAliasQuery ? normalizeProductAlias({
+        term: card.dataset.aliasTerm,
+        query: card.dataset.pendingAliasQuery,
+        selection: "unique",
+        form: card.dataset.aliasForm,
+        strength: card.dataset.aliasStrength,
+        source: "learned"
+      }) : null
     }));
   }
 
@@ -1170,8 +1270,9 @@
     showToast(`Mulai memasukkan ${entries.length} item. Jangan berpindah halaman.`);
     let completed = 0;
     const failures = [];
+    const learnedAliasCandidates = [];
     try {
-      for (const [position, { card, item }] of entries.entries()) {
+      for (const [position, { card, item, learnedAlias }] of entries.entries()) {
         const itemIndex = Number.parseInt(card.querySelector(".erx-item-index")?.textContent, 10) || position + 1;
         setItemStatus(card, "loading", `Mencari '${item.search_term}'...`);
         try {
@@ -1179,6 +1280,7 @@
           if (!productCatalogByName.has(catalogKey(item.search_term))) throw new Error(`Produk '${item.search_term}' tidak tersedia pada katalog eRM.`);
           const selected = await insertItem(item);
           completed += 1;
+          if (learnedAlias) learnedAliasCandidates.push(learnedAlias);
           setItemStatus(card, "done", `Berhasil ditambahkan: ${selected}`);
         } catch (error) {
           const message = error.message || "Gagal memasukkan produk ke e-Resep.";
@@ -1192,6 +1294,25 @@
         }
         setStatus("loading", `Memproses ${position + 1} dari ${entries.length} item · ${completed} berhasil · ${failures.length} gagal.`);
       }
+      let aliasLearning = null;
+      let aliasLearningError = "";
+      try {
+        aliasLearning = await saveLearnedProductAliases(learnedAliasCandidates);
+      } catch (error) {
+        aliasLearningError = error.message || "penyimpanan lokal gagal";
+      }
+      const learnedCount = aliasLearning?.aliases.length || 0;
+      const learnedMessage = learnedCount === 1
+        ? ` Alias dipelajari: ${aliasLearning.aliases[0].term} → ${aliasLearning.aliases[0].query}.`
+        : learnedCount > 1 ? ` ${learnedCount} alias produk dipelajari.`
+          : aliasLearningError ? ` Alias gagal disimpan: ${aliasLearningError}.` : "";
+      const undoAction = aliasLearning ? {
+        label: "Urungkan",
+        run: async () => {
+          await aliasLearning.undo();
+          showToast("Alias yang baru dipelajari telah diurungkan.");
+        }
+      } : null;
       if (failures.length) {
         setStatus("error", formatInsertionReport(completed, failures));
         if (!ui.dialog.open) ui.dialog.showModal();
@@ -1199,10 +1320,10 @@
           block: "center",
           behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
         }));
-        showToast(`Proses selesai: ${completed} berhasil, ${failures.length} gagal. Periksa laporan pada modal.`);
+        showToast(`Proses selesai: ${completed} berhasil, ${failures.length} gagal.${learnedMessage} Periksa laporan pada modal.`, undoAction);
       } else {
         setStatus("success", formatInsertionReport(completed, failures));
-        showToast(`${completed} item e-Resep berhasil dimasukkan. Periksa kembali sebelum melanjutkan.`);
+        showToast(`${completed} item e-Resep berhasil dimasukkan.${learnedMessage} Periksa kembali sebelum melanjutkan.`, undoAction);
       }
     } catch (error) {
       setStatus("error", `Proses batch terganggu: ${error.message || "Terjadi kesalahan tak terduga."}`);
@@ -1213,11 +1334,29 @@
     }
   }
 
-  function showToast(message) {
+  function showToast(message, action = null) {
     const toast = document.createElement("div");
     toast.className = "netmedic-rsdkh-erx-toast";
     toast.setAttribute("role", "status");
-    toast.textContent = message;
+    const text = document.createElement("span");
+    text.textContent = message;
+    toast.append(text);
+    if (action) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = action.label;
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          await action.run();
+          toast.remove();
+        } catch (error) {
+          button.disabled = false;
+          text.textContent = error.message || "Alias gagal diurungkan.";
+        }
+      });
+      toast.append(button);
+    }
     document.body.append(toast);
     requestAnimationFrame(() => toast.classList.add("is-visible"));
     setTimeout(() => {
@@ -1492,6 +1631,7 @@
     catalogKey,
     upsertCatalogRecord,
     normalizeProductAlias,
+    productAliasKey,
     findProductAlias,
     normalizeProductMatchText,
     detectProductForm,
@@ -1559,6 +1699,22 @@ if (typeof module !== "undefined" && require.main === module) {
   assert.equal(module.exports.matchCatalogItem({ display_name: "Spuit 10 cc", search_term: "syringe 10 ml", form: "alat", strength: "10 cc" }, [{ namaproduk: "SPUIT 1 CC" }, { namaproduk: "SPUIT 10 CC" }]).search_term, "SPUIT 10 CC");
   assert.equal(module.exports.firstCatalogSuggestion("nacl", [{ namaproduk: "NACL 0,9% 500ML INFUS" }, { namaproduk: "NACL 0,9% 100ML INFUS" }]), "NACL 0,9% 500ML INFUS");
   assert.equal(module.exports.matchCatalogItem({ display_name: "Antrain", search_term: "Antrain", form: "injeksi", strength: "1 gr" }, [{ namaproduk: "METAMIZOLE 1GR INJ" }], [{ term: "antrain", query: "METAMIZOLE", selection: "unique" }]).search_term, "METAMIZOLE 1GR INJ");
+  assert.equal(module.exports.matchCatalogItem(
+    { display_name: "Panto 40 mg", search_term: "Panto", form: "injeksi", strength: "40 mg" },
+    [{ namaproduk: "PANTOPRAZOLE 40MG INJ" }, { namaproduk: "PANTOPRAZOLE 20MG TAB" }],
+    [
+      { term: "panto", query: "PANTOPRAZOLE 40MG INJ", selection: "unique", form: "injeksi", strength: "40 mg", source: "learned" },
+      { term: "panto", query: "PANTOPRAZOLE 20MG TAB", selection: "unique", form: "tablet", strength: "20 mg", source: "learned" }
+    ]
+  ).search_term, "PANTOPRAZOLE 40MG INJ");
+  assert.equal(
+    module.exports.productAliasKey({ term: "Panto", form: "injeksi", strength: "40mg" }),
+    module.exports.productAliasKey({ term: "Panto", form: "injeksi", strength: "40 mg" })
+  );
+  assert.equal(module.exports.findProductAlias(
+    { display_name: "Panto 20 mg", search_term: "Panto", form: "tablet", strength: "20 mg" },
+    [{ term: "panto", query: "PANTOPRAZOLE 40MG INJ", form: "injeksi", strength: "40 mg", source: "learned" }]
+  ), null);
   assert.equal(module.exports.matchCatalogItem({ display_name: "Attapulgite", search_term: "Attapulgite", form: "tablet" }, [{ namaproduk: "AKITA (ATTAPULGITE 600, PECTIN 50)" }], [{ term: "attapulgite", query: "ATTAPULGITE", selection: "confirm" }]).search_term, "");
   assert.equal(module.exports.calculatePrescriptionQty({ search_term: "NACL 0,9% 500ML INFUS", directions: "20 tpm" }, "inpatient"), 3);
   assert.equal(module.exports.calculatePrescriptionQty({ search_term: "CEFOTAXIME 1GR INJ", form: "injeksi", strength: "1 gr", directions: "3x1gr" }, "inpatient"), 3);

@@ -946,6 +946,24 @@ label {
   gap: 2px;
 }
 
+.alias-summary-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.alias-source-badge {
+  padding: 2px 6px;
+  color: #155c43;
+  background: var(--success-container);
+  border-radius: var(--radius-sm);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+}
+
 .product-alias-toggle strong,
 .product-alias-toggle small {
   overflow-wrap: anywhere;
@@ -1596,18 +1614,23 @@ dialog::backdrop {
 
 .whatsapp-soap-dialog {
   width: min(580px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
   overflow: hidden;
 }
 
 .whatsapp-soap-form {
   display: grid;
+  grid-template-areas: "header" "progress" "status" "content" "actions";
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-  max-height: calc(100vh - 24px);
+  height: min(760px, calc(100dvh - 24px));
+  max-height: calc(100dvh - 24px);
   gap: var(--space-3);
   padding: var(--space-5);
+  overflow: hidden;
 }
 
 .whatsapp-soap-header {
+  grid-area: header;
   min-width: 0;
 }
 
@@ -1625,6 +1648,7 @@ dialog::backdrop {
 
 .whatsapp-step-progress {
   display: grid;
+  grid-area: progress;
   gap: var(--space-1);
   color: var(--on-surface-variant);
   font-size: 10px;
@@ -1653,11 +1677,19 @@ dialog::backdrop {
 
 .whatsapp-step {
   display: grid;
+  grid-area: content;
   min-height: 0;
   align-content: start;
   gap: var(--space-4);
   padding-right: 2px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.whatsapp-step textarea {
+  field-sizing: fixed;
+  overflow-y: hidden;
 }
 
 .whatsapp-step .button {
@@ -1665,12 +1697,33 @@ dialog::backdrop {
 }
 
 #whatsappFinalPreview {
+  width: 100%;
   min-height: 240px;
+  margin: 0;
+  padding: 10px var(--space-3);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  color: var(--on-surface);
   background: var(--surface-low);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-md);
+  font: 400 12px/1.5 "Nimbus Sans", Arial, sans-serif;
+}
+
+.field-label {
+  color: var(--on-surface-variant);
+  font-family: "Nimbus Sans", Arial, sans-serif;
+  font-size: 9.9px;
+  font-weight: 600;
 }
 
 .whatsapp-step-actions {
+  grid-area: actions;
   flex-wrap: nowrap;
+}
+
+#whatsappSoapStatus {
+  grid-area: status;
 }
 
 .status-choice-group {

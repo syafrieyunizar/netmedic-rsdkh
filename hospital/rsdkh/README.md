@@ -28,7 +28,7 @@ Saat halaman Pengkajian Dokter IGD dimuat, content script membaca isian dan bari
 6. Planning memakai baris Instruksi Dokter yang kosong. Bila semua baris sudah berisi, extension menekan `Tambah` pada container tabel tersebut lalu mengisi baris baru.
 7. Selain penyimpanan Diagnosis pada langkah 5, extension tidak menekan tombol Simpan lain. Dokter meninjau S, O, dan P lalu menyimpan Pengkajian melalui eRM.
 
-Hasil Magic SOAP pada side panel juga memiliki tombol `Input SOAP`. Sebelum proses berjalan, user memilih rencana status pasien. Tombol ini mengirim empat hasil editable S/O/A/P langsung ke content script dan menjalankan langkah 3-7 pada Pengkajian Dokter IGD tanpa memanggil parser AI lagi. Tab aktif wajib berada pada halaman tersebut, dan umur serta jenis kelaminnya harus sesuai dengan identitas side panel sebelum field pertama ditulis.
+Hasil Magic SOAP pada side panel juga memiliki tombol `Input SOAP`. Sebelum proses berjalan, user memilih rencana status pasien. Tombol ini mengirim empat hasil editable S/O/A/P langsung ke content script tanpa memanggil parser AI lagi. Dari halaman mana pun dalam kunjungan pasien yang sama, extension membuka `Asesmen UGD`, memilih `Pengkajian Dokter`, lalu menekan `Tambah` bila form input belum terbuka. Nomor RM, kunjungan, umur, dan jenis kelamin diverifikasi sebelum field pertama ditulis.
 
 Selector mengandalkan label dan teks komponen SIAPMEDIS, bukan atribut Angular sementara seperti `_ngcontent-*`. Bila struktur target tidak ditemukan, proses berhenti dan menunjukkan tahap yang gagal.
 
@@ -55,5 +55,7 @@ Extension memuat katalog final 605 produk hasil penggabungan pemindaian autocomp
 Versi extension baru dinaikkan setelah alur pengisian ini berhasil diuji pada eRM aktual.
 
 Kamus istilah dikelola melalui Side Panel → Pengaturan → Kamus Produk RSDKH. Istilah seperti Attapulgite hanya mempersempit pencarian katalog; produk dipilih otomatis bila kandidatnya tunggal atau ditahan untuk konfirmasi sesuai pengaturan alias.
+
+Jika user mengoreksi item yang belum cocok dengan memilih produk katalog, extension menyiapkan alias berdasarkan istilah, sediaan, dan kekuatan. Alias baru disimpan lokal hanya setelah item berhasil dimasukkan ke e-Resep, dapat diurungkan dari notifikasi, dan ditandai `Dipelajari otomatis` pada Kamus Produk RSDKH.
 
 Jangan menaruh logic umum Magic SOAP/Kronologi di folder ini. Logic umum tetap mengikuti upstream `magic-soap`.

@@ -237,6 +237,14 @@
     return [...scope.querySelectorAll("button")].find((button) => isVisible(button) && normalize(button.textContent) === label);
   }
 
+  function findClickable(label, scope = document) {
+    return [...scope.querySelectorAll("button,a,[role='button'],.p-menuitem-link")]
+      .find((element) => isVisible(element)
+        && normalize(element.textContent) === label
+        && !element.disabled
+        && element.getAttribute("aria-disabled") !== "true");
+  }
+
   function findHeading(label) {
     return [...document.querySelectorAll("h1,h2,h3,h4,h5,h6")]
       .find((heading) => isVisible(heading) && normalize(heading.textContent) === label);
@@ -300,6 +308,32 @@
     const marker = [...document.querySelectorAll(".p-panel-title")]
       .find((element) => isVisible(element) && normalize(element.textContent) === title);
     return marker?.closest(".p-panel") || marker?.closest("p-panel") || null;
+  }
+
+  function doctorAssessmentRoot() {
+    const heading = findHeading("Pengkajian Dokter IGD");
+    return heading?.closest("app-pengkajian-dokter-igd") || heading?.closest(".card-w-title") || heading?.parentElement || null;
+  }
+
+  function doctorAssessmentInputPanel() {
+    const root = doctorAssessmentRoot();
+    const marker = root && [...root.querySelectorAll(".p-panel-title")]
+      .find((element) => isVisible(element) && normalize(element.textContent) === "Input");
+    return marker?.closest(".p-panel") || marker?.closest("p-panel") || null;
+  }
+
+  function doctorAssessmentFormReady() {
+    const root = doctorAssessmentRoot();
+    return Boolean(root
+      && doctorAssessmentInputPanel()
+      && fieldByLabel("Anamnesa", root)
+      && fieldByLabel("Pemeriksaan Fisik", root)
+      && panelByTitle("ICD 10 FreeText"));
+  }
+
+  function doctorAssessmentAddButton() {
+    const root = doctorAssessmentRoot();
+    return root && !doctorAssessmentInputPanel() ? findButton("Tambah", root) : null;
   }
 
   const icd9ActionKey = (value) => normalize(value).toLocaleLowerCase("id-ID").replace(/[.]/g, "");
@@ -621,6 +655,59 @@
     }, 6000);
   }
 
+  function reportSoapInputProgress(message) {
+    chrome.runtime.sendMessage({ type: "rsdkh:soap-input-progress", message }).catch(() => {});
+  }
+
+  function requireMatchingPatientEncounter(expectedPatient, stage) {
+    const currentPatient = getCurrentPatientReportIdentity();
+    if (!samePatientEncounter(expectedPatient, currentPatient)) {
+      throw new Error(`Pasien atau kunjungan berubah ${stage}. Proses dihentikan sebelum mengisi data.`);
+    }
+    return currentPatient;
+  }
+
+  async function prepareDoctorAssessmentForm(expectedPatient) {
+    requireMatchingPatientEncounter(expectedPatient, "sebelum membuka Pengkajian Dokter");
+    if (!isDoctorAssessmentPage()) {
+      reportSoapInputProgress("Membuka menu Asesmen UGD...");
+      const assessmentMenu = await waitFor(
+        () => findClickable("Asesmen UGD"),
+        "Menu Asesmen UGD tidak ditemukan.",
+        10000
+      );
+      assessmentMenu.click();
+
+      reportSoapInputProgress("Memilih Pengkajian Dokter...");
+      const doctorAssessmentMenu = await waitFor(
+        () => findClickable("Pengkajian Dokter"),
+        "Pilihan Pengkajian Dokter tidak ditemukan.",
+        10000
+      );
+      doctorAssessmentMenu.click();
+      await waitFor(isDoctorAssessmentPage, "Halaman Pengkajian Dokter IGD tidak berhasil dibuka.");
+      requireMatchingPatientEncounter(expectedPatient, "setelah membuka Pengkajian Dokter");
+    }
+
+    if (!doctorAssessmentFormReady()) {
+      if (doctorAssessmentInputPanel()) {
+        reportSoapInputProgress("Menunggu form Pengkajian Dokter...");
+      } else {
+        reportSoapInputProgress("Membuka form Pengkajian Dokter baru...");
+        const add = await waitFor(
+          doctorAssessmentAddButton,
+          "Tombol Tambah Pengkajian Dokter tidak ditemukan.",
+          10000
+        );
+        add.click();
+      }
+      await waitFor(doctorAssessmentFormReady, "Form Pengkajian Dokter IGD belum siap.");
+    }
+
+    requireMatchingPatientEncounter(expectedPatient, "sebelum pengisian SOAP");
+    reportSoapInputProgress("Form siap. Mulai mengisi SOAP...");
+  }
+
   function setResumeProgress(button, percent, status) {
     button.style.setProperty("--resume-progress", `${percent}%`);
     const detail = button.querySelector("small");
@@ -737,12 +824,16 @@
     diagnosisSaved = false;
     diagnosisTypeFor(patientStatus);
     if (!await confirmSoapOverwrite()) return false;
+    reportSoapInputProgress("Mengisi Anamnesa...");
     setStep(1, "active");
     await fillAnamnesis(soap.s);
+    reportSoapInputProgress("Mengisi Pemeriksaan Fisik...");
     setStep(2, "active");
     await fillPhysicalExam(soap.o);
+    reportSoapInputProgress("Mengisi dan menyimpan diagnosis...");
     setStep(3, "active");
     await fillDiagnosis(soap.a, patientStatus);
+    reportSoapInputProgress("Mengisi Planning...");
     setStep(4, "active");
     await fillPlanning(soap.p);
     ui.steps.forEach((step) => {
@@ -756,30 +847,29 @@
   async function importSoapPartsFromSidePanel(value, expectedIdentity, expectedPatient, patientStatus) {
     if (running) throw new Error("Input SOAP lain masih berjalan.");
     if (!isErmPage()) throw new Error("Halaman aktif bukan eRM pasien.");
-    await waitFor(isDoctorAssessmentPage, "Buka halaman Pengkajian Dokter IGD pasien terlebih dahulu.");
-    const expected = identityFacts(expectedIdentity);
-    const current = identityFacts(getCurrentPatientIdentity());
-    if (!expected || !current) throw new Error("Identitas pasien tidak dapat diverifikasi pada eRM aktif.");
-    const currentPatient = getCurrentPatientReportIdentity();
-    if (!samePatientEncounter(expectedPatient, currentPatient)) {
-      throw new Error("Nomor RM atau kunjungan pasien eRM aktif berbeda dari tujuan Input SOAP.");
-    }
-    if (expected.age !== current.age || expected.gender !== current.gender) {
-      throw new Error("Umur atau jenis kelamin pasien eRM aktif berbeda dari identitas side panel.");
-    }
-    createUi();
-    resetModal();
-    if (ui.dialog.open) ui.dialog.close();
     const soap = validateSoapParts(value);
     running = true;
     try {
+      reportSoapInputProgress("Memverifikasi pasien dan kunjungan...");
+      requireMatchingPatientEncounter(expectedPatient, "sebelum navigasi");
+      await prepareDoctorAssessmentForm(expectedPatient);
+      const expected = identityFacts(expectedIdentity);
+      const current = identityFacts(getCurrentPatientIdentity());
+      if (!expected || !current) throw new Error("Identitas pasien tidak dapat diverifikasi pada eRM aktif.");
+      requireMatchingPatientEncounter(expectedPatient, "setelah navigasi");
+      if (expected.age !== current.age || expected.gender !== current.gender) {
+        throw new Error("Umur atau jenis kelamin pasien eRM aktif berbeda dari identitas side panel.");
+      }
+      createUi();
+      resetModal();
+      if (ui.dialog.open) ui.dialog.close();
       if (!await fillSoapParts(soap, patientStatus)) {
         return { ok: false, cancelled: true, error: "Input SOAP dibatalkan. Isian eRM tidak diubah." };
       }
       showToast("Diagnosis tersimpan. Tinjau S, O, dan P lalu simpan Pengkajian Dokter IGD melalui eRM.");
       return { ok: true };
     } catch (error) {
-      setStep(Math.max(currentStep, 0), "error");
+      if (ui) setStep(Math.max(currentStep, 0), "error");
       const detail = importErrorMessage(error);
       showToast(`Input SOAP berhenti: ${detail}`);
       throw new Error(detail);
@@ -967,7 +1057,7 @@
 
   function injectIcd9Button() {
     const slot = document.getElementById(ICD9_SLOT_ID);
-    const panel = isDoctorAssessmentPage() && icd9Panel();
+    const panel = isDoctorAssessmentPage() ? icd9Panel() : null;
     const header = panel?.querySelector(".p-panel-header");
     const icons = header?.querySelector(".p-panel-icons");
     if (!header) {

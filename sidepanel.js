@@ -2056,8 +2056,7 @@ function whatsappReportDraft() {
 
 function syncWhatsappPreview() {
   const preview = $("#whatsappFinalPreview");
-  preview.value = buildWhatsappSoapReport(whatsappReportDraft());
-  requestAnimationFrame(() => resizeTextarea(preview));
+  preview.textContent = buildWhatsappSoapReport(whatsappReportDraft());
 }
 
 function scheduleWhatsappSettingsSave() {
@@ -2084,8 +2083,10 @@ function showWhatsappStep(nextStep, focus = true) {
   $("#copyWhatsappSoap").hidden = whatsappStep !== WHATSAPP_STEP_TITLES.length - 1;
   if (whatsappStep !== 1) $("#whatsappSoapStatus").hidden = true;
   if (whatsappStep === WHATSAPP_STEP_TITLES.length - 1) syncWhatsappPreview();
-  requestAnimationFrame(() => resizeTextareas(document.querySelector(`.whatsapp-step[data-whatsapp-step="${whatsappStep}"]`)));
-  if (focus) document.querySelector(`.whatsapp-step[data-whatsapp-step="${whatsappStep}"] input, .whatsapp-step[data-whatsapp-step="${whatsappStep}"] textarea`)?.focus();
+  const currentStep = document.querySelector(`.whatsapp-step[data-whatsapp-step="${whatsappStep}"]`);
+  currentStep.scrollTop = 0;
+  requestAnimationFrame(() => resizeTextareas(currentStep));
+  if (focus) currentStep.querySelector("input, textarea")?.focus();
 }
 
 function validateWhatsappStep() {
@@ -2159,7 +2160,7 @@ async function copyWhatsappSoap() {
   button.disabled = true;
   try {
     syncWhatsappPreview();
-    await navigator.clipboard.writeText($("#whatsappFinalPreview").value);
+    await navigator.clipboard.writeText($("#whatsappFinalPreview").textContent);
     setStatus(status, "success", "Format SOAP WhatsApp berhasil disalin.");
     status.hidden = false;
     button.querySelector("span").textContent = "Tersalin";
@@ -2219,7 +2220,7 @@ async function inputSoapFromResult(patientStatus, targetPatient) {
 
   button.disabled = true;
   button.querySelector("span").textContent = "Sedang input...";
-  setStatus(status, "loading", "Mengisi SOAP ke eRM aktif...");
+  setStatus(status, "loading", "Menyiapkan Pengkajian Dokter...");
   try {
     const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!activeTab?.id) throw new Error("Tab eRM aktif tidak ditemukan.");
@@ -2386,14 +2387,26 @@ function normalizeProductAlias(alias = {}) {
   return {
     term,
     query,
-    selection: alias.selection === "confirm" ? "confirm" : "unique"
+    selection: alias.selection === "confirm" ? "confirm" : "unique",
+    form: String(alias.form || "").trim().replace(/\s+/g, " "),
+    strength: String(alias.strength || "").trim().replace(/\s+/g, " "),
+    source: alias.source === "learned" ? "learned" : "manual"
   };
+}
+
+function productAliasKey(alias = {}) {
+  const normalized = normalizeProductAlias(alias);
+  return [
+    normalized.term.toLocaleLowerCase("id-ID"),
+    normalized.form.toLocaleLowerCase("id-ID"),
+    normalized.strength.toLocaleLowerCase("id-ID").replace(/,/g, ".").replace(/\s+/g, "")
+  ].join("::");
 }
 
 function dedupeProductAliases(aliases = []) {
   const unique = new Map();
   aliases.map(normalizeProductAlias).forEach((alias) => {
-    if (alias.term && alias.query) unique.set(alias.term.toLocaleLowerCase("id-ID"), alias);
+    if (alias.term && alias.query) unique.set(productAliasKey(alias), alias);
   });
   return [...unique.values()];
 }
@@ -2415,10 +2428,11 @@ function createProductAliasRow(alias = {}) {
   const normalized = normalizeProductAlias(alias);
   const row = document.createElement("div");
   row.className = "product-alias-row";
+  row.dataset.aliasSource = normalized.source;
   row.innerHTML = `
     <div class="product-alias-summary">
       <button class="product-alias-toggle" type="button" aria-expanded="false">
-        <span><strong class="alias-summary-term"></strong><small class="alias-summary-query"></small></span>
+        <span><span class="alias-summary-title"><strong class="alias-summary-term"></strong><em class="alias-source-badge" hidden>Dipelajari otomatis</em></span><small class="alias-summary-query"></small></span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
       </button>
       <button class="product-alias-remove" type="button" aria-label="Hapus alias" title="Hapus alias"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button>
@@ -2426,16 +2440,23 @@ function createProductAliasRow(alias = {}) {
     <div class="product-alias-editor" hidden>
       <label>Istilah dokter<input class="alias-term" type="text" autocomplete="off" placeholder="Contoh: Antrain"></label>
       <label>Pencarian katalog<input class="alias-query" type="text" list="productCatalogOptions" autocomplete="off" placeholder="Contoh: METAMIZOLE"></label>
+      <label>Sediaan (opsional)<input class="alias-form" type="text" autocomplete="off" placeholder="Contoh: injeksi"></label>
+      <label>Kekuatan (opsional)<input class="alias-strength" type="text" autocomplete="off" placeholder="Contoh: 40 mg"></label>
       <label class="alias-selection-field">Perilaku<select class="alias-selection"><option value="unique">Pilih otomatis jika kandidat tunggal</option><option value="confirm">Selalu minta konfirmasi</option></select></label>
     </div>`;
   row.querySelector(".alias-term").value = normalized.term;
   row.querySelector(".alias-query").value = normalized.query;
+  row.querySelector(".alias-form").value = normalized.form;
+  row.querySelector(".alias-strength").value = normalized.strength;
   row.querySelector(".alias-selection").value = normalized.selection;
+  row.querySelector(".alias-source-badge").hidden = normalized.source !== "learned";
   const editor = row.querySelector(".product-alias-editor");
   const toggle = row.querySelector(".product-alias-toggle");
   const syncSummary = () => {
     row.querySelector(".alias-summary-term").textContent = row.querySelector(".alias-term").value.trim() || "Alias baru";
-    row.querySelector(".alias-summary-query").textContent = row.querySelector(".alias-query").value.trim() || "Pencarian katalog belum dipilih";
+    const context = [row.querySelector(".alias-form").value.trim(), row.querySelector(".alias-strength").value.trim()].filter(Boolean).join(" · ");
+    const query = row.querySelector(".alias-query").value.trim() || "Pencarian katalog belum dipilih";
+    row.querySelector(".alias-summary-query").textContent = context ? `${query} · ${context}` : query;
   };
   const setExpanded = (expanded) => {
     editor.hidden = !expanded;
@@ -2477,11 +2498,14 @@ function collectProductAliases() {
   const aliases = [...document.querySelectorAll(".product-alias-row")].map((row) => normalizeProductAlias({
     term: row.querySelector(".alias-term").value,
     query: row.querySelector(".alias-query").value,
-    selection: row.querySelector(".alias-selection").value
+    selection: row.querySelector(".alias-selection").value,
+    form: row.querySelector(".alias-form").value,
+    strength: row.querySelector(".alias-strength").value,
+    source: row.dataset.aliasSource
   }));
   if (aliases.some((alias) => !alias.term || !alias.query)) throw new Error("Istilah dokter dan pencarian katalog wajib diisi.");
   const deduped = dedupeProductAliases(aliases);
-  if (deduped.length !== aliases.length) throw new Error("Istilah dokter tidak boleh duplikat.");
+  if (deduped.length !== aliases.length) throw new Error("Istilah dokter dengan sediaan dan kekuatan yang sama tidak boleh duplikat.");
   for (const alias of deduped) {
     const query = alias.query.toLocaleUpperCase("id-ID");
     if (!productCatalogNames.some((name) => name.toLocaleUpperCase("id-ID").includes(query))) {
@@ -3357,6 +3381,17 @@ if (typeof document !== "undefined") {
         : {};
       syncIdentityUi();
     }
+    if (changes[PRODUCT_ALIASES_KEY]) {
+      productAliases = Array.isArray(changes[PRODUCT_ALIASES_KEY].newValue)
+        ? dedupeProductAliases(changes[PRODUCT_ALIASES_KEY].newValue)
+        : defaultProductAliases.map((alias) => ({ ...alias }));
+      renderProductAliases();
+    }
+  });
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type !== "rsdkh:soap-input-progress" || !$("#inputSoapFromResult").disabled) return false;
+    setStatus($("#resultStatus"), "loading", message.message || "Menyiapkan Pengkajian Dokter...");
+    return false;
   });
   setInterval(() => {
     if (!document.hidden) syncPatientFromActiveErm();
@@ -3438,7 +3473,11 @@ if (typeof module !== "undefined") {
     assert.deepEqual(dedupeProductAliases([
       { term: " Antrain ", query: "METAMIZOLE", selection: "unique" },
       { term: "antrain", query: "METAMIZOLE 1GR", selection: "confirm" }
-    ]), [{ term: "antrain", query: "METAMIZOLE 1GR", selection: "confirm" }]);
+    ]), [{ term: "antrain", query: "METAMIZOLE 1GR", selection: "confirm", form: "", strength: "", source: "manual" }]);
+    assert.equal(dedupeProductAliases([
+      { term: "panto", query: "PANTOPRAZOLE 40MG INJ", form: "injeksi", strength: "40 mg", source: "learned" },
+      { term: "panto", query: "PANTOPRAZOLE 20MG TAB", form: "tablet", strength: "20 mg", source: "learned" }
+    ]).length, 2);
     const retentionNow = Date.UTC(2026, 7, 12);
     assert.deepEqual(pruneExpiredHistory([
       { id: "expired", updatedAt: new Date(retentionNow - (61 * 24 * 60 * 60 * 1000)).toISOString() },

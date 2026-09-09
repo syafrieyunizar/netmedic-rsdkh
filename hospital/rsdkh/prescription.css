@@ -101,7 +101,6 @@
   gap: 7px;
   justify-content: center;
   min-height: 36px;
-  margin-right: 12px;
   padding: 0 14px;
   color: #ffffff;
   background: #006874;
@@ -110,7 +109,30 @@
   cursor: pointer;
   font: 600 13px/1 "Nimbus Sans RSDKH", Arial, sans-serif;
   letter-spacing: 0;
+  white-space: nowrap;
   transition: background-color 200ms ease, border-color 200ms ease, opacity 200ms ease;
+}
+
+.netmedic-rsdkh-igd-actions {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  overflow-x: auto;
+}
+
+.netmedic-rsdkh-igd-actions > [class*="p-col"],
+.netmedic-rsdkh-igd-prescription-slot {
+  flex: 0 0 auto !important;
+  width: auto !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  padding: 0 !important;
+}
+
+.netmedic-rsdkh-igd-prescription-slot {
+  display: inline-flex;
 }
 
 app-pengantar-opname-new .netmedic-rsdkh-opname-heading {

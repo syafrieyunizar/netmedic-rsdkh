@@ -5,6 +5,7 @@
   const SLOT_ID = `${BUTTON_ID}-slot`;
   const OPNAME_BUTTON_ID = "netmedic-rsdkh-opname-prescription";
   const IGD_PRESCRIPTION_BUTTON_ID = "netmedic-rsdkh-igd-prescription";
+  const IGD_PRESCRIPTION_SLOT_ID = `${IGD_PRESCRIPTION_BUTTON_ID}-slot`;
   const UI_ID = "netmedic-rsdkh-erx-ui";
   const PRODUCT_ALIASES_KEY = "rsdkhProductAliases";
   const NETMEDIC_LOGIN_KEY = "RUdJRVJBTURBTg==";
@@ -1736,22 +1737,34 @@
   }
 
   function injectIgdPrescriptionButton() {
-    const existing = document.getElementById(IGD_PRESCRIPTION_BUTTON_ID);
+    const existingSlot = document.getElementById(IGD_PRESCRIPTION_SLOT_ID);
     const table = igdPlanningTable();
     const root = table?.closest("app-pengkajian-dokter-igd") || table?.closest(".card-w-title");
     const print = root && findButton("Print", root);
     if (!print) {
-      existing?.remove();
+      existingSlot?.parentElement?.classList.remove("netmedic-rsdkh-igd-actions");
+      existingSlot?.remove();
       return;
     }
-    const button = existing || document.createElement("button");
-    if (!existing) {
+    const printSlot = print.closest(".p-col-12,[class*='p-col']") || print.parentElement;
+    const actions = printSlot?.parentElement;
+    if (!actions) return;
+    const slot = existingSlot || document.createElement("div");
+    let button = document.getElementById(IGD_PRESCRIPTION_BUTTON_ID);
+    if (!existingSlot) {
+      slot.id = IGD_PRESCRIPTION_SLOT_ID;
+      slot.className = "netmedic-rsdkh-igd-prescription-slot";
+    }
+    if (!button) {
+      button = document.createElement("button");
       button.id = IGD_PRESCRIPTION_BUTTON_ID;
       button.type = "button";
       setAiButtonContent(button, "Buat Resep dari Seluruh Instruksi");
       button.addEventListener("click", () => startIgdPrescription(button));
     }
-    if (print.previousElementSibling !== button) print.insertAdjacentElement("beforebegin", button);
+    if (button.parentElement !== slot) slot.append(button);
+    actions.classList.add("netmedic-rsdkh-igd-actions");
+    if (slot.parentElement !== actions || slot.nextElementSibling !== printSlot) actions.insertBefore(slot, printSlot);
   }
 
   function injectButtons() {

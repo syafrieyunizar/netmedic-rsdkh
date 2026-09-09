@@ -976,6 +976,8 @@
       const response = await chrome.runtime.sendMessage({ type: "rsdkh:parse-soap", soapText });
       if (!response?.ok) throw new Error(response?.error || "AI gagal memilah SOAP.");
 
+      // Native modal membuat dropdown dan tombol Simpan eRM di belakangnya inert.
+      ui.dialog.close();
       if (!await fillSoapParts(validateSoapParts(response.result), patientStatus)) {
         ui.form.hidden = false;
         ui.stepsWrap.hidden = true;
@@ -985,11 +987,11 @@
         ui.generate.disabled = false;
         ui.generate.querySelector(".soap-generate-label").textContent = "Generate";
         ui.cancel.disabled = false;
+        ui.dialog.showModal();
         ui.textarea.focus();
         return;
       }
       ui.textarea.value = "";
-      ui.dialog.close();
       showToast("Diagnosis tersimpan. Tinjau S, O, dan P lalu simpan Pengkajian Dokter IGD melalui eRM.");
     } catch (error) {
       setStep(Math.max(currentStep, 0), "error");
@@ -997,6 +999,7 @@
       ui.error.textContent = importErrorMessage(error);
       ui.cancel.disabled = false;
       ui.cancel.textContent = "Tutup";
+      if (!ui.dialog.open) ui.dialog.showModal();
       ui.cancel.focus();
     } finally {
       running = false;

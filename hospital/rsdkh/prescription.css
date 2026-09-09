@@ -95,6 +95,24 @@
   transition: background-color 200ms ease, border-color 200ms ease, opacity 200ms ease;
 }
 
+#netmedic-rsdkh-igd-prescription {
+  align-items: center;
+  display: inline-flex;
+  gap: 7px;
+  justify-content: center;
+  min-height: 36px;
+  margin-right: 12px;
+  padding: 0 14px;
+  color: #ffffff;
+  background: #006874;
+  border: 1px solid #006874;
+  border-radius: 8px;
+  cursor: pointer;
+  font: 600 13px/1 "Nimbus Sans RSDKH", Arial, sans-serif;
+  letter-spacing: 0;
+  transition: background-color 200ms ease, border-color 200ms ease, opacity 200ms ease;
+}
+
 app-pengantar-opname-new .netmedic-rsdkh-opname-heading {
   display: inline-block;
   margin-right: 12px;
@@ -106,17 +124,20 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
   vertical-align: middle;
 }
 
-#netmedic-rsdkh-opname-prescription:hover {
+#netmedic-rsdkh-opname-prescription:hover,
+#netmedic-rsdkh-igd-prescription:hover {
   background: #005861;
   border-color: #005861;
 }
 
-#netmedic-rsdkh-opname-prescription:disabled {
+#netmedic-rsdkh-opname-prescription:disabled,
+#netmedic-rsdkh-igd-prescription:disabled {
   cursor: wait;
   opacity: 0.62;
 }
 
-#netmedic-rsdkh-opname-prescription:focus-visible {
+#netmedic-rsdkh-opname-prescription:focus-visible,
+#netmedic-rsdkh-igd-prescription:focus-visible {
   outline: 3px solid rgba(0, 104, 116, 0.3);
   outline-offset: 2px;
 }
@@ -636,6 +657,18 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
 .erx-status[data-state="warning"] {
   color: var(--erx-warning);
   background: var(--erx-warning-container);
+}
+
+.erx-status button {
+  min-height: 32px;
+  margin-left: 10px;
+  padding: 0 10px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  cursor: pointer;
+  font: 700 12px/1 "Nimbus Sans RSDKH", Arial, sans-serif;
 }
 
 .erx-confirm {

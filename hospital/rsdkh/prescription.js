@@ -4,6 +4,7 @@
   const BUTTON_ID = "netmedic-rsdkh-erx-button";
   const SLOT_ID = `${BUTTON_ID}-slot`;
   const OPNAME_BUTTON_ID = "netmedic-rsdkh-opname-prescription";
+  const IGD_PRESCRIPTION_BUTTON_ID = "netmedic-rsdkh-igd-prescription";
   const UI_ID = "netmedic-rsdkh-erx-ui";
   const PRODUCT_ALIASES_KEY = "rsdkhProductAliases";
   const NETMEDIC_LOGIN_KEY = "RUdJRVJBTURBTg==";
@@ -100,12 +101,16 @@
     }
   }
 
-  function visibleIgdInstructions() {
-    const table = [...document.querySelectorAll("p-table,table")].find((candidate) => (
+  function igdPlanningTable() {
+    return [...document.querySelectorAll("p-table,table")].find((candidate) => (
       isVisible(candidate)
       && [...candidate.querySelectorAll("th")]
         .some((header) => /^(?:instruksi|intruksi) dokter$/i.test(normalize(header.textContent)))
-    ));
+    )) || null;
+  }
+
+  function visibleIgdInstructions() {
+    const table = igdPlanningTable();
     if (!table) return "";
     const values = [...table.querySelectorAll("textarea")]
       .map((field) => field.value.trim())
@@ -534,6 +539,11 @@
     return [...scope.querySelectorAll("button")].find((button) => isVisible(button) && normalize(button.textContent) === label) || null;
   }
 
+  function findClickable(label) {
+    const text = exactText(label, "button,a,span,li");
+    return text?.closest("button,a,[role='button'],.p-menuitem-link") || null;
+  }
+
   function roomDropdown() {
     const label = exactText("Ruangan", "label,span,div");
     return label?.parentElement?.querySelector(".p-dropdown")
@@ -896,10 +906,23 @@
     return selectedProduct;
   }
 
-  function setStatus(state, message) {
+  function setStatus(state, message, action = null) {
     ui.status.hidden = !message;
     ui.status.dataset.state = state;
     ui.status.textContent = message;
+    if (!action) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = action.label;
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      try {
+        await action.run();
+      } catch (error) {
+        setStatus("error", error.message || "Halaman tujuan gagal dibuka.");
+      }
+    });
+    ui.status.append(button);
   }
 
   function resizeTextarea(field) {
@@ -1242,6 +1265,8 @@
   }
 
   async function loadPrescriptionSource(config) {
+    const fallback = config.fallback?.() || "";
+    if (fallback) return fallback;
     let lastError;
     let loaded = false;
     for (const kind of config.kinds) {
@@ -1254,10 +1279,26 @@
         lastError = error;
       }
     }
-    const fallback = config.fallback?.() || "";
-    if (fallback) return fallback;
     if (!loaded && lastError) throw lastError;
     return "";
+  }
+
+  async function openIgdAssessmentPage() {
+    ui.dialog.close();
+    try {
+      const assessmentMenu = await waitFor(() => findClickable("Asesmen UGD"), "Menu Asesmen UGD tidak ditemukan.");
+      assessmentMenu.click();
+      const doctorAssessment = await waitFor(() => findClickable("Pengkajian Dokter"), "Pilihan Pengkajian Dokter tidak ditemukan.");
+      doctorAssessment.click();
+      await waitFor(
+        () => exactText("Pengkajian Dokter IGD", "h1,h2,h3,h4,h5,h6"),
+        "Halaman Pengkajian Dokter IGD gagal dibuka.",
+        20000
+      );
+    } catch (error) {
+      if (!ui.dialog.open) ui.dialog.showModal();
+      throw error;
+    }
   }
 
   async function autoGenerateAfterDepotChoice(message) {
@@ -1280,6 +1321,10 @@
     setStatus("loading", `Mengambil ${config.sourceName}.`);
     try {
       const source = await loadPrescriptionSource(config);
+      if (!source && config.fallback) {
+        setStatus("error", config.empty, { label: "Buka Pengkajian", run: openIgdAssessmentPage });
+        return;
+      }
       if (!source) throw new Error(config.empty);
       setNativeValue(ui.source, source);
       ui.source.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1589,30 +1634,56 @@
     button.disabled = true;
     setAiButtonContent(button, "Menyiapkan...");
     try {
-      const menuText = exactText("Resep Elektronik V2", "a,button,span,li");
-      const menu = menuText?.closest("a,button,[role='menuitem']") || menuText;
-      if (!menu) throw new Error("Menu Resep Elektronik V2 tidak ditemukan.");
-      menu.click();
-      await waitFor(isPrescriptionPage, "Halaman Resep Elektronik V2 gagal dibuka.", 20000);
-      queueInject();
-      const prescriptionButton = await waitFor(
-        () => document.getElementById(BUTTON_ID),
-        "Tombol e-Resep otomatis tidak ditemukan."
-      );
-      if (!ui?.dialog?.open) prescriptionButton.click();
-      await waitFor(() => ui?.dialog?.open && ui, "Modal e-Resep otomatis gagal dibuka.");
-      const inpatient = ui.modeInputs.find((input) => input.value === "inpatient");
-      if (!inpatient) throw new Error("Pilihan Rawat inap tidak ditemukan.");
-      inpatient.click();
-      setNativeValue(ui.source, source);
-      ui.source.dispatchEvent(new Event("input", { bubbles: true }));
-      await autoGenerateAfterDepotChoice("Rencana Terapi berhasil dimuat. Pilih depo untuk melanjutkan Generate.");
+      await openPrescriptionWithSource(source, "inpatient", "Rencana Terapi berhasil dimuat. Pilih depo untuk melanjutkan Generate.");
     } catch (error) {
       showToast(error.message || "Buat Resep gagal dijalankan.");
     } finally {
       if (button.isConnected) {
         button.disabled = false;
         setAiButtonContent(button, "Buat Resep");
+      }
+    }
+  }
+
+  async function openPrescriptionWithSource(source, mode, message) {
+    const menuText = exactText("Resep Elektronik V2", "a,button,span,li");
+    const menu = menuText?.closest("a,button,[role='menuitem']") || menuText;
+    if (!menu) throw new Error("Menu Resep Elektronik V2 tidak ditemukan.");
+    menu.click();
+    await waitFor(isPrescriptionPage, "Halaman Resep Elektronik V2 gagal dibuka.", 20000);
+    queueInject();
+    const prescriptionButton = await waitFor(
+      () => document.getElementById(BUTTON_ID),
+      "Tombol e-Resep otomatis tidak ditemukan."
+    );
+    if (!ui?.dialog?.open) prescriptionButton.click();
+    await waitFor(() => ui?.dialog?.open && ui, "Modal e-Resep otomatis gagal dibuka.");
+    const modeInput = ui.modeInputs.find((input) => input.value === mode);
+    if (!modeInput) throw new Error("Jenis resep tidak ditemukan.");
+    modeInput.click();
+    setNativeValue(ui.source, source);
+    ui.source.dispatchEvent(new Event("input", { bubbles: true }));
+    await autoGenerateAfterDepotChoice(message);
+  }
+
+  async function startIgdPrescription(button) {
+    if (running || button.disabled) return;
+    const source = visibleIgdInstructions();
+    if (!source) {
+      showToast("Instruksi Dokter masih kosong.");
+      return;
+    }
+    cacheVisibleIgdInstructions();
+    button.disabled = true;
+    setAiButtonContent(button, "Menyiapkan...");
+    try {
+      await openPrescriptionWithSource(source, "emergency_inpatient", "Seluruh Instruksi Dokter berhasil dimuat. Pilih depo untuk melanjutkan Generate.");
+    } catch (error) {
+      showToast(error.message || "Resep dari Instruksi Dokter gagal disiapkan.");
+    } finally {
+      if (button.isConnected) {
+        button.disabled = false;
+        setAiButtonContent(button, "Buat Resep dari Seluruh Instruksi");
       }
     }
   }
@@ -1664,11 +1735,31 @@
     target.insertAdjacentElement("afterend", button);
   }
 
+  function injectIgdPrescriptionButton() {
+    const existing = document.getElementById(IGD_PRESCRIPTION_BUTTON_ID);
+    const table = igdPlanningTable();
+    const root = table?.closest("app-pengkajian-dokter-igd") || table?.closest(".card-w-title");
+    const print = root && findButton("Print", root);
+    if (!print) {
+      existing?.remove();
+      return;
+    }
+    const button = existing || document.createElement("button");
+    if (!existing) {
+      button.id = IGD_PRESCRIPTION_BUTTON_ID;
+      button.type = "button";
+      setAiButtonContent(button, "Buat Resep dari Seluruh Instruksi");
+      button.addEventListener("click", () => startIgdPrescription(button));
+    }
+    if (print.previousElementSibling !== button) print.insertAdjacentElement("beforebegin", button);
+  }
+
   function injectButtons() {
     injectQueued = false;
     cacheVisibleIgdInstructions();
     injectPrescriptionButton();
     injectOpnameButton();
+    injectIgdPrescriptionButton();
   }
 
   function queueInject() {

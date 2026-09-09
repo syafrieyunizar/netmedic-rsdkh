@@ -16,7 +16,7 @@ const PATIENT_MEMORIES_KEY = "patientMemories";
 const HISTORY_RETENTION_MS = 60 * 24 * 60 * 60 * 1000;
 const MAX_CLINICAL_IMAGE_BYTES = 8 * 1024 * 1024;
 const CLINICAL_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const SOAP_FIELD_IDS = ["identity", "serviceMode", "subjektif", "objektif", "assessment", "planning", "resultS", "resultO", "resultA", "resultP", "requiresChronology", "chronologyReason", "chronologyEffect"];
+const SOAP_FIELD_IDS = ["identity", "serviceMode", "subjektif", "objektif", "useCurrentVitals", "assessment", "planning", "resultS", "resultO", "resultA", "resultP", "requiresChronology", "chronologyReason", "chronologyEffect"];
 const KRONOLOGI_FIELD_IDS = ["skenario", "akibat", "resultKronologi", "resultWarning", "resultWarningRule"];
 const WHATSAPP_STEP_TITLES = ["Pesan Pembuka", "Identitas Pasien", "Subjektif", "Objektif", "Assessment", "Planning", "Kalimat Penutup"];
 const DEFAULT_WHATSAPP_OPENING = "Assalaamu'alaikum wr.wb.\nSelamat {waktu}. Permisi dokter, saya dr. {dokter}\nIzin lapor pasien IGD :";
@@ -449,6 +449,7 @@ Isi sesuai kasus kegawatan.
 ATURAN TTV:
 - TD, Nadi, RR, Suhu, dan SpO2 WAJIB selalu terisi dengan angka.
 - Jika nilai TTV tersedia pada data awal, pertahankan nilai tersebut.
+- Jika data awal memuat blok "TTV pasien saat ini dari Vital Sign", prioritaskan nilai pada blok tersebut bila berbeda dengan teks lain.
 - Jika nilai TTV kosong, buat nilai yang menunjukkan kegawatdaruratan dan paling relevan dengan keluhan, usia, serta konteks klinis pasien.
 - Semua nilai TTV yang dibuat harus saling konsisten, masuk akal secara klinis, dan tidak boleh bertentangan dengan data awal.
 - Jangan pernah menulis "belum diukur", "tidak ada data", tanda hubung, atau menghilangkan baris TTV.
@@ -687,6 +688,29 @@ async function readPatientProfileFromActiveErm() {
     tabId: activeTab.id,
     ermUrl: String(activeTab.url || response.ermUrl || "")
   };
+}
+
+function formatLatestVitalSigns(vitalSigns) {
+  const rows = [
+    ["TD", vitalSigns?.bloodPressure, "mmHg"],
+    ["N", vitalSigns?.pulse, "x/m"],
+    ["RR", vitalSigns?.respiratoryRate, "x/m"],
+    ["T", vitalSigns?.temperature, "°C"],
+    ["SpO2", vitalSigns?.oxygenSaturation, "%"]
+  ].filter(([, value]) => String(value || "").trim());
+  if (!rows.length) return "";
+  const recordedAt = String(vitalSigns?.recordedAt || "").trim();
+  return [
+    `TTV pasien saat ini dari Vital Sign${recordedAt ? ` (${recordedAt})` : ""}:`,
+    ...rows.map(([label, value, unit]) => `${label}: ${value} ${unit}`)
+  ].join("\n");
+}
+
+async function readLatestVitalSigns(patient = activePatientProfile) {
+  if (!patient?.ermUrl) throw new Error("Kunjungan eRM aktif belum terdeteksi.");
+  const response = await chrome.runtime.sendMessage({ type: "rsdkh:get-latest-vital-sign", patient });
+  if (!response?.ok) throw new Error(response?.error || "Tanda vital terbaru tidak ditemukan.");
+  return response.vitalSigns;
 }
 
 async function readWhatsappIdentityFromActiveErm() {
@@ -1443,6 +1467,7 @@ function soapDraft() {
     serviceMode: $("#serviceMode").value,
     subjektif: $("#subjektif").value,
     objektif: $("#objektif").value,
+    useCurrentVitals: $("#useCurrentVitals").checked,
     assessment: $("#assessment").value,
     planning: $("#planning").value,
     resultS: $("#resultS").value,
@@ -1486,7 +1511,9 @@ function scheduleKronologiSave() {
 function restoreDraft(draft) {
   Object.entries(draft || {}).forEach(([id, value]) => {
     const field = $(`#${id}`);
-    if (field && value !== undefined) field.value = value;
+    if (!field || value === undefined) return;
+    if (field.type === "checkbox") field.checked = Boolean(value);
+    else field.value = value;
   });
   requestAnimationFrame(() => resizeTextareas());
 }
@@ -1972,6 +1999,15 @@ async function generateSoap() {
   $("#uploadClinicalImage").disabled = true;
   $("#removeClinicalImage").disabled = true;
   try {
+    if (draft.useCurrentVitals) {
+      setStatus(status, "loading", "Mengambil tanda vital pasien saat ini...");
+      try {
+        const currentVitals = formatLatestVitalSigns(await readLatestVitalSigns());
+        if (currentVitals) draft.objektif = [draft.objektif.trim(), currentVitals].filter(Boolean).join("\n\n");
+      } catch {
+        setStatus(status, "loading", "TTV terbaru tidak tersedia. AI melengkapi sesuai kondisi...");
+      }
+    }
     if (selectedClinicalImage) {
       setStatus(status, "loading", "Menganalisis foto klinis...");
       const visionResult = await callClinicalVision(selectedClinicalImage);
@@ -2278,6 +2314,10 @@ async function submitSoapInputStatus(event) {
 function resetFields(ids) {
   ids.forEach((id) => {
     const field = $(`#${id}`);
+    if (field.type === "checkbox") {
+      field.checked = true;
+      return;
+    }
     field.value = id === "serviceMode" ? "rawat_inap" : id === "requiresChronology" ? "false" : "";
     if (field.matches("textarea")) field.style.height = "";
   });
@@ -3207,6 +3247,8 @@ async function initialize() {
 }
 
 if (typeof document !== "undefined") {
+  const manifestVersion = globalThis.chrome?.runtime?.getManifest?.().version;
+  if (manifestVersion) $("#appVersion").textContent = `v${manifestVersion}`;
   document.addEventListener("input", (event) => {
     if (event.target.matches("textarea")) resizeTextarea(event.target);
   });
@@ -3439,6 +3481,7 @@ if (typeof module !== "undefined") {
     anonymousIdentityForProfile,
     sameAnonymousIdentity,
     patientTabTitle,
+    formatLatestVitalSigns,
     whatsappTimeOfDay,
     formatWhatsappPatientIdentity,
     buildWhatsappSoapReport,
@@ -3474,6 +3517,15 @@ if (typeof module !== "undefined") {
     assert.equal(sameAnonymousIdentity("Perempuan 48 tahun", anonymousIdentityForProfile(patientProfile)), false);
     assert.equal(patientTabTitle(patientProfile, "6"), "6 SALIMUDDIN");
     assert.equal(patientTabTitle(patientProfile, ""), "SALIMUDDIN");
+    assert.equal(formatLatestVitalSigns({
+      bloodPressure: "69/47",
+      pulse: "96",
+      respiratoryRate: "37",
+      temperature: "36,9",
+      oxygenSaturation: "83",
+      recordedAt: "09 Sep 2026 10:14"
+    }), "TTV pasien saat ini dari Vital Sign (09 Sep 2026 10:14):\nTD: 69/47 mmHg\nN: 96 x/m\nRR: 37 x/m\nT: 36,9 °C\nSpO2: 83 %");
+    assert.equal(formatLatestVitalSigns({ bloodPressure: "120/80" }), "TTV pasien saat ini dari Vital Sign:\nTD: 120/80 mmHg");
     const privateSoapPrompt = buildMagicSoapPrompt({
       identity: anonymousIdentityForProfile(patientProfile),
       serviceMode: "rawat_inap",
@@ -3517,7 +3569,7 @@ if (typeof module !== "undefined") {
       objektif: "Objektif uji",
       assessment: "Assessment uji",
       planning: "Planning uji"
-    })), "cd6e4db0027f3d123e8758a0090fc1686b6bbf2e36186f968b543dad204fc9d4");
+    })), "acc7f3a3e9dbba7bb71145f5499746adaad62401aea1d8398914b0e023b2b461");
     assert.equal(hash(buildKronologiPrompt({
       skenario: "Skenario uji",
       akibat: "Akibat uji"

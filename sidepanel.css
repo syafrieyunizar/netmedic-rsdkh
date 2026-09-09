@@ -759,6 +759,28 @@ main {
   background: var(--surface-low);
 }
 
+.vital-sign-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  color: var(--on-surface);
+  cursor: pointer;
+}
+
+.vital-sign-option input {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.vital-sign-option span {
+  font-size: 10px;
+  font-weight: 600;
+}
+
 .clinical-image-preview {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) 44px;

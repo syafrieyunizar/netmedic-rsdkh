@@ -144,6 +144,42 @@
     return `${normalize(gender.textContent)} ${normalize(age.textContent)}`;
   }
 
+  function parseVitalSignText(text, label) {
+    const value = normalize(text);
+    if (!value || value.startsWith("-")) return "";
+    const pattern = label === "TD"
+      ? /(\d{2,3}\s*\/\s*\d{2,3})/
+      : label === "S"
+        ? /(\d{2}(?:[.,]\d+)?)/
+        : /(\d{1,3})/;
+    return value.match(pattern)?.[1]?.replace(/\s+/g, "") || "";
+  }
+
+  function latestVitalSignsFromPage() {
+    if (!location.hash.includes("/vital-sign")) return null;
+    const row = [...document.querySelectorAll("tr")]
+      .find((candidate) => [...candidate.querySelectorAll("button")]
+        .some((button) => normalize(button.getAttribute("label") || button.textContent) === "TD"));
+    if (!row) return null;
+
+    const read = (label) => {
+      const button = [...row.querySelectorAll("button")]
+        .find((candidate) => normalize(candidate.getAttribute("label") || candidate.textContent) === label);
+      return parseVitalSignText(button?.parentElement?.textContent, label);
+    };
+    const vitalSigns = {
+      bloodPressure: read("TD"),
+      pulse: read("N"),
+      respiratoryRate: read("R"),
+      temperature: read("S"),
+      oxygenSaturation: read("SpO2"),
+      recordedAt: normalize(row.previousElementSibling?.textContent)
+    };
+    return [vitalSigns.bloodPressure, vitalSigns.pulse, vitalSigns.respiratoryRate, vitalSigns.temperature, vitalSigns.oxygenSaturation].some(Boolean)
+      ? vitalSigns
+      : null;
+  }
+
   function isReportMedicalRecord(value) {
     return /^\d{5,8}$/.test(normalize(value));
   }
@@ -1130,7 +1166,7 @@
   }
 
   if (typeof module !== "undefined") {
-    module.exports = { diagnosisTypeFor, isReportMedicalRecord, isReportPatientName, isReportPatientAge, isReportPatientGender, encounterIdFromHash, patientEncounterKey, samePatientEncounter, assessmentStateFromValues, resumeProgressStage, mergeIcd9Actions };
+    module.exports = { diagnosisTypeFor, isReportMedicalRecord, isReportPatientName, isReportPatientAge, isReportPatientGender, encounterIdFromHash, patientEncounterKey, samePatientEncounter, assessmentStateFromValues, resumeProgressStage, mergeIcd9Actions, parseVitalSignText };
     if (require.main === module) {
       const assert = require("node:assert/strict");
       assert.equal(diagnosisTypeFor("rawat_inap"), "Diagnosa Awal");
@@ -1168,6 +1204,10 @@
       assert.equal(resumeProgressStage(3), "Merapikan terapi");
       assert.equal(mergeIcd9Actions("EKG, Infus", ["ekg", "injeksi-obat"]), "EKG, Infus, Injeksi obat");
       assert.equal(mergeIcd9Actions("lab", ["lab-darah"]), "lab");
+      assert.equal(parseVitalSignText("69/47 mmHg TD", "TD"), "69/47");
+      assert.equal(parseVitalSignText("36,9 C S", "S"), "36,9");
+      assert.equal(parseVitalSignText("96 x/mnt N", "N"), "96");
+      assert.equal(parseVitalSignText("- % SpO2", "SpO2"), "");
       console.log("RSDKH eRM self-check ok");
     }
     return;
@@ -1194,6 +1234,14 @@
       }
       setForcedPatientTabTitle(message.title, patient);
       sendResponse({ ok: true });
+      return false;
+    }
+    if (message?.type === "rsdkh:get-latest-vital-sign") {
+      const patient = getCurrentPatientReportIdentity();
+      const vitalSigns = patient && samePatientEncounter(message.patient, patient) ? latestVitalSignsFromPage() : null;
+      sendResponse(vitalSigns
+        ? { ok: true, vitalSigns }
+        : { ok: false, error: "Tanda vital terbaru belum tampil untuk kunjungan ini." });
       return false;
     }
     if (message?.type === "rsdkh:input-soap-parts") {

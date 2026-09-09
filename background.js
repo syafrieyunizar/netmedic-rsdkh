@@ -141,6 +141,52 @@ async function focusPatientTab(patient) {
   return tab.id;
 }
 
+function vitalSignUrlFor(patient) {
+  const url = new URL(patient?.ermUrl || "");
+  if (!(["rsudbalangan.com", "10.10.0.3"].includes(url.hostname) && ["http:", "https:"].includes(url.protocol))) {
+    throw new Error("URL eRM pasien tidak valid.");
+  }
+  const route = url.hash.replace(/^#\/?/, "").split("/");
+  if (route[0] !== "rekam-medis" || !route[1] || !route[2]) throw new Error("Kunjungan pasien tidak ditemukan pada URL eRM.");
+  url.hash = `#/rekam-medis/${route[1]}/${route[2]}/vital-sign`;
+  return url.href;
+}
+
+async function waitForLatestVitalSigns(tabId, patient) {
+  const deadline = Date.now() + 15000;
+  let lastError = "Tanda vital terbaru tidak ditemukan.";
+  while (Date.now() < deadline) {
+    try {
+      const response = await chrome.tabs.sendMessage(tabId, { type: "rsdkh:get-latest-vital-sign", patient });
+      if (response?.ok && response.vitalSigns) return response.vitalSigns;
+      if (response?.error) lastError = response.error;
+    } catch (error) {
+      lastError = error.message || lastError;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
+  throw new Error(lastError);
+}
+
+async function getLatestVitalSigns(patient) {
+  const vitalUrl = vitalSignUrlFor(patient);
+  if (Number.isInteger(patient?.tabId)) {
+    try {
+      const currentTab = await chrome.tabs.get(patient.tabId);
+      if (currentTab.url === vitalUrl) return waitForLatestVitalSigns(currentTab.id, patient);
+    } catch {
+      // Use an inactive temporary tab when the original patient tab is unavailable.
+    }
+  }
+
+  const temporaryTab = await chrome.tabs.create({ url: vitalUrl, active: false });
+  try {
+    return await waitForLatestVitalSigns(temporaryTab.id, patient);
+  } finally {
+    await chrome.tabs.remove(temporaryTab.id).catch(() => {});
+  }
+}
+
 async function updatePatientBed(patient, bed) {
   const patientKey = SHIFT.patientKey(patient);
   const nextBed = String(bed || "").trim();
@@ -181,6 +227,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       ? { ok: true, dataUrl: request.dataUrl }
       : { ok: false, error: "Data capture tidak ditemukan." });
     return false;
+  }
+  if (message?.type === "rsdkh:get-latest-vital-sign") {
+    getLatestVitalSigns(message.patient)
+      .then((vitalSigns) => sendResponse({ ok: true, vitalSigns }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || "Tanda vital terbaru tidak ditemukan." }));
+    return true;
   }
 
   const shiftAction = {

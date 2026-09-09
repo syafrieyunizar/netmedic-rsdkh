@@ -125,6 +125,10 @@
             </div>
             <input id="clinicalImageInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
             <textarea id="objektif" rows="4" placeholder="Tanda vital dan pemeriksaan fisik"></textarea>
+            <label class="vital-sign-option" for="useCurrentVitals">
+              <input id="useCurrentVitals" type="checkbox" checked>
+              <span>Pakai tanda vital pasien saat ini</span>
+            </label>
             <div id="clinicalImagePreview" class="clinical-image-preview" hidden>
               <img id="clinicalImageThumbnail" alt="Preview foto klinis terpilih">
               <div class="clinical-image-meta">
@@ -183,7 +187,7 @@
 
   <footer class="app-footer">
     <span><span class="footer-dot" aria-hidden="true"></span>Siap digunakan</span>
-    <span>v1.8.1</span>
+    <span id="appVersion">v1.8.6</span>
   </footer>
 
   <dialog id="historyDialog" class="history-dialog" aria-labelledby="historyTitle">

@@ -139,5 +139,6 @@ node sidepanel.js
 - Nama, nomor RM, BED, status sesi, dan URL eRM untuk dashboard hanya disimpan di `chrome.storage.local`; data tersebut tidak ditambahkan ke prompt AI.
 - Hasil Magic SOAP dan Kronologi di side panel tetap tampil sebagai preview/editable result sebelum dipakai user.
 - Magic SOAP mempertahankan TTV yang tersedia dan melengkapi TTV kosong dengan nilai kegawatdaruratan yang relevan sebagai draf untuk ditinjau user.
+- Opsi `Pakai tanda vital pasien saat ini` mengambil entri Vital Sign terbaru dari kunjungan aktif tanpa meninggalkan halaman kerja dan mengirimkannya tanpa identitas pasien ke provider AI aktif; komponen yang belum tersedia tetap dilengkapi AI.
 - Foto klinis hanya disimpan sementara di memori side panel, dikirim ke provider saat Generate, lalu dilepas setelah analisis berhasil.
 - Admin credential hanya dipakai untuk sesi panel admin dan tidak disimpan permanen di extension.

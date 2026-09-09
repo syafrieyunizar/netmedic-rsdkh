@@ -118,6 +118,7 @@ let whatsappGeneratedAt = new Date();
 let patientMemories = {};
 let activePatientProfile = null;
 let patientSyncRunning = false;
+let patientSyncTimer;
 let patientMemoryReady = false;
 let shiftState = SHIFT.normalizeState({});
 let pendingSoapTarget = null;
@@ -147,7 +148,7 @@ function sameAnonymousIdentity(left, right) {
 function patientTabTitle(profile, bed) {
   const patientName = String(profile?.name || "").trim();
   const bedName = String(bed || "").trim();
-  return patientName && bedName ? `${bedName} ${patientName}` : "";
+  return patientName ? [bedName, patientName].filter(Boolean).join(" ") : "";
 }
 
 function formatShiftDateTime(value) {
@@ -1587,6 +1588,11 @@ async function syncPatientFromActiveErm() {
   } finally {
     patientSyncRunning = false;
   }
+}
+
+function queuePatientSync(delay = 120) {
+  clearTimeout(patientSyncTimer);
+  patientSyncTimer = setTimeout(syncPatientFromActiveErm, delay);
 }
 
 function hasResult(type) {
@@ -3389,6 +3395,14 @@ if (typeof document !== "undefined") {
     }
   });
   chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type === "rsdkh:patient-observed") {
+      queuePatientSync();
+      return false;
+    }
+    if (message?.type === "rsdkh:active-patient-tab-changed") {
+      queuePatientSync();
+      return false;
+    }
     if (message?.type !== "rsdkh:soap-input-progress" || !$("#inputSoapFromResult").disabled) return false;
     setStatus($("#resultStatus"), "loading", message.message || "Menyiapkan Pengkajian Dokter...");
     return false;
@@ -3453,7 +3467,7 @@ if (typeof module !== "undefined") {
     assert.equal(sameAnonymousIdentity("Laki-laki 48 tahun", anonymousIdentityForProfile(patientProfile)), true);
     assert.equal(sameAnonymousIdentity("Perempuan 48 tahun", anonymousIdentityForProfile(patientProfile)), false);
     assert.equal(patientTabTitle(patientProfile, "6"), "6 SALIMUDDIN");
-    assert.equal(patientTabTitle(patientProfile, ""), "");
+    assert.equal(patientTabTitle(patientProfile, ""), "SALIMUDDIN");
     const privateSoapPrompt = buildMagicSoapPrompt({
       identity: anonymousIdentityForProfile(patientProfile),
       serviceMode: "rawat_inap",

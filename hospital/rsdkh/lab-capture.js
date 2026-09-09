@@ -23,6 +23,31 @@
     ));
   }
 
+  function blobDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("Gambar PNG tidak dapat dikirim ke clipboard."));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function writeImageToClipboard(blob) {
+    if (navigator.clipboard?.write && globalThis.ClipboardItem) {
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        return;
+      } catch {
+        // HTTP pages and browser policy can reject direct Clipboard API access.
+      }
+    }
+    const response = await chrome.runtime.sendMessage({
+      type: "rsdkh:copy-image-to-clipboard",
+      dataUrl: await blobDataUrl(blob)
+    });
+    if (!response?.ok) throw new Error(response?.error || "Clipboard extension tidak tersedia.");
+  }
+
   function showToast(message, state = "success") {
     let toast = document.getElementById(TOAST_ID);
     if (!toast) {
@@ -92,7 +117,7 @@
     setButtonState(button, "loading");
     try {
       const blob = await captureTable(table);
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      await writeImageToClipboard(blob);
       setButtonState(button, "success");
       showToast("Hasil laboratorium disalin ke clipboard. Tekan Ctrl+V untuk menempelkan.");
     } catch (error) {

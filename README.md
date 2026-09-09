@@ -25,6 +25,8 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 - Mode API admin bersama dengan login panel admin, pengaturan API key admin, dan manajemen user.
 - Tombol `Input SOAP` di sebelah judul Pengkajian Dokter IGD untuk memilah dan mengisi S/O/A/P pada satu halaman. Diagnosis disimpan melalui panel ICD 10 FreeText; S/O/P tetap ditinjau sebelum Pengkajian disimpan.
 - Tombol `Input SOAP` pada hasil Magic SOAP untuk membuka otomatis `Asesmen UGD → Pengkajian Dokter → Tambah` pada kunjungan pasien yang sama, lalu mengirim hasil S/O/A/P yang sudah diedit tanpa parsing AI ulang. User memilih rencana status pasien terlebih dahulu: rawat inap memakai `Diagnosa Awal`, sedangkan rawat jalan memakai `Primary / utama`.
+- Identitas pasien aktif disinkronkan saat tab browser atau kunjungan eRM berubah. Judul tab memakai nama pasien, dengan awalan BED bila tersedia.
+- Capture hasil laboratorium menyalin PNG ke clipboard, termasuk dari alamat eRM internal HTTP melalui jendela clipboard extension yang menutup otomatis.
 - Tombol `e-Resep otomatis` pada Resep Elektronik V2 untuk mengambil Planning Pengkajian Dokter IGD atau Pengantar Opname, mewajibkan pilihan depo, merapikan resep, dan memasukkannya secara berurutan setelah konfirmasi dokter.
 - Katalog final 605 produk RSDKH digunakan untuk mencocokkan hasil AI dengan nama produk eRM secara deterministik.
 - Pengaturan menyediakan Kamus Produk RSDKH yang dapat ditambah, diedit, dihapus, dan direset tanpa mengubah katalog asli.

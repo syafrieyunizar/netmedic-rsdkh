@@ -4,6 +4,7 @@ const SHIFT = self.NetmedicShift;
 const DASHBOARD_TAB_KEY = "netmedicDashboardTabId";
 const PATIENT_MEMORIES_KEY = "patientMemories";
 let shiftMutationQueue = Promise.resolve();
+let clipboardCopyRequest;
 
 function enableSidePanel() {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
@@ -11,6 +12,55 @@ function enableSidePanel() {
 
 chrome.runtime.onInstalled.addListener(enableSidePanel);
 chrome.runtime.onStartup.addListener(enableSidePanel);
+
+function finishClipboardCopy(token, ok, error = "") {
+  const request = clipboardCopyRequest;
+  if (!request || request.token !== token) return false;
+  clipboardCopyRequest = null;
+  clearTimeout(request.timer);
+  if (Number.isInteger(request.windowId)) chrome.windows.remove(request.windowId).catch(() => {});
+  if (ok) request.resolve();
+  else request.reject(new Error(error || "Gambar gagal disalin ke clipboard."));
+  return true;
+}
+
+async function copyImageToClipboard(dataUrl) {
+  if (!/^data:image\/png;base64,/i.test(String(dataUrl || ""))) throw new Error("Data capture laboratorium tidak valid.");
+  if (clipboardCopyRequest) throw new Error("Capture lain masih disalin ke clipboard.");
+  const token = crypto.randomUUID();
+  const result = new Promise((resolve, reject) => {
+    clipboardCopyRequest = {
+      token,
+      dataUrl,
+      windowId: null,
+      resolve,
+      reject,
+      timer: setTimeout(() => finishClipboardCopy(token, false, "Clipboard tidak merespons."), 15000)
+    };
+  });
+  try {
+    const popup = await chrome.windows.create({
+      url: chrome.runtime.getURL(`clipboard.html?token=${encodeURIComponent(token)}`),
+      type: "popup",
+      focused: true,
+      width: 240,
+      height: 140
+    });
+    if (clipboardCopyRequest?.token === token) clipboardCopyRequest.windowId = popup.id;
+  } catch (error) {
+    finishClipboardCopy(token, false, error.message);
+  }
+  return result;
+}
+
+function notifyActivePatientTab(tabId) {
+  chrome.runtime.sendMessage({ type: "rsdkh:active-patient-tab-changed", tabId }).catch(() => {});
+}
+
+chrome.tabs.onActivated.addListener(({ tabId }) => notifyActivePatientTab(tabId));
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (tab.active && (changeInfo.url || changeInfo.status === "complete")) notifyActivePatientTab(tabId);
+});
 
 async function readShiftState() {
   const saved = await chrome.storage.local.get(SHIFT.STORAGE_KEY);
@@ -115,6 +165,24 @@ async function updatePatientBed(patient, bed) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "rsdkh:copy-image-to-clipboard") {
+    copyImageToClipboard(message.dataUrl)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || "Capture gagal disalin." }));
+    return true;
+  }
+  if (message?.type === "rsdkh:clipboard-window-result") {
+    finishClipboardCopy(message.token, message.ok, message.error);
+    return false;
+  }
+  if (message?.type === "rsdkh:get-pending-clipboard-image") {
+    const request = clipboardCopyRequest;
+    sendResponse(request?.token === message.token
+      ? { ok: true, dataUrl: request.dataUrl }
+      : { ok: false, error: "Data capture tidak ditemukan." });
+    return false;
+  }
+
   const shiftAction = {
     "rsdkh:shift-get": () => readShiftState(),
     "rsdkh:shift-start": async () => {

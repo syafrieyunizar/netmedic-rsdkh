@@ -32,6 +32,10 @@ Hasil Magic SOAP pada side panel juga memiliki tombol `Input SOAP`. Sebelum pros
 
 Selector mengandalkan label dan teks komponen SIAPMEDIS, bukan atribut Angular sementara seperti `_ngcontent-*`. Bila struktur target tidak ditemukan, proses berhenti dan menunjukkan tahap yang gagal.
 
+Identitas pasien dibaca ulang saat tab aktif atau kunjungan berubah. Parser menerima nama kapital maupun title case serta memiliki fallback teks bila class tag demografi berbeda pada alamat internal. Judul tab memakai nama pasien dan menambahkan BED bila sudah tersedia.
+
+Capture hasil laboratorium menulis PNG langsung ke clipboard pada halaman HTTPS. Pada alamat internal HTTP, PNG diteruskan secara lokal ke jendela clipboard extension yang menutup otomatis; data capture tidak dikirim ke jaringan.
+
 Resep Pergantian IGD mengambil sumber dari Planning Pengkajian Dokter IGD yang baru, bukan Assessment IGD 2. Resep Rawat Inap mengambil obat dari `Rencana Terapi` Pengantar Opname baru pada route `pengantar-opname-new` dan tidak memasukkan `Rencana Tindakan`; jenis rekam medis lama tetap dipakai sebagai fallback. Setiap alur e-Resep mewajibkan dokter memilih depo pengambilan; extension menyelaraskan pilihan itu ke dropdown `Ruangan` eRM sebelum Generate dan memeriksanya kembali sebelum item dimasukkan.
 
 ## Alur e-Resep Otomatis

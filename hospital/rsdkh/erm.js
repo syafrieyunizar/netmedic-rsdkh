@@ -68,6 +68,8 @@
   let forcedPatientKey = "";
   let originalTabTitle = "";
   let lastAssessmentReport = "";
+  let lastPatientReport = "";
+  let patientReportTimer;
 
   const normalize = (value) => String(value || "").trim().replace(/\s+/g, " ");
   const isVisible = (element) => Boolean(element && element.getClientRects().length && getComputedStyle(element).visibility !== "hidden");
@@ -91,6 +93,14 @@
 
   function isErmPage() {
     return location.hash.startsWith("#/rekam-medis/");
+  }
+
+  function isReportPatientAge(value) {
+    return /^\d{1,3}\s*(?:thn|tahun|th)(?:\s+\d{1,2}\s*(?:bln|bulan))?(?:\s+\d{1,2}\s*hari)?$/i.test(normalize(value));
+  }
+
+  function isReportPatientGender(value) {
+    return /^(?:laki[ -]?laki|perempuan)$/i.test(normalize(value));
   }
 
   function encounterIdFromHash(hash) {
@@ -121,10 +131,14 @@
   function getCurrentPatientIdentity() {
     if (!isErmPage()) return "";
 
+    const leaves = [...document.querySelectorAll("small,span,strong,b,p,div")]
+      .filter((element) => isVisible(element) && !element.children.length && normalize(element.textContent));
     const age = [...document.querySelectorAll("small.tag.is-danger.is-rounded")]
-      .find((element) => isVisible(element) && /^\d+\s*thn(?:\s+\d+\s*bln)?(?:\s+\d+\s*hari)?$/i.test(normalize(element.textContent)));
+      .find((element) => isVisible(element) && isReportPatientAge(element.textContent))
+      || leaves.find((element) => isReportPatientAge(element.textContent));
     const gender = [...document.querySelectorAll("small.tag.is-info.is-rounded")]
-      .find((element) => isVisible(element) && /^(?:laki[ -]?laki|perempuan)$/i.test(normalize(element.textContent)));
+      .find((element) => isVisible(element) && isReportPatientGender(element.textContent))
+      || leaves.find((element) => isReportPatientGender(element.textContent));
 
     if (!age || !gender) return "";
     return `${normalize(gender.textContent)} ${normalize(age.textContent)}`;
@@ -137,28 +151,33 @@
   function isReportPatientName(value) {
     const text = normalize(value);
     const name = text.replace(/\s*[.,]?\s*(?:(?:By|Bayi)\.?\s+(?:Ny|Ibu)\.?|Tn|Ny|Nn|An|By|Bayi|Sdr)\.?$/i, "").trim();
-    const excluded = /^(?:BPJS\b|JKN\b|PBI\b|NON PBI\b|UMUM\b|PEGAWAI SWASTA\b|INFO REGISTRASI|GAWAT DARURAT|PLAFON|TAGIHAN|ALERGI|WEIGHT|HEIGHT|NON KELAS|I-CARE)/i;
+    const excluded = /^(?:BPJS\b|JKN\b|PBI\b|NON PBI\b|UMUM\b|PEGAWAI SWASTA\b|INFO REGISTRASI|GAWAT DARURAT|PLAFON|TAGIHAN|ALERGI|WEIGHT|HEIGHT|NON KELAS|I-CARE|LAKI[ -]?LAKI|PEREMPUAN|NAMA PASIEN|NO\.? (?:RM|REKAM MEDIS)|DOKTER|DR\.?\s)/i;
+    const titleCase = name.split(/\s+/).every((part) => /^[A-Z][A-Za-z.'-]*$/.test(part));
     return name.length >= 3
       && text.length <= 60
       && /[A-Z]/.test(name)
       && !/\d/.test(name)
-      && name === name.toLocaleUpperCase("id-ID")
+      && (name === name.toLocaleUpperCase("id-ID") || titleCase)
       && !excluded.test(name);
   }
 
   function getCurrentPatientReportIdentity() {
     if (!isErmPage()) return null;
 
+    const documentLeaves = [...document.querySelectorAll("small,span,strong,b,p,div")]
+      .filter((element) => isVisible(element) && !element.children.length && normalize(element.textContent));
     const age = [...document.querySelectorAll("small.tag.is-danger.is-rounded")]
-      .find((element) => isVisible(element) && /^\d+\s*thn(?:\s+\d+\s*bln)?(?:\s+\d+\s*hari)?$/i.test(normalize(element.textContent)));
+      .find((element) => isVisible(element) && isReportPatientAge(element.textContent))
+      || documentLeaves.find((element) => isReportPatientAge(element.textContent));
     const gender = [...document.querySelectorAll("small.tag.is-info.is-rounded")]
-      .find((element) => isVisible(element) && /^(?:laki[ -]?laki|perempuan)$/i.test(normalize(element.textContent)));
+      .find((element) => isVisible(element) && isReportPatientGender(element.textContent))
+      || documentLeaves.find((element) => isReportPatientGender(element.textContent));
     if (!age || !gender) return null;
 
     let scope = age.parentElement;
     while (scope && scope !== document.body) {
       const text = normalize(scope.innerText);
-      if (/INFO REGISTRASI/i.test(text) && /\b\d{5,8}\b/.test(text)) break;
+      if (scope.contains(gender) && /\b\d{5,8}\b/.test(text)) break;
       scope = scope.parentElement;
     }
     scope = scope || document.body;
@@ -572,6 +591,23 @@
     }).catch(() => {
       if (lastAssessmentReport === signature) lastAssessmentReport = "";
     });
+  }
+
+  function reportPatientChange() {
+    clearTimeout(patientReportTimer);
+    patientReportTimer = setTimeout(() => {
+      const patient = getCurrentPatientReportIdentity();
+      const signature = patientEncounterKey(patient);
+      if (!signature) {
+        lastPatientReport = "";
+        return;
+      }
+      if (signature === lastPatientReport) return;
+      lastPatientReport = signature;
+      chrome.runtime.sendMessage({ type: "rsdkh:patient-observed" }).catch(() => {
+        if (lastPatientReport === signature) lastPatientReport = "";
+      });
+    }, 300);
   }
 
   function planningAddButton() {
@@ -1083,16 +1119,18 @@
     if (injectQueued) return;
     injectQueued = true;
     requestAnimationFrame(() => {
+      injectQueued = false;
       injectButton();
       injectResumeButton();
       injectIcd9Button();
       enforcePatientTabTitle();
+      reportPatientChange();
       reportAssessmentIgdState();
     });
   }
 
   if (typeof module !== "undefined") {
-    module.exports = { diagnosisTypeFor, isReportMedicalRecord, isReportPatientName, encounterIdFromHash, patientEncounterKey, samePatientEncounter, assessmentStateFromValues, resumeProgressStage, mergeIcd9Actions };
+    module.exports = { diagnosisTypeFor, isReportMedicalRecord, isReportPatientName, isReportPatientAge, isReportPatientGender, encounterIdFromHash, patientEncounterKey, samePatientEncounter, assessmentStateFromValues, resumeProgressStage, mergeIcd9Actions };
     if (require.main === module) {
       const assert = require("node:assert/strict");
       assert.equal(diagnosisTypeFor("rawat_inap"), "Diagnosa Awal");
@@ -1111,8 +1149,13 @@
         { medicalRecordNumber: "051462", visitId: "visit-b" }
       ), false);
       assert.equal(isReportPatientName("SALIMUDDIN"), true);
+      assert.equal(isReportPatientName("Naila Rahmah"), true);
+      assert.equal(isReportPatientName("dr. Ratna Rahmayanti"), false);
       assert.equal(isReportPatientName("ARNIYATI. Ny."), true);
       assert.equal(isReportPatientName("NAILA RAHMAH By Ny"), true);
+      assert.equal(isReportPatientAge("0 thn 0 bln 1 hari"), true);
+      assert.equal(isReportPatientAge("16 tahun 6 bulan"), true);
+      assert.equal(isReportPatientGender("Laki-laki"), true);
       assert.equal(isReportPatientName("INFO REGISTRASI"), false);
       assert.equal(isReportPatientName("BPJS - - -"), false);
       assert.equal(isReportPatientName("JKN NON PBI"), false);

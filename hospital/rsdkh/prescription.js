@@ -8,6 +8,7 @@
   const PRODUCT_ALIASES_KEY = "rsdkhProductAliases";
   const NETMEDIC_LOGIN_KEY = "RUdJRVJBTURBTg==";
   const NETMEDIC_CACHE_NAME = "cacheEMR_qwertyuiop";
+  const IGD_PLANNING_CACHE_KEY = "netmedic-rsdkh-igd-planning";
   const OPTION_SELECTOR = ".p-autocomplete-item:not(.p-disabled), .p-dropdown-item:not(.p-disabled), [role='option']:not([aria-disabled='true'])";
   const FORM_ALIASES = {
     tablet: ["tablet", "tab", "kaplet", "kapsul", "capsule"],
@@ -47,17 +48,35 @@
     return location.hash.includes("/pengantar-opname-new");
   }
 
+  function recordValues(records, keys) {
+    const wanted = new Set(keys);
+    const collect = (value) => {
+      if (typeof value === "string") {
+        try {
+          return collect(JSON.parse(value));
+        } catch {
+          return [];
+        }
+      }
+      if (Array.isArray(value)) return value.flatMap(collect);
+      if (!value || typeof value !== "object") return [];
+      return Object.entries(value).flatMap(([key, entry]) => {
+        const normalizedKey = key.toLowerCase().replace(/[^a-z]/g, "");
+        if (wanted.has(normalizedKey) && typeof entry !== "object") return [entry];
+        return collect(entry);
+      });
+    };
+    return records.flatMap((record) => collect(record?.json ?? record));
+  }
+
   function extractIgdInstructions(records = []) {
-    const values = records.flatMap((record) => {
-      const json = record?.json || {};
-      const rows = Array.isArray(json.datasource) ? json.datasource : [];
-      return [json.planning, json.instruksidokter, ...rows.map((row) => row?.instruksidokter)];
-    }).map((value) => String(value || "").trim()).filter(Boolean);
+    const values = recordValues(records, ["planning", "instruksidokter", "intruksidokter"])
+      .map((value) => String(value || "").trim()).filter(Boolean);
     return [...new Set(values)].join("\n");
   }
 
   function extractOpnameTherapies(records = []) {
-    return records.map((record) => String(record?.json?.rencanaterapi || record?.json?.rencanaTerapi || "").trim())
+    return recordValues(records, ["rencanaterapi"]).map((value) => String(value || "").trim())
       .filter(Boolean)
       .join("\n");
   }
@@ -79,6 +98,35 @@
     } catch {
       return null;
     }
+  }
+
+  function visibleIgdInstructions() {
+    const table = [...document.querySelectorAll("p-table,table")].find((candidate) => (
+      isVisible(candidate)
+      && [...candidate.querySelectorAll("th")]
+        .some((header) => /^(?:instruksi|intruksi) dokter$/i.test(normalize(header.textContent)))
+    ));
+    if (!table) return "";
+    const values = [...table.querySelectorAll("textarea")]
+      .map((field) => field.value.trim())
+      .filter(Boolean);
+    return [...new Set(values)].join("\n");
+  }
+
+  function cacheVisibleIgdInstructions() {
+    const registration = currentRegistration()?.noregistrasi;
+    const source = visibleIgdInstructions();
+    if (registration && source) {
+      sessionStorage.setItem(IGD_PLANNING_CACHE_KEY, JSON.stringify({ registration: String(registration), source }));
+    }
+  }
+
+  function cachedIgdInstructions() {
+    const registration = currentRegistration()?.noregistrasi;
+    const cached = storedJson(sessionStorage, IGD_PLANNING_CACHE_KEY);
+    return registration && String(cached?.registration) === String(registration)
+      ? String(cached.source || "").trim()
+      : "";
   }
 
   async function loadMedicalRecords(kind) {
@@ -1174,7 +1222,8 @@
       label: "Ambil Resep dari Tatalaksana IGD",
       sourceName: "Planning Pengkajian Dokter IGD",
       empty: "Planning pada Pengkajian Dokter IGD belum tersedia.",
-      extract: extractIgdInstructions
+      extract: extractIgdInstructions,
+      fallback: cachedIgdInstructions
     };
     if (mode === "inpatient") return {
       kinds: ["PENGANTAR OPNAME NEW", "PENGANTAR OPNAME"],
@@ -1205,6 +1254,8 @@
         lastError = error;
       }
     }
+    const fallback = config.fallback?.() || "";
+    if (fallback) return fallback;
     if (!loaded && lastError) throw lastError;
     return "";
   }
@@ -1615,6 +1666,7 @@
 
   function injectButtons() {
     injectQueued = false;
+    cacheVisibleIgdInstructions();
     injectPrescriptionButton();
     injectOpnameButton();
   }
@@ -1658,6 +1710,7 @@
       if (areaName === "local" && changes[PRODUCT_ALIASES_KEY]) productAliasesPromise = null;
     });
     addEventListener("hashchange", queueInject);
+    document.addEventListener("input", cacheVisibleIgdInstructions);
     queueInject();
   }
 })();
@@ -1733,8 +1786,9 @@ if (typeof module !== "undefined" && require.main === module) {
   );
   assert.equal(module.exports.extractIgdInstructions([
     { json: { planning: "NS 20 tpm", datasource: [{ instruksidokter: "NS 20 tpm" }, { instruksidokter: "  Inj. Antrain 1 gr  " }] } },
-    { json: { datasource: [{ instruksidokter: "Pantoprazole 40 mg" }, { instruksidokter: "" }] } }
-  ]), "NS 20 tpm\nInj. Antrain 1 gr\nPantoprazole 40 mg");
+    { json: { datasource: [{ instruksidokter: "Pantoprazole 40 mg" }, { instruksidokter: "" }] } },
+    { json: JSON.stringify({ dataSource: [{ instruksiDokter: "Nebul Combivent" }, { intruksiDokter: "Oksigen 6 lpm" }] }) }
+  ]), "NS 20 tpm\nInj. Antrain 1 gr\nPantoprazole 40 mg\nNebul Combivent\nOksigen 6 lpm");
   assert.equal(module.exports.extractOpnameTherapies([
     { json: { rencanaterapi: "Futrolit 20 tpm", rencanatindakan: "Observasi" } },
     { json: { diagnosis: "Tidak boleh ikut", rencanaTerapi: "Ondansetron 3x4 mg" } }

@@ -43,4 +43,8 @@ try {
   $archive.Dispose()
 }
 
+Get-ChildItem -LiteralPath $root -File -Filter "netmedic-rsdkh-v*.zip" |
+  Where-Object FullName -ne $output |
+  Remove-Item -Force
+
 Write-Host "Paket Chrome Web Store siap: $output (v$version)"

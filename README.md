@@ -138,6 +138,6 @@ node sidepanel.js
 - Identitas pada side panel tetap anonim, dapat diisi manual atau ditarik sebagai jenis kelamin dan umur dari halaman eRM pasien aktif.
 - Nama, nomor RM, BED, status sesi, dan URL eRM untuk dashboard hanya disimpan di `chrome.storage.local`; data tersebut tidak ditambahkan ke prompt AI.
 - Hasil Magic SOAP dan Kronologi di side panel tetap tampil sebagai preview/editable result sebelum dipakai user.
-- Magic SOAP hanya mencantumkan TTV yang tersedia; nilai kosong dihilangkan dan tidak diperkirakan oleh AI.
+- Magic SOAP mempertahankan TTV yang tersedia dan melengkapi TTV kosong dengan nilai kegawatdaruratan yang relevan sebagai draf untuk ditinjau user.
 - Foto klinis hanya disimpan sementara di memori side panel, dikirim ke provider saat Generate, lalu dilepas setelah analisis berhasil.
 - Admin credential hanya dipakai untuk sesi panel admin dan tidak disimpan permanen di extension.

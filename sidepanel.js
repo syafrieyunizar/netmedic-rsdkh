@@ -441,16 +441,18 @@ ATURAN FORMAT SUBJEKTIF (S) WAJIB DIPATUHI:
 ATURAN MUTLAK OBJEKTIF (O):
 Objektif (O) HARUS MUTLAK mengikuti template baku di bawah ini.
 
-JANGAN ubah struktur, kecuali menghilangkan baris TTV yang datanya tidak tersedia sesuai aturan di bawah.
+JANGAN ubah struktur.
 JANGAN hapus tabel Paru (Wh/Rh).
 JANGAN gabungkan baris Abdomen (I,A,P,P).
 WAJIB selalu beri jarak antar sistem organ persis seperti format baku.
-Isi hanya berdasarkan data klinis yang diberikan dokter.
+Isi sesuai kasus kegawatan.
 ATURAN TTV:
-- Jangan mengarang, memperkirakan, atau menormalkan angka TD, Nadi, RR, Suhu, dan SpO2.
-- Cantumkan hanya baris TTV yang nilainya benar-benar tersedia pada data awal.
-- Jika suatu nilai TTV kosong, hilangkan seluruh barisnya. Jangan menulis "belum diukur", "tidak ada data", tanda hubung, nilai normal, atau angka perkiraan.
-- Temuan kegawatan kualitatif yang ditulis dokter boleh dipertahankan sebagai temuan klinis, tetapi jangan diubah menjadi angka TTV.
+- TD, Nadi, RR, Suhu, dan SpO2 WAJIB selalu terisi dengan angka.
+- Jika nilai TTV tersedia pada data awal, pertahankan nilai tersebut.
+- Jika nilai TTV kosong, buat nilai yang menunjukkan kegawatdaruratan dan paling relevan dengan keluhan, usia, serta konteks klinis pasien.
+- Semua nilai TTV yang dibuat harus saling konsisten, masuk akal secara klinis, dan tidak boleh bertentangan dengan data awal.
+- Jangan pernah menulis "belum diukur", "tidak ada data", tanda hubung, atau menghilangkan baris TTV.
+- Hasil ini merupakan draf yang wajib ditinjau user sebelum digunakan.
 Jika ada objektif di luar format baku Status Generalis, tambahkan di bawah Status Generalis sesuai sistem, misalnya:
 - Status Dermatologis
 - Status Neurologis
@@ -458,15 +460,15 @@ Jika ada objektif di luar format baku Status Generalis, tambahkan di bawah Statu
 - Status Ginekologis
 - Status Lokalis
 
-FORMAT BAKU OBJEKTIF (WAJIB DITIRU URUTAN DAN SPASINYA; BARIS TTV TANPA DATA WAJIB DIHILANGKAN):
+FORMAT BAKU OBJEKTIF (WAJIB DITIRU PERSIS URUTAN DAN SPASINYA):
 Status Generalis :
 Kesadaran: [Isi Kesadaran]
 GCS : [Isi GCS]
-TD : [Isi TD hanya jika tersedia] mmHg
-N :  [Isi Nadi hanya jika tersedia] x/m
-RR :  [Isi RR hanya jika tersedia] x/m
-T: [Isi Suhu hanya jika tersedia] \u00B0C
-SpO2 : [Isi SpO2 hanya jika tersedia] % [cantumkan RA atau alat oksigen hanya jika tersedia]
+TD : [Isi TD] mmHg
+N :  [Isi Nadi] x/m
+RR :  [Isi RR] x/m
+T: [Isi Suhu] \u00B0C
+SpO2 : [Isi SpO2] % RA
 
 Kepala/Leher :
 [Isi temuan kepala/leher]
@@ -1058,27 +1060,6 @@ function normalizeSoapResult(raw) {
     result.requires_chronology = /^(true|ya|yes|1)$/i.test(String(result.requires_chronology || ""));
   }
   return result;
-}
-
-const VITAL_SIGN_RULES = [
-  { output: /^\s*TD\s*:/i, source: /\b(?:TD|tekanan\s+darah)\s*[:=]?\s*\d{2,3}\s*\/\s*\d{2,3}\b/i },
-  { output: /^\s*N\s*:/i, source: /\b(?:N|nadi|HR)\s*[:=]?\s*\d{1,3}\b/i },
-  { output: /^\s*RR\s*:/i, source: /\b(?:RR|respirasi|frekuensi\s+napas)\s*[:=]?\s*\d{1,3}\b/i },
-  { output: /^\s*T\s*:/i, source: /\b(?:T|suhu|temperatur)\s*[:=]?\s*\d{2}(?:[.,]\d+)?\b/i },
-  { output: /^\s*SpO2\s*:/i, source: /\bSpO2\s*[:=]?\s*\d{1,3}\b/i }
-];
-
-function removeUnmeasuredVitalSigns(generatedObjective, sourceObjective) {
-  const source = String(sourceObjective || "");
-  return String(generatedObjective || "")
-    .split("\n")
-    .filter((line) => {
-      const vital = VITAL_SIGN_RULES.find(({ output }) => output.test(line));
-      return !vital || vital.source.test(source);
-    })
-    .join("\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 
 function normalizeKronologiResult(raw) {
@@ -2001,7 +1982,6 @@ async function generateSoap() {
       await new Promise((resolve) => requestAnimationFrame(resolve));
     }
     const result = normalizeSoapResult(await callAi(buildMagicSoapPrompt(draft), "soap"));
-    result.o = removeUnmeasuredVitalSigns(result.o, draft.objektif);
     requireStrings(result, ["s", "o", "a", "p", "chronology_reason", "chronology_effect"]);
     $("#resultS").value = result.s;
     $("#resultO").value = result.o;
@@ -3478,10 +3458,6 @@ if (typeof module !== "undefined") {
     assert.equal(parseProviderPayload('data: {"choices":[{"delta":{"content":"{\\\"s\\\":"}}]}\n\ndata: {"choices":[{"delta":{"content":"\\\"ok\\\"}"}}]}\n\ndata: [DONE]'), '{"s":"ok"}');
     assert.equal(embeddedProviderError({ success: false, message: "Model tidak tersedia" }), "Model tidak tersedia");
     assert.equal(normalizeSoapResult({ S: "Keluhan", O: "Temuan", A: "Diagnosis", P: "Terapi", requiresChronology: "false" }).requires_chronology, false);
-    assert.equal(removeUnmeasuredVitalSigns(
-      "Status Generalis :\nTD : 120/80 mmHg\nN : 80 x/m\nRR : 24 x/m\nT: 36.8 °C\nSpO2 : 98 % RA\n\nKepala/Leher :\nDalam batas normal",
-      "TD: 120/80; RR: 24"
-    ), "Status Generalis :\nTD : 120/80 mmHg\nRR : 24 x/m\n\nKepala/Leher :\nDalam batas normal");
     assert.equal(normalizeKronologiResult({ chronology: "Kejadian" }).kronologi, "Kejadian");
     assert.deepEqual(parseAnonymousIdentity("Tn. X, 45 tahun"), { valid: true, age: 45, gender: "male" });
     assert.deepEqual(parseAnonymousIdentity("Ny. X 31 thn"), { valid: true, age: 31, gender: "female" });
@@ -3508,9 +3484,9 @@ if (typeof module !== "undefined") {
     });
     assert.doesNotMatch(privateSoapPrompt, /SALIMUDDIN|051462/);
     assert.match(privateSoapPrompt, /Laki-laki 48 tahun 6 bln 24 hari/);
-    assert.match(privateSoapPrompt, /Jangan mengarang, memperkirakan, atau menormalkan angka TD/);
-    assert.match(privateSoapPrompt, /Jika suatu nilai TTV kosong, hilangkan seluruh barisnya/);
-    assert.doesNotMatch(privateSoapPrompt, /Selalu buat tanda vital tidak normal/);
+    assert.match(privateSoapPrompt, /TD, Nadi, RR, Suhu, dan SpO2 WAJIB selalu terisi dengan angka/);
+    assert.match(privateSoapPrompt, /Jika nilai TTV kosong, buat nilai yang menunjukkan kegawatdaruratan/);
+    assert.doesNotMatch(privateSoapPrompt, /hilangkan seluruh barisnya/);
     assert.equal(whatsappTimeOfDay(new Date(2026, 0, 1, 5)), "pagi");
     assert.equal(whatsappTimeOfDay(new Date(2026, 0, 1, 12)), "siang");
     assert.equal(whatsappTimeOfDay(new Date(2026, 0, 1, 16)), "sore");
@@ -3541,7 +3517,7 @@ if (typeof module !== "undefined") {
       objektif: "Objektif uji",
       assessment: "Assessment uji",
       planning: "Planning uji"
-    })), "4132eb15233759074ce87e3dea47ff70ecb69ae58ef003d16e5f43a890bff4ad");
+    })), "cd6e4db0027f3d123e8758a0090fc1686b6bbf2e36186f968b543dad204fc9d4");
     assert.equal(hash(buildKronologiPrompt({
       skenario: "Skenario uji",
       akibat: "Akibat uji"

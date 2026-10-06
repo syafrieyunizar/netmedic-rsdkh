@@ -6,11 +6,16 @@ The extension uses the existing shared Supabase Edge Function `knowledge-admin` 
 app_id: netmedic-rsdkh
 ```
 
-The function already routes configuration, user sessions, and AI generation by `app_id`, so no function source change is required for this application.
+The function routes configuration, user sessions, AI generation, and the shared product catalog by `app_id`. Catalog actions are accepted only for `netmedic-rsdkh`.
 
 ## Database Setup
 
-Apply `migrations/20260812000300_add_magic_soap_admin_ai.sql` to the same Supabase project used by the related medical extensions. The migration is idempotent and creates an empty Gemini slot without overwriting an existing API key.
+Apply these migrations to the same Supabase project used by the related medical extensions:
+
+- `migrations/20260812000300_add_magic_soap_admin_ai.sql`
+- `migrations/20261006000100_add_shared_product_catalog.sql`
+
+Deploy the updated shared `knowledge-admin` Edge Function from the `resume-medis-reviewer` repository after applying the catalog migration. Both migrations are idempotent.
 
 After deployment, open **Pengaturan AI > Konfigurasi khusus admin**, enter the main admin credentials, then validate and save the provider key. Registered users can select **API admin** and log in without seeing the provider key.
 
@@ -21,3 +26,5 @@ After deployment, open **Pengaturan AI > Konfigurasi khusus admin**, enter the m
 - Provider API keys stay in Supabase and are used only inside the Edge Function.
 - Main admin credentials and user passwords are never persisted by the extension.
 - Personal BYOK remains separate and is stored only in `chrome.storage.local`.
+- Shared catalog additions require a valid registered-user session; deletions require main admin credentials.
+- Catalog rows are isolated to `app_id: netmedic-rsdkh`; aliases remain local to each browser profile.

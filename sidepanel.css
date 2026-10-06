@@ -908,6 +908,103 @@ label {
   font-weight: 600;
 }
 
+.shared-product-catalog,
+.catalog-delete-product {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.settings-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.settings-section-heading > div,
+.product-alias-heading > div,
+.catalog-delete-product {
+  min-width: 0;
+}
+
+.settings-section-heading h3,
+.product-alias-heading h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.settings-section-heading svg,
+.shared-product-remove svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.settings-section-divider {
+  height: 1px;
+  background: var(--outline-variant);
+}
+
+.shared-product-list {
+  display: grid;
+  max-height: 320px;
+  gap: var(--space-2);
+  overflow-y: auto;
+}
+
+.shared-product-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 56px;
+  padding: var(--space-2);
+  background: var(--surface-lowest);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+}
+
+.shared-product-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.shared-product-copy strong,
+.shared-product-copy small {
+  overflow-wrap: anywhere;
+}
+
+.shared-product-copy small {
+  color: var(--on-surface-variant);
+}
+
+.shared-product-remove {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--error);
+  background: transparent;
+  border: 1px solid var(--error);
+  border-radius: var(--radius-sm);
+}
+
+.shared-product-remove:hover:not(:disabled) {
+  color: var(--on-primary);
+  background: var(--error);
+}
+
+.catalog-delete-product {
+  padding: var(--space-3);
+  background: var(--surface-low);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+}
+
 .product-alias-heading {
   display: grid;
   gap: var(--space-3);
@@ -2364,6 +2461,11 @@ dialog::backdrop {
 }
 
 @media (max-width: 370px) {
+  .settings-section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .product-alias-toolbar,
   .product-alias-editor {
     grid-template-columns: 1fr;

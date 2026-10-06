@@ -8,6 +8,8 @@
   const IGD_PRESCRIPTION_SLOT_ID = `${IGD_PRESCRIPTION_BUTTON_ID}-slot`;
   const UI_ID = "netmedic-rsdkh-erx-ui";
   const PRODUCT_ALIASES_KEY = "rsdkhProductAliases";
+  const SHARED_PRODUCT_CATALOG_KEY = "rsdkhSharedProductCatalog";
+  const SHARED_PRODUCT_CATALOG_URL = "https://yvcqgwpfjoxhuyhxuiry.supabase.co/functions/v1/knowledge-admin";
   const NETMEDIC_LOGIN_KEY = "RUdJRVJBTURBTg==";
   const NETMEDIC_CACHE_NAME = "cacheEMR_qwertyuiop";
   const IGD_PLANNING_CACHE_KEY = "netmedic-rsdkh-igd-planning";
@@ -164,6 +166,39 @@
   function upsertCatalogRecord(catalog, record) {
     const key = catalogKey(record?.namaproduk);
     if (key) catalog.set(key, record);
+  }
+
+  function mergeCatalogRecords(bundled = [], shared = {}) {
+    const deleted = new Set((Array.isArray(shared.deletedKeys) ? shared.deletedKeys : []).map(catalogKey));
+    const merged = new Map();
+    bundled.forEach((record) => {
+      if (!deleted.has(catalogKey(record?.namaproduk))) upsertCatalogRecord(merged, record);
+    });
+    (Array.isArray(shared.products) ? shared.products : []).forEach((record) => {
+      if (!deleted.has(catalogKey(record?.namaproduk))) upsertCatalogRecord(merged, record);
+    });
+    return [...merged.values()];
+  }
+
+  async function loadSharedProductCatalog() {
+    const stored = await chrome.storage.local.get(SHARED_PRODUCT_CATALOG_KEY);
+    const cached = stored[SHARED_PRODUCT_CATALOG_KEY] || {};
+    try {
+      const response = await fetch(SHARED_PRODUCT_CATALOG_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "rsdkh_catalog_list", app_id: "netmedic-rsdkh" })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.error) throw new Error(data.error || `Katalog bersama gagal dimuat (${response.status}).`);
+      const next = { products: data.products || [], deletedKeys: data.deletedKeys || [], syncedAt: new Date().toISOString() };
+      const changed = JSON.stringify([cached.products || [], cached.deletedKeys || []])
+        !== JSON.stringify([next.products, next.deletedKeys]);
+      if (changed) await chrome.storage.local.set({ [SHARED_PRODUCT_CATALOG_KEY]: next });
+      return changed ? next : cached;
+    } catch {
+      return cached;
+    }
   }
 
   function normalizeProductAlias(alias = {}) {
@@ -377,17 +412,22 @@
 
   async function loadProductCatalog() {
     if (!productCatalogPromise) {
-      productCatalogPromise = fetch(chrome.runtime.getURL("hospital/rsdkh/product-catalog.json"))
-        .then((response) => {
+      productCatalogPromise = Promise.all([
+        fetch(chrome.runtime.getURL("hospital/rsdkh/product-catalog.json")),
+        loadSharedProductCatalog()
+      ])
+        .then(([response, shared]) => {
           if (!response.ok) throw new Error(`Katalog produk gagal dimuat (${response.status}).`);
-          return response.json();
+          return Promise.all([response.json(), shared]);
         })
-        .then((payload) => {
+        .then(([payload, shared]) => {
           const records = Array.isArray(payload?.products) ? payload.products : [];
           const unique = new Map();
           records.forEach((record) => upsertCatalogRecord(unique, { namaproduk: normalize(record?.namaproduk) }));
           if (!unique.size || payload.count !== unique.size || payload.complete !== true) throw new Error("Katalog produk tidak valid, belum lengkap, atau jumlahnya tidak sesuai.");
-          productCatalog = [...unique.values()];
+          productCatalog = mergeCatalogRecords([...unique.values()], shared)
+            .map((record) => ({ namaproduk: normalize(record?.namaproduk) }))
+            .filter((record) => record.namaproduk);
           productCatalogByName = new Map(productCatalog.map((record) => [catalogKey(record.namaproduk), record.namaproduk]));
           return productCatalog;
         });
@@ -1797,6 +1837,7 @@
     firstCatalogSuggestion,
     matchCatalogItem,
     matchPrescriptionToCatalog,
+    mergeCatalogRecords,
     parseDoseSchedule,
     massInMg,
     durationDays,
@@ -1812,6 +1853,7 @@
     new MutationObserver(queueInject).observe(document.documentElement, { childList: true, subtree: true });
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === "local" && changes[PRODUCT_ALIASES_KEY]) productAliasesPromise = null;
+      if (areaName === "local" && changes[SHARED_PRODUCT_CATALOG_KEY]) productCatalogPromise = null;
     });
     addEventListener("hashchange", queueInject);
     document.addEventListener("input", cacheVisibleIgdInstructions);
@@ -1837,6 +1879,10 @@ if (typeof module !== "undefined" && require.main === module) {
   module.exports.upsertCatalogRecord(catalog, { namaproduk: "  surflo   no 24  ", marker: "new" });
   assert.equal(catalog.size, 1);
   assert.equal(catalog.values().next().value.marker, "new");
+  assert.deepEqual(module.exports.mergeCatalogRecords(
+    [{ namaproduk: "Produk bawaan" }, { namaproduk: "Produk lama" }],
+    { products: [{ namaproduk: "Produk bersama" }], deletedKeys: ["PRODUK LAMA"] }
+  ).map((item) => item.namaproduk), ["Produk bawaan", "Produk bersama"]);
   const products = [
     { namaproduk: "DIPHENHYDRAMIN 10MG INJ" },
     { namaproduk: "EPINEPHRINE 0.1% INJ" },

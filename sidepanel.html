@@ -187,7 +187,7 @@
 
   <footer class="app-footer">
     <span><span class="footer-dot" aria-hidden="true"></span>Siap digunakan</span>
-    <span id="appVersion">v1.8.10</span>
+    <span id="appVersion">v1.8.11</span>
   </footer>
 
   <dialog id="historyDialog" class="history-dialog" aria-labelledby="historyTitle">
@@ -590,7 +590,20 @@
 
         <section class="settings-page" data-settings-page="products" hidden>
           <div class="settings-page-body">
+            <section class="shared-product-catalog" aria-labelledby="sharedProductCatalogTitle">
+              <div class="settings-section-heading">
+                <div><span class="section-kicker">KATALOG BERSAMA</span><h3 id="sharedProductCatalogTitle">Produk e-Resep</h3></div>
+                <button id="addSharedProductCatalog" class="button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Tambah produk</button>
+              </div>
+              <span class="field-hint">Produk baru tersedia bagi seluruh pengguna. Penghapusan memerlukan superadmin.</span>
+              <input id="sharedProductCatalogSearch" type="search" autocomplete="off" placeholder="Cari nama atau kode produk" aria-label="Cari katalog produk">
+              <span id="sharedProductCatalogCount" class="field-hint"></span>
+              <div id="sharedProductCatalogList" class="shared-product-list"></div>
+              <div id="sharedProductCatalogStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+            </section>
+            <div class="settings-section-divider" role="separator"></div>
             <div class="product-alias-heading">
+              <div><span class="section-kicker">ALIAS LOKAL</span><h3>Kamus istilah dokter</h3></div>
               <span class="field-hint">Hubungkan istilah dokter dengan nama pada katalog e-Resep. Alias hanya berlaku di perangkat ini.</span>
               <div class="product-alias-toolbar">
                 <input id="productAliasSearch" type="search" autocomplete="off" placeholder="Cari alias atau produk" aria-label="Cari alias produk">
@@ -665,6 +678,43 @@
             </div>
           </div>
         </section>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="addCatalogProductDialog" class="compact-dialog" aria-labelledby="addCatalogProductTitle">
+    <form id="addCatalogProductForm" class="compact-dialog-form">
+      <div class="dialog-heading">
+        <div><span class="section-kicker">KATALOG BERSAMA</span><h2 id="addCatalogProductTitle">Tambah produk</h2></div>
+        <button id="closeAddCatalogProduct" class="icon-button" type="button" aria-label="Tutup" title="Tutup"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <label>Nama produk<input id="catalogProductName" type="text" maxlength="180" autocomplete="off" required placeholder="Nama sesuai katalog eRM"></label>
+      <label>Kode produk (opsional)<input id="catalogProductCode" type="text" maxlength="80" autocomplete="off" placeholder="Kode dari sistem"></label>
+      <div id="addCatalogProductStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+      <div class="dialog-actions">
+        <button id="cancelAddCatalogProduct" class="button" type="button">Batal</button>
+        <button id="confirmAddCatalogProduct" class="button primary" type="submit">Tambah produk</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="catalogDeleteDialog" class="compact-dialog" aria-labelledby="catalogDeleteTitle">
+    <form id="catalogDeleteForm" class="compact-dialog-form">
+      <div class="dialog-heading">
+        <div><span class="section-kicker">KATALOG PRODUK</span><h2 id="catalogDeleteTitle">Hubungi superadmin</h2></div>
+        <button id="closeCatalogDelete" class="icon-button" type="button" aria-label="Tutup" title="Tutup"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="catalog-delete-product"><strong id="catalogDeleteProductName"></strong><span id="catalogDeleteProductCode" class="field-hint"></span></div>
+      <p id="catalogDeleteOwnerNote" class="settings-page-note" hidden>Produk akan dinonaktifkan untuk semua pengguna dan tetap tersimpan agar dapat dipulihkan.</p>
+      <div id="catalogDeleteRequestFields" class="settings-group">
+        <p class="settings-page-note">Penghapusan katalog hanya dapat dilakukan superadmin. Kirim permintaan melalui WhatsApp.</p>
+        <label>Identitas pemohon<input id="catalogDeleteRequester" type="text" maxlength="80" autocomplete="off" required></label>
+        <label>Alasan<textarea id="catalogDeleteReason" rows="3" maxlength="500" required placeholder="Jelaskan alasan produk perlu dihapus"></textarea></label>
+      </div>
+      <div id="catalogDeleteStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+      <div class="dialog-actions">
+        <button id="cancelCatalogDelete" class="button" type="button">Batal</button>
+        <button id="confirmCatalogDelete" class="button primary" type="submit">Hubungi via WhatsApp</button>
       </div>
     </form>
   </dialog>

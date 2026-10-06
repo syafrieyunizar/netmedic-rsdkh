@@ -11,6 +11,8 @@ const KRONOLOGI_DRAFT_KEY = "kronologiDraft";
 const HISTORY_KEY = "patientHistory";
 const ACTIVE_PATIENT_KEY = "activePatientEpisode";
 const PRODUCT_ALIASES_KEY = "rsdkhProductAliases";
+const SHARED_PRODUCT_CATALOG_KEY = "rsdkhSharedProductCatalog";
+const SUPERADMIN_WHATSAPP_URL = "https://wa.me/6282252996998";
 const WHATSAPP_SOAP_SETTINGS_KEY = "whatsappSoapSettings";
 const PATIENT_MEMORIES_KEY = "patientMemories";
 const HISTORY_RETENTION_MS = 60 * 24 * 60 * 60 * 1000;
@@ -110,7 +112,11 @@ let newPatientErmIdentityFeedbackTimer;
 let selectedClinicalImage = null;
 let defaultProductAliases = [];
 let productAliases = [];
+let bundledProductCatalog = [];
+let productCatalog = [];
 let productCatalogNames = [];
+let sharedProductCatalog = { products: [], deletedKeys: [] };
+let pendingCatalogDeleteProduct = null;
 let whatsappSoapSettings = { doctorName: "", openingTemplate: DEFAULT_WHATSAPP_OPENING };
 let whatsappSettingsSaveTimer;
 let whatsappStep = 0;
@@ -2463,7 +2469,76 @@ function dedupeProductAliases(aliases = []) {
   return [...unique.values()];
 }
 
-async function loadProductAliasResources() {
+function catalogProductKey(value) {
+  return String(value || "").trim().replace(/\s+/g, " ").toLocaleUpperCase("id-ID");
+}
+
+function normalizeCatalogProduct(product = {}, source = "shared") {
+  return {
+    id: String(product.id || ""),
+    namaproduk: String(product.namaproduk || product.product_name || "").trim().replace(/\s+/g, " "),
+    code: String(product.code || product.product_code || "").trim().replace(/\s+/g, " "),
+    source: product.source === "bundled" ? "bundled" : source,
+    createdBy: String(product.createdBy || product.created_by || "").trim()
+  };
+}
+
+function normalizeSharedProductCatalog(value = {}) {
+  return {
+    products: Array.isArray(value.products)
+      ? value.products.map((product) => normalizeCatalogProduct(product)).filter((product) => product.namaproduk)
+      : [],
+    deletedKeys: Array.isArray(value.deletedKeys)
+      ? [...new Set(value.deletedKeys.map(catalogProductKey).filter(Boolean))]
+      : [],
+    syncedAt: String(value.syncedAt || "")
+  };
+}
+
+function mergeProductCatalog(bundled, shared) {
+  const deleted = new Set(shared.deletedKeys);
+  const merged = new Map();
+  bundled.forEach((product) => {
+    const normalized = normalizeCatalogProduct(product, "bundled");
+    const key = catalogProductKey(normalized.namaproduk);
+    if (key && !deleted.has(key)) merged.set(key, normalized);
+  });
+  shared.products.forEach((product) => {
+    const normalized = normalizeCatalogProduct(product);
+    const key = catalogProductKey(normalized.namaproduk);
+    if (key && !deleted.has(key)) merged.set(key, normalized);
+  });
+  return [...merged.values()].sort((left, right) => left.namaproduk.localeCompare(right.namaproduk, "id-ID"));
+}
+
+function applySharedProductCatalog(value) {
+  sharedProductCatalog = normalizeSharedProductCatalog(value);
+  productCatalog = mergeProductCatalog(bundledProductCatalog, sharedProductCatalog);
+  productCatalogNames = productCatalog.map((product) => product.namaproduk);
+}
+
+async function syncSharedProductCatalog(showStatus = false) {
+  const status = $("#sharedProductCatalogStatus");
+  if (showStatus && status) {
+    status.hidden = false;
+    setStatus(status, "loading", "Menyinkronkan katalog bersama...");
+  }
+  try {
+    const data = await knowledgeApi("rsdkh_catalog_list");
+    const next = normalizeSharedProductCatalog({ ...data, syncedAt: new Date().toISOString() });
+    await chrome.storage.local.set({ [SHARED_PRODUCT_CATALOG_KEY]: next });
+    applySharedProductCatalog(next);
+    renderProductCatalog();
+    renderProductAliases();
+    if (showStatus && status) setStatus(status, "success", `${productCatalog.length} produk siap digunakan.`);
+    return next;
+  } catch (error) {
+    if (showStatus && status) setStatus(status, "error", `Sinkronisasi gagal: ${error.message}`);
+    return sharedProductCatalog;
+  }
+}
+
+async function loadProductAliasResources(cachedSharedCatalog) {
   const [aliasResponse, catalogResponse] = await Promise.all([
     fetch(chrome.runtime.getURL("hospital/rsdkh/product-aliases.json")),
     fetch(chrome.runtime.getURL("hospital/rsdkh/product-catalog.json"))
@@ -2471,9 +2546,10 @@ async function loadProductAliasResources() {
   if (!aliasResponse.ok || !catalogResponse.ok) throw new Error("Kamus atau katalog produk RSDKH gagal dimuat.");
   const [aliasPayload, catalogPayload] = await Promise.all([aliasResponse.json(), catalogResponse.json()]);
   defaultProductAliases = dedupeProductAliases(aliasPayload.aliases);
-  productCatalogNames = (catalogPayload.products || [])
-    .map((product) => String(product?.namaproduk || "").trim())
-    .filter(Boolean);
+  bundledProductCatalog = (catalogPayload.products || [])
+    .map((product) => normalizeCatalogProduct(product, "bundled"))
+    .filter((product) => product.namaproduk);
+  applySharedProductCatalog(cachedSharedCatalog);
 }
 
 function createProductAliasRow(alias = {}) {
@@ -2524,6 +2600,150 @@ function createProductAliasRow(alias = {}) {
   syncSummary();
   setExpanded(!normalized.term);
   return row;
+}
+
+function createProductCatalogRow(product) {
+  const row = document.createElement("div");
+  row.className = "shared-product-row";
+  row.innerHTML = `
+    <div class="shared-product-copy">
+      <strong></strong>
+      <small></small>
+    </div>
+    <button class="shared-product-remove" type="button" aria-label="Minta hapus produk" title="Hapus produk">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg>
+    </button>`;
+  row.querySelector("strong").textContent = product.namaproduk;
+  row.querySelector("small").textContent = [product.code, product.source === "shared" ? "Katalog bersama" : "Katalog bawaan"]
+    .filter(Boolean)
+    .join(" · ");
+  row.querySelector(".shared-product-remove").addEventListener("click", () => openCatalogDeleteDialog(product));
+  return row;
+}
+
+function renderProductCatalog() {
+  const list = $("#sharedProductCatalogList");
+  if (!list) return;
+  const query = String($("#sharedProductCatalogSearch")?.value || "").trim().toLocaleLowerCase("id-ID");
+  const matches = productCatalog.filter((product) => !query
+    || `${product.namaproduk} ${product.code}`.toLocaleLowerCase("id-ID").includes(query));
+  list.replaceChildren(...matches.slice(0, 100).map(createProductCatalogRow));
+  $("#sharedProductCatalogCount").textContent = matches.length > 100
+    ? `${matches.length} produk ditemukan · tampil 100 pertama`
+    : `${matches.length} produk ditemukan`;
+  $("#productCatalogOptions").replaceChildren(...productCatalogNames.map((name) => {
+    const option = document.createElement("option");
+    option.value = name;
+    return option;
+  }));
+  updateSettingsSummaries();
+}
+
+function openAddProductCatalogDialog() {
+  $("#addCatalogProductForm").reset();
+  $("#addCatalogProductStatus").hidden = true;
+  const dialog = $("#addCatalogProductDialog");
+  if (!dialog.open) dialog.showModal();
+  $("#catalogProductName").focus();
+}
+
+async function addSharedProductCatalog(event) {
+  event.preventDefault();
+  const name = $("#catalogProductName").value.trim().replace(/\s+/g, " ");
+  const code = $("#catalogProductCode").value.trim().replace(/\s+/g, " ");
+  const status = $("#addCatalogProductStatus");
+  const button = $("#confirmAddCatalogProduct");
+  status.hidden = false;
+  if (productCatalog.some((product) => catalogProductKey(product.namaproduk) === catalogProductKey(name))) {
+    setStatus(status, "error", "Produk tersebut sudah ada pada katalog.");
+    return;
+  }
+  button.disabled = true;
+  setStatus(status, "loading", "Menambahkan produk untuk seluruh pengguna...");
+  try {
+    const session = adminUserSession || await validateStoredAdminSession();
+    if (!session && !ownerAdminAuth) throw new Error("Login API admin di menu Koneksi AI terlebih dahulu.");
+    await knowledgeApi("rsdkh_catalog_add", {
+      ...(ownerAdminAuth || {}),
+      user_session: session ? {
+        username: session.username,
+        session_token: session.sessionToken,
+        device_id: session.deviceId
+      } : {},
+      product: { namaproduk: name, code }
+    });
+    await syncSharedProductCatalog();
+    $("#addCatalogProductDialog").close();
+    const catalogStatus = $("#sharedProductCatalogStatus");
+    catalogStatus.hidden = false;
+    setStatus(catalogStatus, "success", `${name} ditambahkan ke katalog bersama.`);
+  } catch (error) {
+    setStatus(status, "error", error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function openCatalogDeleteDialog(product) {
+  pendingCatalogDeleteProduct = product;
+  const ownerMode = Boolean(ownerAdminAuth);
+  $("#catalogDeleteTitle").textContent = ownerMode ? "Nonaktifkan produk" : "Hubungi superadmin";
+  $("#catalogDeleteProductName").textContent = product.namaproduk;
+  $("#catalogDeleteProductCode").textContent = product.code ? `Kode: ${product.code}` : "Kode: tidak tersedia";
+  $("#catalogDeleteOwnerNote").hidden = !ownerMode;
+  $("#catalogDeleteRequestFields").hidden = ownerMode;
+  $("#catalogDeleteRequester").value = adminUserSession?.username || "";
+  $("#catalogDeleteRequester").readOnly = Boolean(adminUserSession?.username);
+  $("#catalogDeleteRequester").required = !ownerMode;
+  $("#catalogDeleteReason").value = "";
+  $("#catalogDeleteReason").required = !ownerMode;
+  $("#catalogDeleteStatus").hidden = true;
+  const action = $("#confirmCatalogDelete");
+  action.textContent = ownerMode ? "Nonaktifkan" : "Hubungi via WhatsApp";
+  action.classList.toggle("primary", !ownerMode);
+  action.classList.toggle("danger", ownerMode);
+  const dialog = $("#catalogDeleteDialog");
+  if (!dialog.open) dialog.showModal();
+  (ownerMode ? action : $("#catalogDeleteRequester")).focus();
+}
+
+async function submitCatalogDelete(event) {
+  event.preventDefault();
+  const product = pendingCatalogDeleteProduct;
+  if (!product) return;
+  const button = $("#confirmCatalogDelete");
+  const status = $("#catalogDeleteStatus");
+  button.disabled = true;
+  status.hidden = false;
+  try {
+    if (ownerAdminAuth) {
+      setStatus(status, "loading", "Menonaktifkan produk untuk seluruh pengguna...");
+      await knowledgeApi("rsdkh_catalog_delete", { ...collectOwnerAuth(), product });
+      await syncSharedProductCatalog();
+      $("#catalogDeleteDialog").close();
+      const status = $("#sharedProductCatalogStatus");
+      status.hidden = false;
+      setStatus(status, "success", `${product.namaproduk} dinonaktifkan dan dapat dipulihkan dari database.`);
+      return;
+    }
+    const requester = $("#catalogDeleteRequester").value.trim();
+    const reason = $("#catalogDeleteReason").value.trim();
+    if (!requester || !reason) throw new Error("Identitas pemohon dan alasan wajib diisi.");
+    setStatus(status, "loading", "Membuka WhatsApp...");
+    const message = [
+      "Permintaan penghapusan katalog Netmedic RSDKH",
+      `Produk: ${product.namaproduk}`,
+      `Kode: ${product.code || "tidak tersedia"}`,
+      `Pemohon: ${requester}`,
+      `Alasan: ${reason}`
+    ].join("\n");
+    await chrome.tabs.create({ url: `${SUPERADMIN_WHATSAPP_URL}?text=${encodeURIComponent(message)}` });
+    $("#catalogDeleteDialog").close();
+  } catch (error) {
+    setStatus(status, "error", error.message);
+  } finally {
+    button.disabled = false;
+  }
 }
 
 function filterProductAliases() {
@@ -2746,11 +2966,13 @@ function fillSettingsForm() {
   $("#validateBeforeSave").checked = true;
   $("#settingsStatus").hidden = true;
   $("#productAliasStatus").hidden = true;
+  $("#sharedProductCatalogStatus").hidden = true;
   $("#provider").dataset.previous = settings.provider;
   syncProviderFields();
   syncApiKeyVisibility(false);
   syncApiSourceFields();
   syncAdminSessionUi();
+  renderProductCatalog();
   renderProductAliases();
   updateApiStatus();
 }
@@ -2774,6 +2996,7 @@ function showSettingsPage(name = "home", direction = "forward", moveFocus = true
   $("#settingsKicker").textContent = SETTINGS_PAGES[name][0];
   $("#settingsTitle").textContent = SETTINGS_PAGES[name][1];
   updateSettingsSummaries();
+  if (name === "products") syncSharedProductCatalog(true);
   if (moveFocus) requestAnimationFrame(() => $("#settingsTitle").focus({ preventScroll: true }));
 }
 
@@ -3197,8 +3420,8 @@ async function deleteApiSettings() {
 }
 
 async function initialize() {
-  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, WHATSAPP_SOAP_SETTINGS_KEY, PATIENT_MEMORIES_KEY, SHIFT.STORAGE_KEY]);
-  await loadProductAliasResources();
+  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, SHARED_PRODUCT_CATALOG_KEY, WHATSAPP_SOAP_SETTINGS_KEY, PATIENT_MEMORIES_KEY, SHIFT.STORAGE_KEY]);
+  await loadProductAliasResources(saved[SHARED_PRODUCT_CATALOG_KEY]);
   productAliases = Array.isArray(saved[PRODUCT_ALIASES_KEY])
     ? dedupeProductAliases(saved[PRODUCT_ALIASES_KEY])
     : defaultProductAliases.map((alias) => ({ ...alias }));
@@ -3235,7 +3458,9 @@ async function initialize() {
   await syncPatientFromActiveErm();
   syncIdentityUi();
   fillSettingsForm();
+  renderProductCatalog();
   renderProductAliases();
+  syncSharedProductCatalog().catch(() => {});
   if (settings.apiKeySource === "admin") await refreshAdminSettings();
   syncResultAlerts();
   if (!hadHistoryStorage && (hasResult("soap") || hasResult("kronologi"))) {
@@ -3374,6 +3599,14 @@ if (typeof document !== "undefined") {
     row.querySelector(".alias-term").focus();
   });
   $("#productAliasSearch").addEventListener("input", filterProductAliases);
+  $("#sharedProductCatalogSearch").addEventListener("input", renderProductCatalog);
+  $("#addSharedProductCatalog").addEventListener("click", openAddProductCatalogDialog);
+  $("#addCatalogProductForm").addEventListener("submit", addSharedProductCatalog);
+  $("#closeAddCatalogProduct").addEventListener("click", () => $("#addCatalogProductDialog").close());
+  $("#cancelAddCatalogProduct").addEventListener("click", () => $("#addCatalogProductDialog").close());
+  $("#catalogDeleteForm").addEventListener("submit", submitCatalogDelete);
+  $("#closeCatalogDelete").addEventListener("click", () => $("#catalogDeleteDialog").close());
+  $("#cancelCatalogDelete").addEventListener("click", () => $("#catalogDeleteDialog").close());
   $("#saveProductAliases").addEventListener("click", saveProductAliasSettings);
   $("#resetProductAliases").addEventListener("click", resetProductAliasSettings);
   $("#productAliasList").addEventListener("keydown", (event) => {
@@ -3439,6 +3672,11 @@ if (typeof document !== "undefined") {
       productAliases = Array.isArray(changes[PRODUCT_ALIASES_KEY].newValue)
         ? dedupeProductAliases(changes[PRODUCT_ALIASES_KEY].newValue)
         : defaultProductAliases.map((alias) => ({ ...alias }));
+      renderProductAliases();
+    }
+    if (changes[SHARED_PRODUCT_CATALOG_KEY]) {
+      applySharedProductCatalog(changes[SHARED_PRODUCT_CATALOG_KEY].newValue);
+      renderProductCatalog();
       renderProductAliases();
     }
   });
@@ -3553,6 +3791,10 @@ if (typeof module !== "undefined") {
       { term: "panto", query: "PANTOPRAZOLE 40MG INJ", form: "injeksi", strength: "40 mg", source: "learned" },
       { term: "panto", query: "PANTOPRAZOLE 20MG TAB", form: "tablet", strength: "20 mg", source: "learned" }
     ]).length, 2);
+    assert.deepEqual(mergeProductCatalog(
+      [{ namaproduk: "Produk B", source: "bundled" }, { namaproduk: "Produk A", source: "bundled" }],
+      normalizeSharedProductCatalog({ products: [{ namaproduk: "Produk C" }], deletedKeys: ["PRODUK B"] })
+    ).map((product) => product.namaproduk), ["Produk A", "Produk C"]);
     const retentionNow = Date.UTC(2026, 7, 12);
     assert.deepEqual(pruneExpiredHistory([
       { id: "expired", updatedAt: new Date(retentionNow - (61 * 24 * 60 * 60 * 1000)).toISOString() },

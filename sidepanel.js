@@ -2517,8 +2517,7 @@ function applySharedProductCatalog(value) {
   productCatalogNames = productCatalog.map((product) => product.namaproduk);
 }
 
-async function syncSharedProductCatalog(showStatus = false) {
-  const status = $("#sharedProductCatalogStatus");
+async function syncSharedProductCatalog(showStatus = false, status = $("#sharedProductCatalogStatus")) {
   if (showStatus && status) {
     status.hidden = false;
     setStatus(status, "loading", "Menyinkronkan katalog bersama...");
@@ -2604,13 +2603,14 @@ function createProductAliasRow(alias = {}) {
 
 function createProductCatalogRow(product) {
   const row = document.createElement("div");
+  const ownerMode = Boolean(ownerAdminAuth);
   row.className = "shared-product-row";
   row.innerHTML = `
     <div class="shared-product-copy">
       <strong></strong>
       <small></small>
     </div>
-    <button class="shared-product-remove" type="button" aria-label="Minta hapus produk" title="Hapus produk">
+    <button class="shared-product-remove" type="button" aria-label="${ownerMode ? "Nonaktifkan produk" : "Minta hapus produk"}" title="${ownerMode ? "Nonaktifkan produk" : "Minta hapus produk"}">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg>
     </button>`;
   row.querySelector("strong").textContent = product.namaproduk;
@@ -2621,16 +2621,21 @@ function createProductCatalogRow(product) {
   return row;
 }
 
-function renderProductCatalog() {
-  const list = $("#sharedProductCatalogList");
+function renderProductCatalogList(listSelector, searchSelector, countSelector) {
+  const list = $(listSelector);
   if (!list) return;
-  const query = String($("#sharedProductCatalogSearch")?.value || "").trim().toLocaleLowerCase("id-ID");
+  const query = String($(searchSelector)?.value || "").trim().toLocaleLowerCase("id-ID");
   const matches = productCatalog.filter((product) => !query
     || `${product.namaproduk} ${product.code}`.toLocaleLowerCase("id-ID").includes(query));
   list.replaceChildren(...matches.slice(0, 100).map(createProductCatalogRow));
-  $("#sharedProductCatalogCount").textContent = matches.length > 100
+  $(countSelector).textContent = matches.length > 100
     ? `${matches.length} produk ditemukan · tampil 100 pertama`
     : `${matches.length} produk ditemukan`;
+}
+
+function renderProductCatalog() {
+  renderProductCatalogList("#sharedProductCatalogList", "#sharedProductCatalogSearch", "#sharedProductCatalogCount");
+  renderProductCatalogList("#ownerProductCatalogList", "#ownerProductCatalogSearch", "#ownerProductCatalogCount");
   $("#productCatalogOptions").replaceChildren(...productCatalogNames.map((name) => {
     const option = document.createElement("option");
     option.value = name;
@@ -2721,9 +2726,10 @@ async function submitCatalogDelete(event) {
       await knowledgeApi("rsdkh_catalog_delete", { ...collectOwnerAuth(), product });
       await syncSharedProductCatalog();
       $("#catalogDeleteDialog").close();
-      const status = $("#sharedProductCatalogStatus");
-      status.hidden = false;
-      setStatus(status, "success", `${product.namaproduk} dinonaktifkan dan dapat dipulihkan dari database.`);
+      [$("#sharedProductCatalogStatus"), $("#ownerProductCatalogStatus")].forEach((catalogStatus) => {
+        catalogStatus.hidden = false;
+        setStatus(catalogStatus, "success", `${product.namaproduk} dinonaktifkan dan dapat dipulihkan dari database.`);
+      });
       return;
     }
     const requester = $("#catalogDeleteRequester").value.trim();
@@ -3600,6 +3606,8 @@ if (typeof document !== "undefined") {
   });
   $("#productAliasSearch").addEventListener("input", filterProductAliases);
   $("#sharedProductCatalogSearch").addEventListener("input", renderProductCatalog);
+  $("#ownerProductCatalogSearch").addEventListener("input", renderProductCatalog);
+  $("#refreshOwnerProductCatalog").addEventListener("click", () => syncSharedProductCatalog(true, $("#ownerProductCatalogStatus")));
   $("#addSharedProductCatalog").addEventListener("click", openAddProductCatalogDialog);
   $("#addCatalogProductForm").addEventListener("submit", addSharedProductCatalog);
   $("#closeAddCatalogProduct").addEventListener("click", () => $("#addCatalogProductDialog").close());
@@ -3625,13 +3633,18 @@ if (typeof document !== "undefined") {
     });
   });
   document.querySelectorAll(".owner-admin-tab").forEach((button) => {
-    button.addEventListener("click", () => activateOwnerAdminTab(button.dataset.ownerTab));
+    button.addEventListener("click", () => {
+      activateOwnerAdminTab(button.dataset.ownerTab);
+      if (button.dataset.ownerTab === "catalog") syncSharedProductCatalog(true, $("#ownerProductCatalogStatus"));
+    });
     button.addEventListener("keydown", (event) => {
       if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
       event.preventDefault();
-      const next = button.dataset.ownerTab === "apikey" ? "user" : "apikey";
-      activateOwnerAdminTab(next);
-      $(`.owner-admin-tab[data-owner-tab="${next}"]`).focus();
+      const tabs = [...document.querySelectorAll(".owner-admin-tab")];
+      const direction = event.key === "ArrowRight" ? 1 : -1;
+      const next = tabs[(tabs.indexOf(button) + direction + tabs.length) % tabs.length];
+      next.click();
+      next.focus();
     });
   });
   $("#resetOwnerConfig").addEventListener("click", resetOwnerConfig);

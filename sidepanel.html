@@ -187,7 +187,7 @@
 
   <footer class="app-footer">
     <span><span class="footer-dot" aria-hidden="true"></span>Siap digunakan</span>
-    <span id="appVersion">v1.8.11</span>
+    <span id="appVersion">v1.8.12</span>
   </footer>
 
   <dialog id="historyDialog" class="history-dialog" aria-labelledby="historyTitle">
@@ -509,7 +509,7 @@
             </button>
             <button class="settings-menu-item" type="button" data-settings-target="admin">
               <span class="settings-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></span>
-              <span class="settings-menu-copy"><strong>Panel Admin</strong><small id="settingsAdminSummary">Kelola API server dan pengguna</small></span>
+              <span class="settings-menu-copy"><strong>Panel Admin</strong><small id="settingsAdminSummary">Kelola API, pengguna, dan katalog</small></span>
               <svg class="settings-menu-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </button>
           </nav>
@@ -623,7 +623,7 @@
         <section class="settings-page" data-settings-page="admin" hidden>
           <div class="settings-page-body">
             <div id="ownerAdminLogin" class="settings-group owner-admin-login">
-              <p class="settings-page-note">Login diperlukan untuk mengubah API server dan pengguna.</p>
+              <p class="settings-page-note">Login diperlukan untuk mengubah API server, pengguna, dan katalog.</p>
               <label>Username<input id="ownerUsername" type="text" autocomplete="username" placeholder="Username admin"></label>
               <label>Password<input id="ownerPassword" type="password" autocomplete="current-password" placeholder="Password admin"></label>
               <button id="loginOwnerAdmin" class="button primary" type="button"><span>Login Panel Admin</span></button>
@@ -637,6 +637,7 @@
               <nav class="owner-admin-tabs" role="tablist" aria-label="Pengaturan admin">
                 <button id="ownerApiTab" class="owner-admin-tab active" type="button" role="tab" aria-selected="true" data-owner-tab="apikey">API Key</button>
                 <button id="ownerUserTab" class="owner-admin-tab" type="button" role="tab" aria-selected="false" data-owner-tab="user">Pengguna</button>
+                <button id="ownerCatalogTab" class="owner-admin-tab" type="button" role="tab" aria-selected="false" data-owner-tab="catalog">Katalog</button>
               </nav>
               <section class="owner-admin-section" data-owner-panel="apikey">
                 <div class="settings-group">
@@ -673,6 +674,16 @@
                   </div>
                 </div>
                 <div id="adminUserList" class="admin-user-list" aria-live="polite"></div>
+              </section>
+              <section class="owner-admin-section" data-owner-panel="catalog" hidden>
+                <div class="owner-user-heading">
+                  <div><strong>Produk e-Resep</strong><span class="field-hint">Cari lalu nonaktifkan produk untuk seluruh pengguna.</span></div>
+                  <button id="refreshOwnerProductCatalog" class="button" type="button">Muat ulang</button>
+                </div>
+                <input id="ownerProductCatalogSearch" type="search" autocomplete="off" placeholder="Cari nama atau kode produk" aria-label="Cari katalog produk sebagai admin">
+                <span id="ownerProductCatalogCount" class="field-hint"></span>
+                <div id="ownerProductCatalogList" class="shared-product-list"></div>
+                <div id="ownerProductCatalogStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
               </section>
               <div id="ownerAdminStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
             </div>

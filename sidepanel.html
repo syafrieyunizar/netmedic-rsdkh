@@ -187,7 +187,7 @@
 
   <footer class="app-footer">
     <span><span class="footer-dot" aria-hidden="true"></span>Siap digunakan</span>
-    <span id="appVersion">v1.8.12</span>
+    <span id="appVersion">v1.8.13</span>
   </footer>
 
   <dialog id="historyDialog" class="history-dialog" aria-labelledby="historyTitle">
@@ -590,7 +590,24 @@
 
         <section class="settings-page" data-settings-page="products" hidden>
           <div class="settings-page-body">
-            <section class="shared-product-catalog" aria-labelledby="sharedProductCatalogTitle">
+            <nav class="product-settings-tabs" role="tablist" aria-label="Kamus Produk RSDKH">
+              <button id="productAliasTab" class="product-settings-tab active" type="button" role="tab" aria-selected="true" aria-controls="productAliasPanel" data-product-tab="aliases">Alias Saya</button>
+              <button id="sharedProductCatalogTab" class="product-settings-tab" type="button" role="tab" aria-selected="false" aria-controls="sharedProductCatalogPanel" data-product-tab="catalog" tabindex="-1">Katalog Bersama</button>
+            </nav>
+            <section id="productAliasPanel" class="product-settings-panel" role="tabpanel" aria-labelledby="productAliasTab" data-product-panel="aliases">
+              <div class="product-alias-heading">
+                <div><span class="section-kicker">ALIAS LOKAL</span><h3>Kamus istilah dokter</h3></div>
+                <span class="field-hint">Hubungkan istilah dokter dengan nama pada katalog e-Resep. Alias hanya berlaku di perangkat ini.</span>
+                <div class="product-alias-toolbar">
+                  <input id="productAliasSearch" type="search" autocomplete="off" placeholder="Cari alias atau produk" aria-label="Cari alias produk">
+                  <button id="addProductAlias" class="button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Tambah alias</button>
+                </div>
+              </div>
+              <datalist id="productCatalogOptions"></datalist>
+              <div id="productAliasList" class="product-alias-list"></div>
+              <div id="productAliasStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+            </section>
+            <section id="sharedProductCatalogPanel" class="product-settings-panel shared-product-catalog" role="tabpanel" aria-labelledby="sharedProductCatalogTab" data-product-panel="catalog" hidden>
               <div class="settings-section-heading">
                 <div><span class="section-kicker">KATALOG BERSAMA</span><h3 id="sharedProductCatalogTitle">Produk e-Resep</h3></div>
                 <button id="addSharedProductCatalog" class="button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Tambah produk</button>
@@ -601,20 +618,8 @@
               <div id="sharedProductCatalogList" class="shared-product-list"></div>
               <div id="sharedProductCatalogStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
             </section>
-            <div class="settings-section-divider" role="separator"></div>
-            <div class="product-alias-heading">
-              <div><span class="section-kicker">ALIAS LOKAL</span><h3>Kamus istilah dokter</h3></div>
-              <span class="field-hint">Hubungkan istilah dokter dengan nama pada katalog e-Resep. Alias hanya berlaku di perangkat ini.</span>
-              <div class="product-alias-toolbar">
-                <input id="productAliasSearch" type="search" autocomplete="off" placeholder="Cari alias atau produk" aria-label="Cari alias produk">
-                <button id="addProductAlias" class="button" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Tambah alias</button>
-              </div>
-            </div>
-            <datalist id="productCatalogOptions"></datalist>
-            <div id="productAliasList" class="product-alias-list"></div>
-            <div id="productAliasStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
           </div>
-          <div class="settings-actions product-alias-actions">
+          <div id="productAliasActions" class="settings-actions product-alias-actions">
             <button id="resetProductAliases" class="button danger" type="button">Reset bawaan</button>
             <button id="saveProductAliases" class="button primary" type="button"><span>Simpan kamus</span></button>
           </div>

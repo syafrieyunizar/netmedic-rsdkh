@@ -3002,7 +3002,10 @@ function showSettingsPage(name = "home", direction = "forward", moveFocus = true
   $("#settingsKicker").textContent = SETTINGS_PAGES[name][0];
   $("#settingsTitle").textContent = SETTINGS_PAGES[name][1];
   updateSettingsSummaries();
-  if (name === "products") syncSharedProductCatalog(true);
+  if (name === "products") {
+    activateProductSettingsTab("aliases");
+    syncSharedProductCatalog(true);
+  }
   if (moveFocus) requestAnimationFrame(() => $("#settingsTitle").focus({ preventScroll: true }));
 }
 
@@ -3166,6 +3169,19 @@ function activateOwnerAdminTab(name) {
   document.querySelectorAll(".owner-admin-section").forEach((section) => {
     section.hidden = section.dataset.ownerPanel !== name;
   });
+}
+
+function activateProductSettingsTab(name = "aliases") {
+  document.querySelectorAll(".product-settings-tab").forEach((button) => {
+    const active = button.dataset.productTab === name;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+    button.tabIndex = active ? 0 : -1;
+  });
+  document.querySelectorAll(".product-settings-panel").forEach((section) => {
+    section.hidden = section.dataset.productPanel !== name;
+  });
+  $("#productAliasActions").hidden = name !== "aliases";
 }
 
 function exitOwnerAdminMode() {
@@ -3605,6 +3621,21 @@ if (typeof document !== "undefined") {
     row.querySelector(".alias-term").focus();
   });
   $("#productAliasSearch").addEventListener("input", filterProductAliases);
+  document.querySelectorAll(".product-settings-tab").forEach((button) => {
+    button.addEventListener("click", () => {
+      activateProductSettingsTab(button.dataset.productTab);
+      if (button.dataset.productTab === "catalog") syncSharedProductCatalog(true, $("#sharedProductCatalogStatus"));
+    });
+    button.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+      event.preventDefault();
+      const tabs = [...document.querySelectorAll(".product-settings-tab")];
+      const direction = event.key === "ArrowRight" ? 1 : -1;
+      const next = tabs[(tabs.indexOf(button) + direction + tabs.length) % tabs.length];
+      next.click();
+      next.focus();
+    });
+  });
   $("#sharedProductCatalogSearch").addEventListener("input", renderProductCatalog);
   $("#ownerProductCatalogSearch").addEventListener("input", renderProductCatalog);
   $("#refreshOwnerProductCatalog").addEventListener("click", () => syncSharedProductCatalog(true, $("#ownerProductCatalogStatus")));

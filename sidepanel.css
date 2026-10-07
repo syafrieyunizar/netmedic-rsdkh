@@ -605,13 +605,22 @@ main {
   line-height: 1.35;
 }
 
-.owner-admin-tabs {
+.owner-admin-tabs,
+.product-settings-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-bottom: 1px solid var(--outline-variant);
 }
 
-.owner-admin-tab {
+.owner-admin-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.product-settings-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.owner-admin-tab,
+.product-settings-tab {
   min-height: 44px;
   padding: 0 var(--space-2);
   color: var(--on-surface-variant);
@@ -624,12 +633,14 @@ main {
   cursor: pointer;
 }
 
-.owner-admin-tab:hover {
+.owner-admin-tab:hover,
+.product-settings-tab:hover {
   color: var(--primary);
   background: var(--surface-high);
 }
 
-.owner-admin-tab.active {
+.owner-admin-tab.active,
+.product-settings-tab.active {
   color: var(--primary);
   border-bottom-color: var(--primary);
 }
@@ -639,8 +650,14 @@ main {
   gap: var(--space-4);
 }
 
+.product-settings-panel {
+  display: grid;
+  gap: var(--space-3);
+}
+
 .owner-admin-section[hidden],
-.owner-admin-panel[hidden] {
+.owner-admin-panel[hidden],
+.product-settings-panel[hidden] {
   display: none;
 }
 
@@ -942,11 +959,6 @@ label {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2;
-}
-
-.settings-section-divider {
-  height: 1px;
-  background: var(--outline-variant);
 }
 
 .shared-product-list {

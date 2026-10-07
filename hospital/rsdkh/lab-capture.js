@@ -204,7 +204,9 @@
       maxHeight: target.style.maxHeight,
       overflow: target.style.overflow
     };
+    const hadCaptureClass = target.classList.contains("netmedic-rsdkh-lab-capture-active");
     try {
+      target.classList.add("netmedic-rsdkh-lab-capture-active");
       target.prepend(identityHeader);
       target.append(noteFooter);
       const width = target.scrollWidth;
@@ -229,6 +231,7 @@
       return canvasBlob(canvas);
     } finally {
       Object.assign(target.style, previousStyle);
+      if (!hadCaptureClass) target.classList.remove("netmedic-rsdkh-lab-capture-active");
       identityHeader.remove();
       noteFooter.remove();
     }

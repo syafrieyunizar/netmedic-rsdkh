@@ -47,11 +47,6 @@
 
 #netmedic-rsdkh-lab-capture-toast[data-state="error"] { background: #b3261e; }
 
-.netmedic-rsdkh-lab-capture-active table th:first-child,
-.netmedic-rsdkh-lab-capture-active table td:first-child:not([colspan]) {
-  display: none !important;
-}
-
 .netmedic-rsdkh-lab-capture-identity {
   display: grid;
   gap: 18px;

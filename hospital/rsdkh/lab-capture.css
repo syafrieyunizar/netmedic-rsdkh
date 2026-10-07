@@ -65,11 +65,13 @@
 
 .netmedic-rsdkh-lab-capture-fields {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr);
+  grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(150px, 1fr));
   gap: 16px;
 }
 
-.netmedic-rsdkh-lab-capture-fields > div {
+.netmedic-rsdkh-lab-capture-fields > div,
+.netmedic-rsdkh-lab-capture-officer,
+.netmedic-rsdkh-lab-capture-note {
   display: grid;
   min-width: 0;
   gap: 4px;
@@ -79,14 +81,33 @@
   border-radius: 8px;
 }
 
-.netmedic-rsdkh-lab-capture-fields span {
+.netmedic-rsdkh-lab-capture-fields span,
+.netmedic-rsdkh-lab-capture-officer span,
+.netmedic-rsdkh-lab-capture-note span {
   color: #5a6270;
   font-size: 11px;
   font-weight: 400;
 }
 
-.netmedic-rsdkh-lab-capture-fields strong {
+.netmedic-rsdkh-lab-capture-fields strong,
+.netmedic-rsdkh-lab-capture-officer strong {
   overflow-wrap: anywhere;
   font-size: 15px;
   font-weight: 700;
+}
+
+.netmedic-rsdkh-lab-capture-note {
+  margin-top: 18px;
+  padding: 18px 24px;
+  color: #172033;
+  background: #f7f9fc;
+  border-top: 2px solid #d5dbe5;
+  font-family: "Nimbus Sans RSDKH", Arial, sans-serif;
+}
+
+.netmedic-rsdkh-lab-capture-note p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }

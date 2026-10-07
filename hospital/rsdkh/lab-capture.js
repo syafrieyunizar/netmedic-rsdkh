@@ -16,42 +16,85 @@
     return Number.isFinite(scale) ? Math.min(2, Math.max(1, scale)) : 1;
   }
 
-  function extractPatientIdentityFromLines(lines = []) {
-    const cleaned = lines.map((line) => String(line || "").trim()).filter(Boolean);
-    const valueAfter = (labels) => {
-      for (let index = 0; index < cleaned.length; index += 1) {
-        const line = cleaned[index];
-        const lower = line.toLocaleLowerCase("id-ID");
-        for (const label of labels) {
-          const normalizedLabel = label.toLocaleLowerCase("id-ID");
-          if (lower === normalizedLabel) return cleaned[index + 1] || "";
-          if (lower.startsWith(normalizedLabel)) {
-            const inlineValue = line.slice(label.length).replace(/^\s*[:\-]?\s*/, "").trim();
-            if (inlineValue) return inlineValue;
-          }
+  function cleanLines(lines = []) {
+    return lines.map((line) => String(line || "").trim()).filter(Boolean);
+  }
+
+  function valueAfterLabels(lines, labels) {
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
+      const lower = line.toLocaleLowerCase("id-ID");
+      for (const label of labels) {
+        const normalizedLabel = label.toLocaleLowerCase("id-ID");
+        if (lower === normalizedLabel) return lines[index + 1] || "";
+        if (lower.startsWith(normalizedLabel)) {
+          const inlineValue = line.slice(label.length).replace(/^\s*[:\-]?\s*/, "").trim();
+          if (inlineValue) return inlineValue;
         }
       }
-      return "";
-    };
+    }
+    return "";
+  }
+
+  function extractPatientIdentityFromLines(lines = []) {
+    const cleaned = cleanLines(lines);
     return {
-      name: valueAfter(["Nama Pasien"]),
-      medicalRecordNumber: valueAfter(["No Rekam Medis", "Nomor Rekam Medis", "No. RM"])
+      name: valueAfterLabels(cleaned, ["Nama Pasien"]),
+      medicalRecordNumber: valueAfterLabels(cleaned, ["No Rekam Medis", "Nomor Rekam Medis", "No. RM"])
     };
   }
 
-  function readCapturePatientIdentity() {
+  function extractLaboratoryMetadataFromLines(lines = []) {
+    const cleaned = cleanLines(lines);
+    const timestampPattern = /\b\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\b/;
+    let completedAt = "";
+    let labOfficer = "";
+    for (let index = 0; index < cleaned.length; index += 1) {
+      const match = cleaned[index].match(timestampPattern);
+      if (!match) continue;
+      const prefix = cleaned[index].slice(0, match.index).replace(/[,\s]+$/, "").trim();
+      const previous = cleaned[index - 1] || "";
+      const officer = prefix || (match[0] === cleaned[index] && /[A-Za-z]/.test(previous) ? previous : "");
+      if (!officer || /(?:tgl|tanggal)\s+registrasi/i.test(officer)) continue;
+      completedAt = match[0];
+      labOfficer = officer;
+    }
+    return {
+      registeredAt: valueAfterLabels(cleaned, ["Tgl Registrasi", "Tanggal Registrasi"]),
+      completedAt,
+      labOfficer,
+      note: valueAfterLabels(cleaned, ["Catatan"])
+    };
+  }
+
+  function readLaboratoryNote() {
+    const labels = [...document.querySelectorAll("label, span, small, div")]
+      .filter((element) => element.children.length === 0 && /^catatan\s*:?$/i.test(String(element.textContent || "").trim()));
+    for (const label of labels) {
+      let scope = label.parentElement;
+      for (let depth = 0; scope && depth < 5; depth += 1, scope = scope.parentElement) {
+        const textarea = scope.querySelector("textarea");
+        if (textarea?.value.trim()) return textarea.value.trim();
+      }
+    }
+    return "";
+  }
+
+  function readCaptureDetails() {
     const roots = [
       ...document.querySelectorAll("p-panel, .p-panel"),
       document.body
     ];
     for (const root of roots) {
       const identity = extractPatientIdentityFromLines(String(root.innerText || "").split(/\r?\n/));
-      if (identity.name && identity.medicalRecordNumber) return identity;
+      if (!identity.name || !identity.medicalRecordNumber) continue;
+      const metadata = extractLaboratoryMetadataFromLines(String(document.body.innerText || "").split(/\r?\n/));
+      return { ...identity, ...metadata, note: readLaboratoryNote() || metadata.note };
     }
     throw new Error("Nama pasien atau No. RM tidak ditemukan. Muat ulang halaman lalu coba lagi.");
   }
 
-  function createCaptureIdentityHeader(identity) {
+  function createCaptureIdentityHeader(details) {
     const header = document.createElement("section");
     header.className = "netmedic-rsdkh-lab-capture-identity";
     const title = document.createElement("div");
@@ -59,7 +102,12 @@
     title.textContent = "Hasil Laboratorium";
     const fields = document.createElement("div");
     fields.className = "netmedic-rsdkh-lab-capture-fields";
-    [["Nama Pasien", identity.name], ["No. Rekam Medis", identity.medicalRecordNumber]].forEach(([label, value]) => {
+    [
+      ["Nama Pasien", details.name],
+      ["No. Rekam Medis", details.medicalRecordNumber],
+      ["Tanggal Registrasi", details.registeredAt || "Belum tersedia"],
+      ["Tanggal Selesai", details.completedAt || "Belum tersedia"]
+    ].forEach(([label, value]) => {
       const field = document.createElement("div");
       const caption = document.createElement("span");
       const content = document.createElement("strong");
@@ -68,8 +116,26 @@
       field.append(caption, content);
       fields.append(field);
     });
-    header.append(title, fields);
+    const officer = document.createElement("div");
+    officer.className = "netmedic-rsdkh-lab-capture-officer";
+    const officerLabel = document.createElement("span");
+    const officerName = document.createElement("strong");
+    officerLabel.textContent = "Petugas Laboratorium";
+    officerName.textContent = details.labOfficer || "Belum tersedia";
+    officer.append(officerLabel, officerName);
+    header.append(title, fields, officer);
     return header;
+  }
+
+  function createCaptureNoteFooter(note) {
+    const footer = document.createElement("section");
+    footer.className = "netmedic-rsdkh-lab-capture-note";
+    const title = document.createElement("span");
+    const content = document.createElement("p");
+    title.textContent = "Catatan Laboratorium";
+    content.textContent = note || "Tidak ada catatan.";
+    footer.append(title, content);
+    return footer;
   }
 
   function canvasBlob(canvas) {
@@ -128,9 +194,10 @@
     button.title = state === "loading" ? "Memproses capture..." : state === "success" ? "Tersalin ke clipboard" : state === "error" ? "Capture gagal" : "Capture hasil";
   }
 
-  async function captureTable(target, identity) {
+  async function captureTable(target, details) {
     if (typeof globalThis.html2canvas !== "function") throw new Error("Renderer capture belum siap. Muat ulang extension dan halaman.");
-    const identityHeader = createCaptureIdentityHeader(identity);
+    const identityHeader = createCaptureIdentityHeader(details);
+    const noteFooter = createCaptureNoteFooter(details.note);
     const previousStyle = {
       width: target.style.width,
       height: target.style.height,
@@ -139,6 +206,7 @@
     };
     try {
       target.prepend(identityHeader);
+      target.append(noteFooter);
       const width = target.scrollWidth;
       const height = target.scrollHeight;
       if (width < 1 || height < 1) throw new Error("Tabel hasil laboratorium tidak ditemukan.");
@@ -162,6 +230,7 @@
     } finally {
       Object.assign(target.style, previousStyle);
       identityHeader.remove();
+      noteFooter.remove();
     }
   }
 
@@ -175,8 +244,8 @@
     captureRunning = true;
     setButtonState(button, "loading");
     try {
-      const identity = readCapturePatientIdentity();
-      const blob = await captureTable(table, identity);
+      const details = readCaptureDetails();
+      const blob = await captureTable(table, details);
       await writeImageToClipboard(blob);
       setButtonState(button, "success");
       showToast("Hasil laboratorium disalin ke clipboard. Tekan Ctrl+V untuk menempelkan.");
@@ -215,7 +284,7 @@
   }
 
   if (typeof module !== "undefined") {
-    module.exports = { captureScale, extractPatientIdentityFromLines };
+    module.exports = { captureScale, extractPatientIdentityFromLines, extractLaboratoryMetadataFromLines };
     if (require.main === module) {
       const assert = require("node:assert/strict");
       assert.equal(captureScale(0.5), 1);
@@ -227,6 +296,15 @@
       assert.deepEqual(extractPatientIdentityFromLines([
         "Nama Pasien: BAYI NY. NAILA", "No. RM: 160001"
       ]), { name: "BAYI NY. NAILA", medicalRecordNumber: "160001" });
+      assert.deepEqual(extractLaboratoryMetadataFromLines([
+        "Tgl Registrasi", "2026-10-07 09:34:51", "Yuliana Yusup, Amd. AK 2026-10-07 10:49:22",
+        "Catatan", "Hasil Leukosit sudah dikonfirmasi dengan Apusan darah"
+      ]), {
+        registeredAt: "2026-10-07 09:34:51",
+        completedAt: "2026-10-07 10:49:22",
+        labOfficer: "Yuliana Yusup, Amd. AK",
+        note: "Hasil Leukosit sudah dikonfirmasi dengan Apusan darah"
+      });
       console.log("lab capture self-check ok");
     }
     return;

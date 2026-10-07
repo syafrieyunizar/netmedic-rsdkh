@@ -16,6 +16,62 @@
     return Number.isFinite(scale) ? Math.min(2, Math.max(1, scale)) : 1;
   }
 
+  function extractPatientIdentityFromLines(lines = []) {
+    const cleaned = lines.map((line) => String(line || "").trim()).filter(Boolean);
+    const valueAfter = (labels) => {
+      for (let index = 0; index < cleaned.length; index += 1) {
+        const line = cleaned[index];
+        const lower = line.toLocaleLowerCase("id-ID");
+        for (const label of labels) {
+          const normalizedLabel = label.toLocaleLowerCase("id-ID");
+          if (lower === normalizedLabel) return cleaned[index + 1] || "";
+          if (lower.startsWith(normalizedLabel)) {
+            const inlineValue = line.slice(label.length).replace(/^\s*[:\-]?\s*/, "").trim();
+            if (inlineValue) return inlineValue;
+          }
+        }
+      }
+      return "";
+    };
+    return {
+      name: valueAfter(["Nama Pasien"]),
+      medicalRecordNumber: valueAfter(["No Rekam Medis", "Nomor Rekam Medis", "No. RM"])
+    };
+  }
+
+  function readCapturePatientIdentity() {
+    const roots = [
+      ...document.querySelectorAll("p-panel, .p-panel"),
+      document.body
+    ];
+    for (const root of roots) {
+      const identity = extractPatientIdentityFromLines(String(root.innerText || "").split(/\r?\n/));
+      if (identity.name && identity.medicalRecordNumber) return identity;
+    }
+    throw new Error("Nama pasien atau No. RM tidak ditemukan. Muat ulang halaman lalu coba lagi.");
+  }
+
+  function createCaptureIdentityHeader(identity) {
+    const header = document.createElement("section");
+    header.className = "netmedic-rsdkh-lab-capture-identity";
+    const title = document.createElement("div");
+    title.className = "netmedic-rsdkh-lab-capture-title";
+    title.textContent = "Hasil Laboratorium";
+    const fields = document.createElement("div");
+    fields.className = "netmedic-rsdkh-lab-capture-fields";
+    [["Nama Pasien", identity.name], ["No. Rekam Medis", identity.medicalRecordNumber]].forEach(([label, value]) => {
+      const field = document.createElement("div");
+      const caption = document.createElement("span");
+      const content = document.createElement("strong");
+      caption.textContent = label;
+      content.textContent = value;
+      field.append(caption, content);
+      fields.append(field);
+    });
+    header.append(title, fields);
+    return header;
+  }
+
   function canvasBlob(canvas) {
     return new Promise((resolve, reject) => canvas.toBlob(
       (blob) => blob ? resolve(blob) : reject(new Error("Gambar PNG tidak dapat dibuat.")),
@@ -72,11 +128,9 @@
     button.title = state === "loading" ? "Memproses capture..." : state === "success" ? "Tersalin ke clipboard" : state === "error" ? "Capture gagal" : "Capture hasil";
   }
 
-  async function captureTable(target) {
+  async function captureTable(target, identity) {
     if (typeof globalThis.html2canvas !== "function") throw new Error("Renderer capture belum siap. Muat ulang extension dan halaman.");
-    const width = target.scrollWidth;
-    const height = target.scrollHeight;
-    if (width < 1 || height < 1) throw new Error("Tabel hasil laboratorium tidak ditemukan.");
+    const identityHeader = createCaptureIdentityHeader(identity);
     const previousStyle = {
       width: target.style.width,
       height: target.style.height,
@@ -84,6 +138,10 @@
       overflow: target.style.overflow
     };
     try {
+      target.prepend(identityHeader);
+      const width = target.scrollWidth;
+      const height = target.scrollHeight;
+      if (width < 1 || height < 1) throw new Error("Tabel hasil laboratorium tidak ditemukan.");
       target.style.width = `${width}px`;
       target.style.height = `${height}px`;
       target.style.maxHeight = "none";
@@ -103,6 +161,7 @@
       return canvasBlob(canvas);
     } finally {
       Object.assign(target.style, previousStyle);
+      identityHeader.remove();
     }
   }
 
@@ -116,7 +175,8 @@
     captureRunning = true;
     setButtonState(button, "loading");
     try {
-      const blob = await captureTable(table);
+      const identity = readCapturePatientIdentity();
+      const blob = await captureTable(table, identity);
       await writeImageToClipboard(blob);
       setButtonState(button, "success");
       showToast("Hasil laboratorium disalin ke clipboard. Tekan Ctrl+V untuk menempelkan.");
@@ -155,12 +215,18 @@
   }
 
   if (typeof module !== "undefined") {
-    module.exports = { captureScale };
+    module.exports = { captureScale, extractPatientIdentityFromLines };
     if (require.main === module) {
       const assert = require("node:assert/strict");
       assert.equal(captureScale(0.5), 1);
       assert.equal(captureScale(1.5), 1.5);
       assert.equal(captureScale(3), 2);
+      assert.deepEqual(extractPatientIdentityFromLines([
+        "Info Pasien", "No Rekam Medis", "156811", "Nama Pasien", "ADIBA KHANZA AZZAHRA"
+      ]), { name: "ADIBA KHANZA AZZAHRA", medicalRecordNumber: "156811" });
+      assert.deepEqual(extractPatientIdentityFromLines([
+        "Nama Pasien: BAYI NY. NAILA", "No. RM: 160001"
+      ]), { name: "BAYI NY. NAILA", medicalRecordNumber: "160001" });
       console.log("lab capture self-check ok");
     }
     return;

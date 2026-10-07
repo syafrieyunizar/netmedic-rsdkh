@@ -46,3 +46,47 @@
 }
 
 #netmedic-rsdkh-lab-capture-toast[data-state="error"] { background: #b3261e; }
+
+.netmedic-rsdkh-lab-capture-identity {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  color: #172033;
+  background: #f7f9fc;
+  border-bottom: 2px solid #d5dbe5;
+  font-family: "Nimbus Sans RSDKH", Arial, sans-serif;
+}
+
+.netmedic-rsdkh-lab-capture-title {
+  color: #006874;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.netmedic-rsdkh-lab-capture-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr);
+  gap: 16px;
+}
+
+.netmedic-rsdkh-lab-capture-fields > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid #d5dbe5;
+  border-radius: 8px;
+}
+
+.netmedic-rsdkh-lab-capture-fields span {
+  color: #5a6270;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.netmedic-rsdkh-lab-capture-fields strong {
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  font-weight: 700;
+}

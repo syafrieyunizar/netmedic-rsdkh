@@ -18,6 +18,10 @@ const PATIENT_MEMORIES_KEY = "patientMemories";
 const HISTORY_RETENTION_MS = 60 * 24 * 60 * 60 * 1000;
 const MAX_CLINICAL_IMAGE_BYTES = 8 * 1024 * 1024;
 const CLINICAL_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const AI_WAIT_NOTE = "Proses AI dapat membutuhkan waktu 30-180 detik. Tetap biarkan panel terbuka.";
+const SOAP_AI_STAGES = ["Memproses anamnesis", "Menyusun pemeriksaan fisik", "Menyelaraskan Assessment dan Planning", "Memeriksa konsistensi SOAP"];
+const PHOTO_AI_STAGES = ["Menganalisis foto klinis", "Menyusun temuan objektif", "Memeriksa deskripsi foto"];
+const KRONOLOGI_AI_STAGES = ["Membaca skenario kejadian", "Menyusun urutan kronologi", "Memeriksa konsistensi kronologi"];
 const SOAP_FIELD_IDS = ["identity", "serviceMode", "subjektif", "objektif", "useCurrentVitals", "assessment", "planning", "resultS", "resultO", "resultA", "resultP", "requiresChronology", "chronologyReason", "chronologyEffect"];
 const KRONOLOGI_FIELD_IDS = ["skenario", "akibat", "resultKronologi", "resultWarning", "resultWarningRule"];
 const WHATSAPP_STEP_TITLES = ["Pesan Pembuka", "Identitas Pasien", "Subjektif", "Objektif", "Assessment", "Planning", "Kalimat Penutup"];
@@ -883,11 +887,57 @@ async function confirmPatientIdentity(event) {
   ($("#soapPanel").hidden ? $("#skenario") : $("#subjektif")).focus();
 }
 
-function setGenerating(button, status, active) {
+function setGenerating(button, active) {
   button.disabled = active;
   const label = button.querySelector(".ai-button-label");
   if (label) label.textContent = active ? "Sedang generate..." : "Generate";
-  if (active) setStatus(status, "loading", "Sedang generate...");
+}
+
+function elapsedProcessSeconds(startedAt, now = Date.now()) {
+  return Math.max(1, Math.floor((now - startedAt) / 1000));
+}
+
+function timedProgressStage(stages, seconds) {
+  return stages[Math.min(stages.length - 1, Math.floor((Math.max(1, seconds) - 1) / 5))];
+}
+
+function startAiProgress(status, initialStages) {
+  const startedAt = Date.now();
+  let phaseStartedAt = startedAt;
+  let stages = initialStages;
+  let stopped = false;
+  const note = document.createElement("small");
+  note.className = "ai-progress-note";
+  note.textContent = AI_WAIT_NOTE;
+  status.dataset.aiProgress = "true";
+  status.append(note);
+
+  const update = () => {
+    if (stopped) return;
+    const totalSeconds = elapsedProcessSeconds(startedAt);
+    const phaseSeconds = elapsedProcessSeconds(phaseStartedAt);
+    setStatus(status, "loading", `${timedProgressStage(stages, phaseSeconds)}... ${totalSeconds}s`);
+    if (!note.isConnected) status.append(note);
+  };
+  update();
+  const timer = setInterval(update, 1000);
+
+  return {
+    setStages(nextStages) {
+      stages = nextStages;
+      phaseStartedAt = Date.now();
+      update();
+    },
+    stop() {
+      if (!stopped) {
+        stopped = true;
+        clearInterval(timer);
+        note.remove();
+        delete status.dataset.aiProgress;
+      }
+      return elapsedProcessSeconds(startedAt);
+    }
+  };
 }
 
 function firstJsonObject(text) {
@@ -1965,7 +2015,7 @@ function closeHistoryDialog() {
   }, delay);
 }
 
-function openResultView(type, trigger = document.activeElement) {
+function openResultView(type, trigger = document.activeElement, completionMessage = "Hasil siap ditinjau dan diedit.") {
   if (!hasResult(type)) return;
   const dialog = $("#resultDialog");
   clearTimeout(resultCloseTimer);
@@ -1976,7 +2026,7 @@ function openResultView(type, trigger = document.activeElement) {
     panel.hidden = panel.dataset.resultType !== type;
   });
   syncResultAlerts();
-  setStatus($("#resultStatus"), "success", "Hasil siap ditinjau dan diedit.");
+  setStatus($("#resultStatus"), "success", completionMessage);
   if (!dialog.open) dialog.showModal();
   requestAnimationFrame(() => {
     dialog.classList.add("is-visible");
@@ -2021,9 +2071,10 @@ async function generateSoap() {
     return;
   }
 
-  setGenerating(button, status, true);
+  setGenerating(button, true);
   $("#uploadClinicalImage").disabled = true;
   $("#removeClinicalImage").disabled = true;
+  const progress = startAiProgress(status, selectedClinicalImage ? PHOTO_AI_STAGES : SOAP_AI_STAGES);
   try {
     if (draft.useCurrentVitals) {
       setStatus(status, "loading", "Mengambil tanda vital pasien saat ini...");
@@ -2035,14 +2086,14 @@ async function generateSoap() {
       }
     }
     if (selectedClinicalImage) {
-      setStatus(status, "loading", "Menganalisis foto klinis...");
+      progress.setStages(PHOTO_AI_STAGES);
       const visionResult = await callClinicalVision(selectedClinicalImage);
       appendClinicalVisionToObjective(visionResult);
       clearClinicalImage();
       draft = soapDraft();
-      setStatus(status, "loading", "Temuan foto masuk ke Objektif. Menyusun SOAP...");
       await new Promise((resolve) => requestAnimationFrame(resolve));
     }
+    progress.setStages(SOAP_AI_STAGES);
     const result = normalizeSoapResult(await callAi(buildMagicSoapPrompt(draft), "soap"));
     requireStrings(result, ["s", "o", "a", "p", "chronology_reason", "chronology_effect"]);
     $("#resultS").value = result.s;
@@ -2055,13 +2106,17 @@ async function generateSoap() {
     await chrome.storage.local.set({ [SOAP_DRAFT_KEY]: soapDraft() });
     await saveEpisodeResult("soap");
     await updateActiveShiftPatient({ status: "soap_ready" }).catch(() => {});
-    setStatus(status, "success", "Berhasil: hasil siap ditinjau.");
-    openResultView("soap", button);
+    const totalSeconds = progress.stop();
+    const completionMessage = `Hasil siap ditinjau dan diedit. Selesai dalam ${totalSeconds}s.`;
+    setStatus(status, "success", completionMessage);
+    openResultView("soap", button, completionMessage);
   } catch (error) {
-    setStatus(status, "error", `Error: ${error.message}`);
+    const totalSeconds = progress.stop();
+    setStatus(status, "error", `Error: ${error.message} Gagal setelah ${totalSeconds}s.`);
     if (settings.apiKeySource === "admin" || !settings.apiKey) openSettingsDialog("connection");
   } finally {
-    setGenerating(button, status, false);
+    progress.stop();
+    setGenerating(button, false);
     $("#uploadClinicalImage").disabled = false;
     $("#removeClinicalImage").disabled = false;
   }
@@ -2078,7 +2133,8 @@ async function generateKronologi() {
     return;
   }
 
-  setGenerating(button, status, true);
+  setGenerating(button, true);
+  const progress = startAiProgress(status, KRONOLOGI_AI_STAGES);
   try {
     const result = normalizeKronologiResult(await callAi(buildKronologiPrompt(draft), "kronologi"));
     requireStrings(result, ["kronologi", "warning", "warning_rule"]);
@@ -2087,13 +2143,17 @@ async function generateKronologi() {
     $("#resultWarningRule").value = result.warning_rule;
     await chrome.storage.local.set({ [KRONOLOGI_DRAFT_KEY]: kronologiDraft() });
     await saveEpisodeResult("kronologi");
-    setStatus(status, "success", "Berhasil: hasil siap ditinjau.");
-    openResultView("kronologi", button);
+    const totalSeconds = progress.stop();
+    const completionMessage = `Hasil siap ditinjau dan diedit. Selesai dalam ${totalSeconds}s.`;
+    setStatus(status, "success", completionMessage);
+    openResultView("kronologi", button, completionMessage);
   } catch (error) {
-    setStatus(status, "error", `Error: ${error.message}`);
+    const totalSeconds = progress.stop();
+    setStatus(status, "error", `Error: ${error.message} Gagal setelah ${totalSeconds}s.`);
     if (settings.apiKeySource === "admin" || !settings.apiKey) openSettingsDialog("connection");
   } finally {
-    setGenerating(button, status, false);
+    progress.stop();
+    setGenerating(button, false);
   }
 }
 
@@ -3787,6 +3847,8 @@ if (typeof module !== "undefined") {
     whatsappTimeOfDay,
     formatWhatsappPatientIdentity,
     buildWhatsappSoapReport,
+    elapsedProcessSeconds,
+    timedProgressStage,
     normalizeProductAlias,
     dedupeProductAliases
   };
@@ -3810,6 +3872,11 @@ if (typeof module !== "undefined") {
     assert.equal(parseAnonymousIdentity("Perempuan 71 thn 9 bln").valid, true);
     assert.equal(parseAnonymousIdentity("Boss, 22 tahun").valid, false);
     assert.equal(parseAnonymousIdentity("Tn. X").valid, false);
+    assert.equal(elapsedProcessSeconds(1000, 1000), 1);
+    assert.equal(elapsedProcessSeconds(1000, 6100), 5);
+    assert.equal(timedProgressStage(["Satu", "Dua", "Tiga"], 1), "Satu");
+    assert.equal(timedProgressStage(["Satu", "Dua", "Tiga"], 6), "Dua");
+    assert.equal(timedProgressStage(["Satu", "Dua", "Tiga"], 60), "Tiga");
     const patientProfile = { name: "SALIMUDDIN", gender: "Laki-laki", age: "48 tahun 6 bln 24 hari", medicalRecordNumber: "051462", visitId: "visit-a" };
     assert.equal(patientMemoryKey(patientProfile), "051462:visit-a");
     assert.equal(samePatientEncounter(patientProfile, { ...patientProfile }), true);

@@ -10,6 +10,8 @@
   const ICD9_BUTTON_ID = "netmedic-rsdkh-icd9-quick";
   const ICD9_SLOT_ID = `${ICD9_BUTTON_ID}-slot`;
   const ICD9_UI_ID = `${ICD9_BUTTON_ID}-ui`;
+  const AI_WAIT_NOTE = "Proses AI dapat membutuhkan waktu 30-180 detik. Tetap biarkan halaman terbuka.";
+  const SOAP_PARSE_STAGES = ["Memproses anamnesis", "Memproses pemeriksaan fisik", "Menyelaraskan Assessment dan Planning", "Memeriksa konsistensi SOAP"];
   const ICD9_GROUPS = [
     { label: "Penunjang", items: [
       { id: "ekg", label: "EKG", value: "EKG" },
@@ -71,6 +73,8 @@
   let lastPatientReport = "";
   let patientReportTimer;
   let toastTimer;
+  let soapProgressStartedAt = 0;
+  let soapProgressTimer;
 
   const normalize = (value) => String(value || "").trim().replace(/\s+/g, " ");
   const isVisible = (element) => Boolean(element && element.getClientRects().length && getComputedStyle(element).visibility !== "hidden");
@@ -356,8 +360,16 @@
   }
 
   function resumeProgressStage(seconds) {
-    return ["Merapikan laboratorium", "Merapikan radiologi", "Merapikan terapi"]
-      [Math.min(2, Math.max(1, seconds) - 1)];
+    return ["Merapikan laboratorium", "Merapikan radiologi", "Merapikan terapi", "Memeriksa hasil akhir"]
+      [Math.min(3, Math.max(1, seconds) - 1)];
+  }
+
+  function elapsedProcessSeconds(startedAt, now = Date.now()) {
+    return Math.max(1, Math.floor((now - startedAt) / 1000));
+  }
+
+  function timedProgressStage(stages, seconds) {
+    return stages[Math.min(stages.length - 1, Math.floor((Math.max(1, seconds) - 1) / 5))];
   }
 
   function panelByTitle(title) {
@@ -693,7 +705,34 @@
       else step.removeAttribute("aria-current");
     });
     ui.status.dataset.state = state === "error" ? "error" : "loading";
-    ui.status.textContent = state === "error" ? `Proses berhenti pada: ${STEP_LABELS[index]}` : STEP_LABELS[index];
+    if (state === "error") ui.status.textContent = `Proses berhenti pada: ${STEP_LABELS[index]}`;
+    else updateSoapProgress();
+  }
+
+  function updateSoapProgress() {
+    if (!soapProgressStartedAt || !ui) return;
+    const seconds = elapsedProcessSeconds(soapProgressStartedAt);
+    const stage = currentStep === 0
+      ? timedProgressStage(SOAP_PARSE_STAGES, seconds)
+      : STEP_LABELS[Math.max(0, currentStep)];
+    ui.status.textContent = `${stage}... ${seconds}s`;
+    ui.generate.querySelector(".soap-generate-label").textContent = `Memproses... ${seconds}s`;
+  }
+
+  function startSoapProgress() {
+    clearInterval(soapProgressTimer);
+    soapProgressStartedAt = Date.now();
+    updateSoapProgress();
+    soapProgressTimer = setInterval(updateSoapProgress, 1000);
+  }
+
+  function stopSoapProgress() {
+    clearInterval(soapProgressTimer);
+    soapProgressTimer = null;
+    if (!soapProgressStartedAt) return 1;
+    const seconds = elapsedProcessSeconds(soapProgressStartedAt);
+    soapProgressStartedAt = 0;
+    return seconds;
   }
 
   function resetModal() {
@@ -830,12 +869,13 @@
     button.disabled = true;
     button.dataset.loading = "true";
     button.setAttribute("aria-busy", "true");
-    setResumeProgress(button, 6, "Merapikan laboratorium...");
-    let seconds = 0;
+    const startedAt = Date.now();
+    let seconds = 1;
+    setResumeProgress(button, 6, `Merapikan laboratorium... ${seconds}s · AI dapat membutuhkan 30-180 detik`);
     let completed = false;
     const timer = setInterval(() => {
-      seconds += 1;
-      setResumeProgress(button, Math.min(92, 8 + seconds * 4), `${resumeProgressStage(seconds)}... ${seconds}s`);
+      seconds = elapsedProcessSeconds(startedAt);
+      setResumeProgress(button, Math.min(92, 8 + seconds * 4), `${resumeProgressStage(seconds)}... ${seconds}s · AI dapat membutuhkan 30-180 detik`);
     }, 1000);
 
     try {
@@ -853,11 +893,13 @@
         addResumeUndo(field, original, labels[key]);
       }
       completed = true;
+      seconds = elapsedProcessSeconds(startedAt);
       setResumeProgress(button, 100, `Selesai - ${Math.max(1, seconds)}s`);
-      showToast("Laboratorium, radiologi, dan terapi sudah dirapikan. Tinjau hasil sebelum menyimpan Resume Medis.");
+      showToast(`Laboratorium, radiologi, dan terapi sudah dirapikan dalam ${seconds}s. Tinjau hasil sebelum menyimpan Resume Medis.`);
     } catch (error) {
+      seconds = elapsedProcessSeconds(startedAt);
       setResumeProgress(button, 0, "Gagal merapikan");
-      showToast(error.message || "AI gagal merapikan Resume Medis.", "error");
+      showToast(`${error.message || "AI gagal merapikan Resume Medis."} Gagal setelah ${seconds}s.`, "error");
     } finally {
       clearInterval(timer);
       await sleep(completed ? 700 : 1200);
@@ -977,6 +1019,7 @@
     ui.generate.disabled = true;
     ui.generate.querySelector(".soap-generate-label").textContent = "Memproses...";
     ui.cancel.disabled = true;
+    startSoapProgress();
 
     try {
       setStep(0, "active");
@@ -999,17 +1042,20 @@
         return;
       }
       ui.textarea.value = "";
-      showToast("Diagnosis tersimpan. Tinjau S, O, dan P lalu simpan Pengkajian Dokter IGD melalui eRM.");
+      const totalSeconds = stopSoapProgress();
+      showToast(`Diagnosis tersimpan dalam ${totalSeconds}s. Tinjau S, O, dan P lalu simpan Pengkajian Dokter IGD melalui eRM.`);
     } catch (error) {
+      const totalSeconds = stopSoapProgress();
       setStep(Math.max(currentStep, 0), "error");
       ui.error.hidden = false;
-      ui.error.textContent = importErrorMessage(error);
+      ui.error.textContent = `${importErrorMessage(error)} Gagal setelah ${totalSeconds}s.`;
       showToast(ui.error.textContent, "error");
       ui.cancel.disabled = false;
       ui.cancel.textContent = "Tutup";
       if (!ui.dialog.open) ui.dialog.showModal();
       ui.cancel.focus();
     } finally {
+      stopSoapProgress();
       running = false;
     }
   }
@@ -1041,6 +1087,7 @@
           </div>
           <section class="soap-progress" hidden aria-label="Progres input SOAP">
             <ol>${STEP_LABELS.map((label, index) => `<li data-state="pending"><span>${index + 1}</span><p>${label}</p><small>Menunggu</small></li>`).join("")}</ol>
+            <small class="soap-wait-note">${AI_WAIT_NOTE}</small>
           </section>
           <p class="soap-status" hidden role="status" aria-live="polite"></p>
           <p class="soap-error" hidden role="alert"></p>
@@ -1177,7 +1224,7 @@
   }
 
   if (typeof module !== "undefined") {
-    module.exports = { diagnosisTypeFor, isReportMedicalRecord, isReportPatientName, isReportPatientAge, isReportPatientGender, encounterIdFromHash, patientEncounterKey, samePatientEncounter, assessmentStateFromValues, resumeProgressStage, mergeIcd9Actions, parseVitalSignText };
+    module.exports = { diagnosisTypeFor, isReportMedicalRecord, isReportPatientName, isReportPatientAge, isReportPatientGender, encounterIdFromHash, patientEncounterKey, samePatientEncounter, assessmentStateFromValues, resumeProgressStage, elapsedProcessSeconds, timedProgressStage, mergeIcd9Actions, parseVitalSignText };
     if (require.main === module) {
       const assert = require("node:assert/strict");
       assert.equal(diagnosisTypeFor("rawat_inap"), "Diagnosa Awal");
@@ -1213,6 +1260,9 @@
       assert.equal(resumeProgressStage(1), "Merapikan laboratorium");
       assert.equal(resumeProgressStage(2), "Merapikan radiologi");
       assert.equal(resumeProgressStage(3), "Merapikan terapi");
+      assert.equal(resumeProgressStage(4), "Memeriksa hasil akhir");
+      assert.equal(elapsedProcessSeconds(1000, 6100), 5);
+      assert.equal(timedProgressStage(["Satu", "Dua"], 6), "Dua");
       assert.equal(mergeIcd9Actions("EKG, Infus", ["ekg", "injeksi-obat"]), "EKG, Infus, Injeksi obat");
       assert.equal(mergeIcd9Actions("lab", ["lab-darah"]), "lab");
       assert.equal(parseVitalSignText("69/47 mmHg TD", "TD"), "69/47");

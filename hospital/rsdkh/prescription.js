@@ -24,6 +24,8 @@
     tetes: ["tetes", "drop"]
   };
   const DEPOT_NAMES = ["DEPO GAWAT DARURAT", "DEPO OK", "DEPO RAJAL", "DEPO RAWAT INAP"];
+  const AI_WAIT_NOTE = "Proses AI dapat membutuhkan waktu 30-180 detik. Tetap biarkan halaman terbuka.";
+  const PRESCRIPTION_AI_STAGES = ["Membaca instruksi terapi", "Menyusun item resep", "Mencocokkan bentuk dan dosis", "Menghitung jumlah obat", "Memeriksa hasil resep"];
 
   let ui;
   let running = false;
@@ -967,6 +969,39 @@
     ui.status.append(button);
   }
 
+  function elapsedProcessSeconds(startedAt, now = Date.now()) {
+    return Math.max(1, Math.floor((now - startedAt) / 1000));
+  }
+
+  function timedProgressStage(stages, seconds) {
+    return stages[Math.min(stages.length - 1, Math.floor((Math.max(1, seconds) - 1) / 5))];
+  }
+
+  function startPrescriptionAiProgress() {
+    const startedAt = Date.now();
+    let stopped = false;
+    const update = () => {
+      if (stopped) return;
+      const seconds = elapsedProcessSeconds(startedAt);
+      setStatus("loading", `${timedProgressStage(PRESCRIPTION_AI_STAGES, seconds)}... ${seconds}s`);
+      const note = document.createElement("small");
+      note.textContent = AI_WAIT_NOTE;
+      ui.status.append(note);
+      ui.generate.querySelector(".erx-generate-label").textContent = `Memproses... ${seconds}s`;
+    };
+    update();
+    const timer = setInterval(update, 1000);
+    return {
+      stop() {
+        if (!stopped) {
+          stopped = true;
+          clearInterval(timer);
+        }
+        return elapsedProcessSeconds(startedAt);
+      }
+    };
+  }
+
   function resizeTextarea(field) {
     if (!field) return;
     field.style.height = "0";
@@ -1253,7 +1288,7 @@
     if (includeSupplies === null) return;
     setRunning(true);
     ui.generate.querySelector(".erx-generate-label").textContent = "Sedang generate...";
-    setStatus("loading", "AI sedang merapikan resep.");
+    const progress = startPrescriptionAiProgress();
     try {
       const response = await chrome.runtime.sendMessage({
         type: "rsdkh:generate-prescription",
@@ -1268,13 +1303,19 @@
       renderPrescription(calculated);
       const unresolved = calculated.items.filter((item) => !item.search_term).length;
       const state = unresolved ? "error" : "success";
+      const totalSeconds = progress.stop();
       const message = unresolved
-        ? `${unresolved} item belum memiliki produk katalog. Pilih produk sebelum memasukkan e-Resep.`
-        : "Semua item sudah dicocokkan dengan katalog dan Qty telah dihitung. Periksa kembali sebelum memasukkan e-Resep.";
+        ? `${unresolved} item belum memiliki produk katalog. Pilih produk sebelum memasukkan e-Resep. Selesai dalam ${totalSeconds}s.`
+        : `Semua item sudah dicocokkan dengan katalog dan Qty telah dihitung dalam ${totalSeconds}s. Periksa kembali sebelum memasukkan e-Resep.`;
       setStatus(state, message);
+      showToast(message, null, state);
     } catch (error) {
-      setStatus("error", error.message || "AI gagal merapikan resep.");
+      const totalSeconds = progress.stop();
+      const message = `${error.message || "AI gagal merapikan resep."} Gagal setelah ${totalSeconds}s.`;
+      setStatus("error", message);
+      showToast(message, null, "error");
     } finally {
+      progress.stop();
       setRunning(false);
       ui.generate.querySelector(".erx-generate-label").textContent = "Generate";
     }
@@ -1858,7 +1899,9 @@
     extractIgdInstructions,
     extractOpnameTherapies,
     formatInsertionReport,
-    catalogMatchState
+    catalogMatchState,
+    elapsedProcessSeconds,
+    timedProgressStage
   };
   if (typeof document !== "undefined") {
     new MutationObserver(queueInject).observe(document.documentElement, { childList: true, subtree: true });
@@ -1885,6 +1928,8 @@ if (typeof module !== "undefined" && require.main === module) {
   const injection = { summary: "Inj. Pantoprazole", warning: "", items: [{ display_name: "Pantoprazole", search_term: "Pantoprazole", form: "injeksi" }] };
   assert.equal(module.exports.ensureSurfloForContext(injection, "emergency_inpatient", { years: 45 }).items.at(-1).search_term, "Surflo no 22");
   assert.equal(module.exports.ensureSurfloForContext(injection, "emergency_inpatient", { years: 7 }).items.at(-1).search_term, "Surflo no 24");
+  assert.equal(module.exports.elapsedProcessSeconds(1000, 6100), 5);
+  assert.equal(module.exports.timedProgressStage(["Satu", "Dua"], 6), "Dua");
   const catalog = new Map();
   module.exports.upsertCatalogRecord(catalog, { namaproduk: "SURFLO NO 24\r\n", marker: "old" });
   module.exports.upsertCatalogRecord(catalog, { namaproduk: "  surflo   no 24  ", marker: "new" });

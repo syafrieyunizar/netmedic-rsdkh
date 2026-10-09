@@ -551,6 +551,15 @@ app-pengantar-opname-new #netmedic-rsdkh-opname-prescription {
   white-space: pre-line;
 }
 
+.erx-status small {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+  opacity: 0.82;
+}
+
 .erx-warning,
 .erx-review-note {
   color: var(--erx-warning);

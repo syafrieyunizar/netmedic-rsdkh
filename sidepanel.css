@@ -1279,6 +1279,27 @@ summary:focus-visible,
   animation: pulse 1s ease-in-out infinite;
 }
 
+.status[data-ai-progress="true"] {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  align-items: start;
+  gap: 2px var(--space-2);
+}
+
+.status[data-ai-progress="true"] .status-dot {
+  grid-row: 1 / 3;
+  margin-top: 4px;
+}
+
+.ai-progress-note {
+  grid-column: 2;
+  color: inherit;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.4;
+  opacity: 0.82;
+}
+
 .status[data-state="success"] {
   color: #154f38;
   background: var(--success-container);

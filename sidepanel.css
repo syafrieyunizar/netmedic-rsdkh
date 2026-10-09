@@ -51,6 +51,7 @@
   --warning-container: #fff5c2;
   --warning-outline: #d9c96c;
   --info-container: #dae2ff;
+  --success: #217a56;
   --success-container: #d5f6e6;
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -1284,7 +1285,7 @@ summary:focus-visible,
 }
 
 .status[data-state="success"] .status-dot {
-  background: #217a56;
+  background: var(--success);
 }
 
 .status[data-state="warning"] {
@@ -1303,6 +1304,36 @@ summary:focus-visible,
 
 .status[data-state="error"] .status-dot {
   background: var(--error);
+}
+
+.sidepanel-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 52px;
+  z-index: 1200;
+  width: min(420px, calc(100vw - 32px));
+  padding: var(--space-3) var(--space-4);
+  color: var(--on-primary);
+  background: #217a56;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dialog);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.45;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 12px);
+  transition: opacity var(--motion), transform var(--motion);
+}
+
+.sidepanel-toast[data-state="error"] {
+  background: var(--error);
+}
+
+.sidepanel-toast.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .actions {

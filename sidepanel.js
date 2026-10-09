@@ -128,6 +128,7 @@ let patientSyncTimer;
 let patientMemoryReady = false;
 let shiftState = SHIFT.normalizeState({});
 let pendingSoapTarget = null;
+let floatingNoticeTimer;
 
 function patientMemoryKey(profile) {
   return SHIFT.patientKey(profile);
@@ -659,6 +660,25 @@ function setStatus(element, state, message) {
   const text = element.querySelector(".status-text");
   if (text) text.textContent = message;
   else element.textContent = message;
+  if (state === "success" || state === "error") showFloatingNotice(message, state);
+}
+
+function showFloatingNotice(message, state) {
+  let toast = document.getElementById("sidepanelToast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "sidepanelToast";
+    toast.className = "sidepanel-toast";
+    document.body.append(toast);
+  }
+  clearTimeout(floatingNoticeTimer);
+  toast.dataset.state = state;
+  toast.setAttribute("role", state === "error" ? "alert" : "status");
+  toast.setAttribute("aria-live", state === "error" ? "assertive" : "polite");
+  toast.textContent = `${state === "error" ? "Gagal" : "Berhasil"}: ${message}`;
+  toast.classList.remove("is-visible");
+  requestAnimationFrame(() => toast.classList.add("is-visible"));
+  floatingNoticeTimer = setTimeout(() => toast.classList.remove("is-visible"), 5000);
 }
 
 function setErmIdentityButtonState(state, message) {

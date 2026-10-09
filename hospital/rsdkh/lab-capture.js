@@ -181,7 +181,9 @@
     }
     clearTimeout(toastTimer);
     toast.dataset.state = state;
-    toast.textContent = message;
+    toast.setAttribute("role", state === "error" ? "alert" : "status");
+    toast.setAttribute("aria-live", state === "error" ? "assertive" : "polite");
+    toast.textContent = `${state === "error" ? "Gagal" : "Berhasil"}: ${message}`;
     toast.hidden = false;
     toastTimer = setTimeout(() => { toast.hidden = true; }, 3500);
   }

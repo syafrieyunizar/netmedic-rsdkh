@@ -33,14 +33,15 @@
 
 #netmedic-rsdkh-lab-capture-toast {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
+  right: 20px;
+  top: 20px;
   z-index: 2147483647;
   max-width: min(360px, calc(100vw - 32px));
   padding: 11px 14px;
   color: #fff;
-  background: #26332f;
-  border-radius: 6px;
+  background: #217a56;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
   box-shadow: 0 8px 24px rgba(21, 31, 28, 0.24);
   font: 600 13px/1.4 "Nimbus Sans RSDKH", Arial, sans-serif;
 }

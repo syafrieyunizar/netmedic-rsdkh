@@ -239,21 +239,25 @@
 }
 
 .netmedic-rsdkh-soap-toast {
-  background: #d5f6e6;
-  border: 1px solid #6bbf95;
+  background: #217a56;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 12px;
-  bottom: 24px;
   box-shadow: 0 8px 28px rgba(26, 26, 26, 0.18);
-  color: #123c2a;
+  color: #fff;
   font: 600 14px/1.5 "Nimbus Sans RSDKH", Arial, sans-serif;
   max-width: min(420px, calc(100vw - 32px));
   opacity: 0;
   padding: 14px 18px;
   position: fixed;
-  right: 24px;
-  transform: translateY(12px);
+  right: 20px;
+  top: 20px;
+  transform: translateY(-12px);
   transition: opacity 200ms ease, transform 200ms ease;
   z-index: 2147483600;
+}
+
+.netmedic-rsdkh-soap-toast[data-state="error"] {
+  background: #ba1a1a;
 }
 
 .netmedic-rsdkh-soap-toast.is-visible {

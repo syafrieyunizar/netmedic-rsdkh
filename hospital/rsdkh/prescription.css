@@ -780,17 +780,17 @@ textarea:disabled {
   position: fixed;
   z-index: 2147483647;
   right: 20px;
-  bottom: 20px;
+  top: 20px;
   max-width: min(420px, calc(100vw - 40px));
   padding: 12px 16px;
-  color: #155c43;
-  background: #d5f6e6;
-  border: 1px solid #237a57;
+  color: #fff;
+  background: #217a56;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(26, 26, 26, 0.18);
   font: 600 13px/1.5 "Nimbus Sans RSDKH", Arial, sans-serif;
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateY(-8px);
   transition: opacity 200ms ease, transform 200ms ease;
 }
 
@@ -798,13 +798,21 @@ textarea:disabled {
   min-width: 0;
 }
 
+.netmedic-rsdkh-erx-toast[data-state="error"] {
+  background: #ba1a1a;
+}
+
+.netmedic-rsdkh-erx-toast[data-state="info"] {
+  background: #273657;
+}
+
 .netmedic-rsdkh-erx-toast button {
   flex: 0 0 auto;
   min-height: 32px;
   padding: 0 10px;
-  color: #155c43;
-  background: transparent;
-  border: 1px solid #237a57;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: 6px;
   font: inherit;
 }

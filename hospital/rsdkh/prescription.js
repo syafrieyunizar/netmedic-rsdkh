@@ -34,6 +34,7 @@
   let productCatalogPromise;
   let productAliases = [];
   let productAliasesPromise;
+  let toastTimer;
 
   const normalize = (value) => String(value || "").trim().replace(/\s+/g, " ");
   const searchable = (value) => normalize(value).toLowerCase().replace(/[^a-z0-9%.,]+/g, " ");
@@ -1404,7 +1405,7 @@
     setRunning(true);
     setStatus("loading", `Memasukkan 0 dari ${entries.length} item.`);
     if (ui.dialog.open) ui.dialog.close();
-    showToast(`Mulai memasukkan ${entries.length} item. Jangan berpindah halaman.`);
+    showToast(`Mulai memasukkan ${entries.length} item. Jangan berpindah halaman.`, null, "info");
     let completed = 0;
     const failures = [];
     const learnedAliasCandidates = [];
@@ -1457,7 +1458,7 @@
           block: "center",
           behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
         }));
-        showToast(`Proses selesai: ${completed} berhasil, ${failures.length} gagal.${learnedMessage} Periksa laporan pada modal.`, undoAction);
+        showToast(`Proses selesai: ${completed} berhasil, ${failures.length} gagal.${learnedMessage} Periksa laporan pada modal.`, undoAction, "error");
       } else {
         setStatus("success", formatInsertionReport(completed, failures));
         showToast(`${completed} item e-Resep berhasil dimasukkan.${learnedMessage} Periksa kembali sebelum melanjutkan.`, undoAction);
@@ -1465,18 +1466,26 @@
     } catch (error) {
       setStatus("error", `Proses batch terganggu: ${error.message || "Terjadi kesalahan tak terduga."}`);
       if (!ui.dialog.open) ui.dialog.showModal();
-      showToast("Proses batch terganggu. Periksa laporan pada modal.");
+      showToast("Proses batch terganggu. Periksa laporan pada modal.", null, "error");
     } finally {
       setRunning(false);
     }
   }
 
-  function showToast(message, action = null) {
-    const toast = document.createElement("div");
-    toast.className = "netmedic-rsdkh-erx-toast";
-    toast.setAttribute("role", "status");
+  function showToast(message, action = null, state = "success") {
+    let toast = document.querySelector(".netmedic-rsdkh-erx-toast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.className = "netmedic-rsdkh-erx-toast";
+      document.body.append(toast);
+    }
+    clearTimeout(toastTimer);
+    toast.replaceChildren();
+    toast.dataset.state = state;
+    toast.setAttribute("role", state === "error" ? "alert" : "status");
+    toast.setAttribute("aria-live", state === "error" ? "assertive" : "polite");
     const text = document.createElement("span");
-    text.textContent = message;
+    text.textContent = `${state === "error" ? "Gagal" : state === "success" ? "Berhasil" : "Info"}: ${message}`;
     toast.append(text);
     if (action) {
       const button = document.createElement("button");
@@ -1486,19 +1495,21 @@
         button.disabled = true;
         try {
           await action.run();
+          clearTimeout(toastTimer);
           toast.remove();
         } catch (error) {
           button.disabled = false;
-          text.textContent = error.message || "Alias gagal diurungkan.";
+          toast.dataset.state = "error";
+          toast.setAttribute("role", "alert");
+          text.textContent = `Gagal: ${error.message || "Alias gagal diurungkan."}`;
         }
       });
       toast.append(button);
     }
-    document.body.append(toast);
+    toast.classList.remove("is-visible");
     requestAnimationFrame(() => toast.classList.add("is-visible"));
-    setTimeout(() => {
+    toastTimer = setTimeout(() => {
       toast.classList.remove("is-visible");
-      setTimeout(() => toast.remove(), 220);
     }, 6000);
   }
 
@@ -1669,7 +1680,7 @@
     if (running || button.disabled) return;
     const source = opnameTherapy(opnameEditor());
     if (!source) {
-      showToast("Rencana Terapi pada Pengantar Opname masih kosong.");
+      showToast("Rencana Terapi pada Pengantar Opname masih kosong.", null, "error");
       return;
     }
     button.disabled = true;
@@ -1677,7 +1688,7 @@
     try {
       await openPrescriptionWithSource(source, "inpatient", "Rencana Terapi berhasil dimuat. Pilih depo untuk melanjutkan Generate.");
     } catch (error) {
-      showToast(error.message || "Buat Resep gagal dijalankan.");
+      showToast(error.message || "Buat Resep gagal dijalankan.", null, "error");
     } finally {
       if (button.isConnected) {
         button.disabled = false;
@@ -1711,7 +1722,7 @@
     if (running || button.disabled) return;
     const source = visibleIgdInstructions();
     if (!source) {
-      showToast("Instruksi Dokter masih kosong.");
+      showToast("Instruksi Dokter masih kosong.", null, "error");
       return;
     }
     cacheVisibleIgdInstructions();
@@ -1720,7 +1731,7 @@
     try {
       await openPrescriptionWithSource(source, "emergency_inpatient", "Seluruh Instruksi Dokter berhasil dimuat. Pilih depo untuk melanjutkan Generate.");
     } catch (error) {
-      showToast(error.message || "Resep dari Instruksi Dokter gagal disiapkan.");
+      showToast(error.message || "Resep dari Instruksi Dokter gagal disiapkan.", null, "error");
     } finally {
       if (button.isConnected) {
         button.disabled = false;

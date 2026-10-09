@@ -70,6 +70,7 @@
   let lastAssessmentReport = "";
   let lastPatientReport = "";
   let patientReportTimer;
+  let toastTimer;
 
   const normalize = (value) => String(value || "").trim().replace(/\s+/g, " ");
   const isVisible = (element) => Boolean(element && element.getClientRects().length && getComputedStyle(element).visibility !== "hidden");
@@ -474,7 +475,7 @@
     }
     const field = panel && await waitFor(() => fieldByLabel("Diagnosa Tindakan", panel), "Kolom Diagnosa Tindakan belum tersedia.", 3000).catch(() => null);
     if (!field) {
-      showToast("Kolom Diagnosa Tindakan belum tersedia.");
+      showToast("Kolom Diagnosa Tindakan belum tersedia.", "error");
       return;
     }
     createIcd9Ui();
@@ -714,17 +715,23 @@
     });
   }
 
-  function showToast(message) {
-    const toast = document.createElement("div");
-    toast.className = "netmedic-rsdkh-soap-toast";
-    toast.setAttribute("role", "status");
-    toast.textContent = message;
-    document.body.append(toast);
+  function showToast(message, state = "success") {
+    let toast = document.querySelector(".netmedic-rsdkh-soap-toast");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.className = "netmedic-rsdkh-soap-toast";
+      document.body.append(toast);
+    }
+    clearTimeout(toastTimer);
+    toast.dataset.state = state;
+    toast.setAttribute("role", state === "error" ? "alert" : "status");
+    toast.setAttribute("aria-live", state === "error" ? "assertive" : "polite");
+    toast.textContent = `${state === "error" ? "Gagal" : "Berhasil"}: ${message}`;
+    toast.classList.remove("is-visible");
     requestAnimationFrame(() => toast.classList.add("is-visible"));
-    setTimeout(() => {
+    toastTimer = setTimeout(() => {
       toast.classList.remove("is-visible");
-      setTimeout(() => toast.remove(), 220);
-    }, 6000);
+    }, 5000);
   }
 
   function reportSoapInputProgress(message) {
@@ -810,12 +817,12 @@
     if (resumeRunning || running) return;
     const fields = resumeFields();
     if (!fields || Object.values(fields).some((field) => !field)) {
-      showToast("Kolom penunjang atau terapi pada Resume Medis tidak ditemukan.");
+      showToast("Kolom penunjang atau terapi pada Resume Medis tidak ditemukan.", "error");
       return;
     }
     const source = Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, field.value.trim()]));
     if (!Object.values(source).some(Boolean)) {
-      showToast("Laboratorium, radiologi, dan terapi masih kosong.");
+      showToast("Laboratorium, radiologi, dan terapi masih kosong.", "error");
       return;
     }
 
@@ -850,7 +857,7 @@
       showToast("Laboratorium, radiologi, dan terapi sudah dirapikan. Tinjau hasil sebelum menyimpan Resume Medis.");
     } catch (error) {
       setResumeProgress(button, 0, "Gagal merapikan");
-      showToast(error.message || "AI gagal merapikan Resume Medis.");
+      showToast(error.message || "AI gagal merapikan Resume Medis.", "error");
     } finally {
       clearInterval(timer);
       await sleep(completed ? 700 : 1200);
@@ -943,7 +950,7 @@
     } catch (error) {
       if (ui) setStep(Math.max(currentStep, 0), "error");
       const detail = importErrorMessage(error);
-      showToast(`Input SOAP berhenti: ${detail}`);
+      showToast(`Input SOAP berhenti: ${detail}`, "error");
       throw new Error(detail);
     } finally {
       running = false;
@@ -997,6 +1004,7 @@
       setStep(Math.max(currentStep, 0), "error");
       ui.error.hidden = false;
       ui.error.textContent = importErrorMessage(error);
+      showToast(ui.error.textContent, "error");
       ui.cancel.disabled = false;
       ui.cancel.textContent = "Tutup";
       if (!ui.dialog.open) ui.dialog.showModal();

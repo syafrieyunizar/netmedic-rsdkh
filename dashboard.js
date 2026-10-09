@@ -69,11 +69,23 @@ async function editPatientBed(patient) {
   }
 }
 
-async function updatePatientStatus(patient, status) {
+async function updatePatientTask(patient, taskKey, active) {
   try {
     shiftState = await extensionAction("rsdkh:shift-update-patient", {
       patientKey: SHIFT.patientKey(patient),
-      patch: { status }
+      patch: { tasks: { ...patient.tasks, [taskKey]: active } }
+    });
+    render();
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+async function togglePatientCompleted(patient) {
+  try {
+    shiftState = await extensionAction("rsdkh:shift-update-patient", {
+      patientKey: SHIFT.patientKey(patient),
+      patch: { completed: !patient.completed }
     });
     render();
   } catch (error) {
@@ -84,7 +96,7 @@ async function updatePatientStatus(patient, status) {
 function createPatientRow(patient) {
   const row = document.createElement("div");
   row.className = "patient-row";
-  row.dataset.status = patient.status;
+  row.dataset.completed = String(patient.completed);
 
   const patientCell = document.createElement("div");
   patientCell.className = "patient-open";
@@ -128,38 +140,42 @@ function createPatientRow(patient) {
 
   const actions = document.createElement("div");
   actions.className = "patient-actions";
-  const assessmentComplete = patient.assessmentState === "complete";
-  const assessment = document.createElement("div");
-  assessment.className = "assessment-state";
-  assessment.dataset.state = assessmentComplete ? "complete" : "empty";
-  assessment.setAttribute("role", "status");
-  assessment.setAttribute("aria-label", assessmentComplete ? "Pengkajian IGD terisi" : "Pengkajian IGD belum terisi");
-  assessment.title = patient.assessmentState === "unknown"
-    ? "Pengkajian IGD belum terkonfirmasi dari halaman eRM."
-    : assessmentComplete ? "Pengkajian IGD sudah terisi." : "Pengkajian IGD masih kosong.";
-  assessment.innerHTML = assessmentComplete
-    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>Pengkajian IGD</span>'
-    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg><span>Pengkajian IGD</span>';
-  const status = document.createElement("select");
-  status.setAttribute("aria-label", `Status ${patient.name}`);
-  SHIFT.STATUS_OPTIONS.forEach(({ value, label }) => {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = label;
-    option.selected = patient.status === value;
-    status.append(option);
+  SHIFT.PATIENT_TASKS.forEach(({ key, label }) => {
+    const task = document.createElement("button");
+    const active = patient.tasks[key] === true;
+    task.className = "patient-task-toggle";
+    task.type = "button";
+    task.setAttribute("aria-pressed", String(active));
+    task.setAttribute("aria-label", `${active ? "Nonaktifkan" : "Aktifkan"} ${label} untuk ${patient.name}`);
+    task.title = `${active ? "Nonaktifkan" : "Aktifkan"} ${label}`;
+    task.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
+    const text = document.createElement("span");
+    text.textContent = label;
+    task.append(text);
+    task.addEventListener("click", () => updatePatientTask(patient, key, !active));
+    actions.append(task);
   });
-  status.addEventListener("change", () => updatePatientStatus(patient, status.value));
-  actions.append(assessment, status);
-  row.append(patientCell, actions);
+
+  const completion = document.createElement("div");
+  completion.className = "patient-completion";
+  const completeButton = document.createElement("button");
+  completeButton.className = "patient-complete";
+  completeButton.type = "button";
+  completeButton.setAttribute("aria-pressed", String(patient.completed));
+  completeButton.setAttribute("aria-label", patient.completed ? "Kembalikan pasien ke aktif" : "Tandai pasien selesai");
+  completeButton.title = patient.completed ? "Kembalikan pasien ke aktif" : "Tandai pasien selesai";
+  completeButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
+  completeButton.addEventListener("click", () => togglePatientCompleted(patient));
+  completion.append(completeButton);
+  row.append(patientCell, actions, completion);
   return row;
 }
 
 function renderPatientList() {
   const activeShift = SHIFT.getActiveShift(shiftState);
   const patients = SHIFT.sortPatients(activeShift?.patients).filter(patientMatchesSearch);
-  const unfinished = patients.filter((patient) => !SHIFT.FINAL_STATUSES.has(patient.status));
-  const completed = patients.filter((patient) => SHIFT.FINAL_STATUSES.has(patient.status));
+  const unfinished = patients.filter((patient) => !patient.completed);
+  const completed = patients.filter((patient) => patient.completed);
   const activeList = $("#activePatientList");
   const completedList = $("#completedPatientList");
   activeList.replaceChildren(...unfinished.map(createPatientRow));
@@ -179,7 +195,8 @@ function historyPatientRow(patient) {
   const name = document.createElement("span");
   name.textContent = patient.name;
   const status = document.createElement("span");
-  status.textContent = SHIFT.patientStatusLabel(patient.status);
+  const completedTasks = SHIFT.PATIENT_TASKS.filter(({ key }) => patient.tasks[key]).length;
+  status.textContent = `${completedTasks}/${SHIFT.PATIENT_TASKS.length} langkah${patient.completed ? " · Selesai" : ""}`;
   row.append(bed, name, status);
   return row;
 }

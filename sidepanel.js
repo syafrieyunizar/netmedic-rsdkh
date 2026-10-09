@@ -202,7 +202,6 @@ async function registerActivePatientToShift(profile = activePatientProfile) {
       gender: profile.gender,
       age: profile.age,
       bed: memory.bed || "",
-      assessmentState: profile.assessmentState,
       tabId: profile.tabId,
       ermUrl: profile.ermUrl
     }
@@ -215,8 +214,6 @@ async function updateActiveShiftPatient(patch, profile = activePatientProfile) {
   const active = SHIFT.getActiveShift(shiftState);
   const patient = active?.patients?.[key];
   if (!key || !active || !patient) return;
-  if (patch.status && SHIFT.FINAL_STATUSES.has(patient.status)) return;
-  if (patch.status === "soap_ready" && patient.status !== "baru") return;
   shiftState = await shiftAction("rsdkh:shift-update-patient", { patientKey: key, patch });
   syncShiftUi();
 }
@@ -2105,7 +2102,6 @@ async function generateSoap() {
     $("#chronologyEffect").value = result.chronology_effect;
     await chrome.storage.local.set({ [SOAP_DRAFT_KEY]: soapDraft() });
     await saveEpisodeResult("soap");
-    await updateActiveShiftPatient({ status: "soap_ready" }).catch(() => {});
     const totalSeconds = progress.stop();
     const completionMessage = `Hasil siap ditinjau dan diedit. Selesai dalam ${totalSeconds}s.`;
     setStatus(status, "success", completionMessage);
@@ -2375,7 +2371,6 @@ async function inputSoapFromResult(patientStatus, targetPatient) {
       return;
     }
     if (!response?.ok) throw new Error(response?.error || "Input SOAP ke eRM gagal.");
-    await updateActiveShiftPatient({ status: "soap_input" }, targetPatient).catch(() => {});
     setStatus(status, "success", "Diagnosis tersimpan. Tinjau S, O, dan P lalu simpan Pengkajian Dokter IGD melalui eRM.");
   } catch (error) {
     const disconnected = /receiving end does not exist|could not establish connection/i.test(error?.message || "");

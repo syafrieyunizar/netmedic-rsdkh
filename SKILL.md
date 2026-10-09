@@ -120,6 +120,13 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 - Retain history for at most 60 days from its last update and provide a confirmed 30x30px destructive trash action per episode.
 - Copy success must be visible and announced without layout shift.
 
+### Duty Shift Dashboard
+
+- Keep each patient's workflow checklist manual-only; eRM observation and AI generation must never activate an item.
+- Render the workflow toggles in the approved order from `Ketikan WA` through `Resep Ranap` and persist them per encounter.
+- Do not restore the legacy operational-status dropdown or automatic Pengkajian IGD indicator.
+- Use one round green check action at the far right to mark a patient complete, with an accessible `Tandai pasien selesai` tooltip and a reversible completed state.
+
 ## Interaction States
 
 Every interactive component must define:

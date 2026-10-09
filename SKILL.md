@@ -124,8 +124,10 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 
 - Keep each patient's workflow checklist manual-only; eRM observation and AI generation must never activate an item.
 - Render the workflow toggles in the approved order from `Ketikan WA` through `Resep Ranap` and persist them per encounter.
+- Allow one optional user-named `Lain-lain` toggle per encounter and keep the workflow controls at a compact 31px visual height.
 - Do not restore the legacy operational-status dropdown or automatic Pengkajian IGD indicator.
-- Use one round green check action at the far right to mark a patient complete, with an accessible `Tandai pasien selesai` tooltip and a reversible completed state.
+- Pair the round completion action with a per-encounter `Rencana?` selector for rawat inap or rawat jalan.
+- Use a green check to complete a patient and a red X to return a completed patient to active status; announce both actions in a top-right toast.
 
 ## Interaction States
 

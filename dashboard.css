@@ -180,7 +180,7 @@ h2 { font-size: 16px; line-height: 1.3; }
 
 .patient-row {
   display: grid;
-  grid-template-columns: minmax(250px, 0.8fr) minmax(430px, 1.7fr) 64px;
+  grid-template-columns: minmax(250px, 0.8fr) minmax(430px, 1.7fr) 148px;
   align-items: stretch;
   overflow: hidden;
   background: var(--surface-lowest);
@@ -228,17 +228,17 @@ h2 { font-size: 16px; line-height: 1.3; }
   align-content: center;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px 12px;
+  gap: 5px;
+  padding: 8px 10px;
   background: var(--surface-muted);
   border-left: 1px solid var(--outline);
 }
 .patient-task-toggle {
   display: inline-flex;
-  min-height: 44px;
+  min-height: 31px;
   align-items: center;
   gap: 5px;
-  padding: 5px 9px;
+  padding: 3px 8px;
   color: var(--muted);
   background: var(--surface-lowest);
   border: 1px solid var(--outline-strong);
@@ -262,12 +262,33 @@ h2 { font-size: 16px; line-height: 1.3; }
   stroke-width: 2.5;
 }
 .patient-task-toggle[aria-pressed="true"] svg { display: block; }
+.patient-custom-task { display: inline-flex; align-items: stretch; }
+.patient-custom-task .patient-task-toggle { border-radius: 6px 0 0 6px; }
+.patient-custom-edit {
+  display: grid;
+  width: 31px;
+  min-height: 31px;
+  place-items: center;
+  padding: 0;
+  color: var(--muted);
+  background: var(--surface-lowest);
+  border: 1px solid var(--outline-strong);
+  border-left: 0;
+  border-radius: 0 6px 6px 0;
+}
+.patient-custom-edit:hover { color: var(--primary); background: #f5faf8; }
+.patient-custom-edit svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+.patient-custom-add { border-style: dashed; }
 .patient-task-toggle:focus-visible,
+.patient-custom-edit:focus-visible,
 .patient-complete:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .patient-completion {
-  display: grid;
-  place-items: center;
-  padding: 10px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 10px;
   background: var(--surface-muted);
   border-left: 1px solid var(--outline);
 }
@@ -284,8 +305,13 @@ h2 { font-size: 16px; line-height: 1.3; }
   transition: background 200ms ease, opacity 200ms ease;
 }
 .patient-complete:hover { background: #155f42; }
+.patient-complete[aria-pressed="true"] { background: var(--red); border-color: var(--red); }
+.patient-complete[aria-pressed="true"]:hover { background: #941313; }
 .patient-complete:active { opacity: 0.72; }
 .patient-complete svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; }
+.patient-plan { display: grid; width: 100%; gap: 2px; color: var(--muted); font-size: 9.5px; font-weight: 700; }
+.patient-plan select { width: 100%; min-height: 31px; padding: 3px 24px 3px 6px; color: var(--text); background: var(--surface-lowest); border: 1px solid var(--outline-strong); border-radius: 6px; font-size: 10.5px; }
+.patient-plan select:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 .patient-row[data-completed="true"] { opacity: 0.82; }
 
 .history-section { display: grid; gap: 16px; padding-top: 24px; border-top: 1px solid var(--outline); }
@@ -324,8 +350,8 @@ h2 { font-size: 16px; line-height: 1.3; }
 
 .toast {
   position: fixed;
+  top: 24px;
   right: 24px;
-  bottom: 24px;
   z-index: 20;
   max-width: 360px;
   padding: 12px 16px;
@@ -346,7 +372,7 @@ h2 { font-size: 16px; line-height: 1.3; }
   .shift-toolbar { align-items: stretch; flex-direction: column; }
   .history-heading { align-items: flex-start; flex-direction: column; }
   .history-tools { width: 100%; align-items: flex-start; flex-direction: column; }
-  .patient-row { grid-template-columns: minmax(0, 1fr) 64px; }
+  .patient-row { grid-template-columns: minmax(0, 1fr) 138px; }
   .patient-open { grid-column: 1; grid-row: 1; }
   .patient-actions { grid-column: 1 / -1; grid-row: 2; border-top: 1px solid var(--outline); border-left: 0; }
   .patient-completion { grid-column: 2; grid-row: 1; border-left: 1px solid var(--outline); }

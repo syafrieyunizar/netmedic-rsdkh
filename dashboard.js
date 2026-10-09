@@ -81,13 +81,48 @@ async function updatePatientTask(patient, taskKey, active) {
   }
 }
 
+async function updateCustomTask(patient, customTask) {
+  try {
+    shiftState = await extensionAction("rsdkh:shift-update-patient", {
+      patientKey: SHIFT.patientKey(patient),
+      patch: { customTask }
+    });
+    render();
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
+function editCustomTask(patient) {
+  const value = window.prompt("Nama item Lain-lain (kosongkan untuk menghapus):", patient.customTask.label);
+  if (value === null) return;
+  const label = value.trim().replace(/\s+/g, " ").slice(0, 40);
+  updateCustomTask(patient, { label, active: label ? patient.customTask.active : false });
+}
+
+async function updatePatientPlan(patient, plan) {
+  try {
+    shiftState = await extensionAction("rsdkh:shift-update-patient", {
+      patientKey: SHIFT.patientKey(patient),
+      patch: { plan }
+    });
+    render();
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+}
+
 async function togglePatientCompleted(patient) {
+  const returningToActive = patient.completed;
   try {
     shiftState = await extensionAction("rsdkh:shift-update-patient", {
       patientKey: SHIFT.patientKey(patient),
       patch: { completed: !patient.completed }
     });
     render();
+    showToast(returningToActive
+      ? `${patient.name} dikembalikan menjadi pasien aktif.`
+      : `${patient.name} telah selesai.`);
   } catch (error) {
     showToast(error.message, "error");
   }
@@ -156,6 +191,43 @@ function createPatientRow(patient) {
     actions.append(task);
   });
 
+  if (patient.customTask.label) {
+    const customGroup = document.createElement("div");
+    customGroup.className = "patient-custom-task";
+    const customToggle = document.createElement("button");
+    customToggle.className = "patient-task-toggle";
+    customToggle.type = "button";
+    customToggle.setAttribute("aria-pressed", String(patient.customTask.active));
+    customToggle.setAttribute("aria-label", `${patient.customTask.active ? "Nonaktifkan" : "Aktifkan"} ${patient.customTask.label} untuk ${patient.name}`);
+    customToggle.title = `${patient.customTask.active ? "Nonaktifkan" : "Aktifkan"} ${patient.customTask.label}`;
+    customToggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
+    const customText = document.createElement("span");
+    customText.textContent = patient.customTask.label;
+    customToggle.append(customText);
+    customToggle.addEventListener("click", () => updateCustomTask(patient, {
+      ...patient.customTask,
+      active: !patient.customTask.active
+    }));
+    const editButton = document.createElement("button");
+    editButton.className = "patient-custom-edit";
+    editButton.type = "button";
+    editButton.setAttribute("aria-label", `Ubah item Lain-lain untuk ${patient.name}`);
+    editButton.title = "Ubah Lain-lain";
+    editButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>';
+    editButton.addEventListener("click", () => editCustomTask(patient));
+    customGroup.append(customToggle, editButton);
+    actions.append(customGroup);
+  } else {
+    const addCustom = document.createElement("button");
+    addCustom.className = "patient-task-toggle patient-custom-add";
+    addCustom.type = "button";
+    addCustom.textContent = "+ Lain-lain";
+    addCustom.setAttribute("aria-label", `Tambah item Lain-lain untuk ${patient.name}`);
+    addCustom.title = "Tambah item Lain-lain";
+    addCustom.addEventListener("click", () => editCustomTask(patient));
+    actions.append(addCustom);
+  }
+
   const completion = document.createElement("div");
   completion.className = "patient-completion";
   const completeButton = document.createElement("button");
@@ -164,9 +236,27 @@ function createPatientRow(patient) {
   completeButton.setAttribute("aria-pressed", String(patient.completed));
   completeButton.setAttribute("aria-label", patient.completed ? "Kembalikan pasien ke aktif" : "Tandai pasien selesai");
   completeButton.title = patient.completed ? "Kembalikan pasien ke aktif" : "Tandai pasien selesai";
-  completeButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
+  completeButton.innerHTML = patient.completed
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
   completeButton.addEventListener("click", () => togglePatientCompleted(patient));
-  completion.append(completeButton);
+
+  const plan = document.createElement("label");
+  plan.className = "patient-plan";
+  const planLabel = document.createElement("span");
+  planLabel.textContent = "Rencana?";
+  const planSelect = document.createElement("select");
+  planSelect.setAttribute("aria-label", `Rencana pelayanan ${patient.name}`);
+  SHIFT.PATIENT_PLANS.forEach(({ value, label }) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    option.selected = patient.plan === value;
+    planSelect.append(option);
+  });
+  planSelect.addEventListener("change", () => updatePatientPlan(patient, planSelect.value));
+  plan.append(planLabel, planSelect);
+  completion.append(completeButton, plan);
   row.append(patientCell, actions, completion);
   return row;
 }
@@ -195,8 +285,12 @@ function historyPatientRow(patient) {
   const name = document.createElement("span");
   name.textContent = patient.name;
   const status = document.createElement("span");
-  const completedTasks = SHIFT.PATIENT_TASKS.filter(({ key }) => patient.tasks[key]).length;
-  status.textContent = `${completedTasks}/${SHIFT.PATIENT_TASKS.length} langkah${patient.completed ? " · Selesai" : ""}`;
+  const hasCustomTask = Boolean(patient.customTask.label);
+  const completedTasks = SHIFT.PATIENT_TASKS.filter(({ key }) => patient.tasks[key]).length
+    + Number(hasCustomTask && patient.customTask.active);
+  const totalTasks = SHIFT.PATIENT_TASKS.length + Number(hasCustomTask);
+  const planLabel = SHIFT.PATIENT_PLANS.find(({ value }) => value === patient.plan)?.label;
+  status.textContent = `${completedTasks}/${totalTasks} langkah${patient.completed ? " · Selesai" : ""}${patient.plan ? ` · ${planLabel}` : ""}`;
   row.append(bed, name, status);
   return row;
 }

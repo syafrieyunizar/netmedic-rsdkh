@@ -16,6 +16,11 @@
     { key: "resepPergantian", label: "Resep Pergantian" },
     { key: "resepRanap", label: "Resep Ranap" }
   ];
+  const PATIENT_PLANS = [
+    { value: "", label: "Pilih" },
+    { value: "rawat_inap", label: "Rawat inap" },
+    { value: "rawat_jalan", label: "Rawat jalan" }
+  ];
 
   const clean = (value) => String(value || "").trim().replace(/\s+/g, " ");
 
@@ -40,6 +45,16 @@
     return Object.fromEntries(PATIENT_TASKS.map(({ key }) => [key, source[key] === true]));
   }
 
+  function normalizeCustomTask(value) {
+    const label = clean(value?.label).slice(0, 40);
+    return { label, active: Boolean(label && value?.active === true) };
+  }
+
+  function normalizePatientPlan(value) {
+    const plan = clean(value);
+    return PATIENT_PLANS.some((option) => option.value === plan) ? plan : "";
+  }
+
   function normalizePatient(patient) {
     const medicalRecordNumber = clean(patient?.medicalRecordNumber);
     if (!medicalRecordNumber) return null;
@@ -52,6 +67,8 @@
       age: clean(patient.age),
       bed: clean(patient.bed),
       tasks: normalizePatientTasks(patient.tasks),
+      customTask: normalizeCustomTask(patient.customTask),
+      plan: normalizePatientPlan(patient.plan),
       completed: patient.completed === true,
       tabId: Number.isInteger(patient.tabId) ? patient.tabId : null,
       ermUrl: clean(patient.ermUrl),
@@ -140,9 +157,11 @@
   }
 
   function patientFieldsChanged(existing, incoming) {
-    return ["registrationNumber", "visitId", "name", "gender", "age", "bed", "tabId", "ermUrl", "completed"]
+    return ["registrationNumber", "visitId", "name", "gender", "age", "bed", "tabId", "ermUrl", "plan", "completed"]
       .some((field) => existing[field] !== incoming[field])
-      || PATIENT_TASKS.some(({ key }) => existing.tasks[key] !== incoming.tasks[key]);
+      || PATIENT_TASKS.some(({ key }) => existing.tasks[key] !== incoming.tasks[key])
+      || existing.customTask.label !== incoming.customTask.label
+      || existing.customTask.active !== incoming.customTask.active;
   }
 
   function upsertPatient(state, patient, now = new Date()) {
@@ -159,6 +178,8 @@
       ...existing,
       ...incoming,
       tasks: existing?.tasks || incoming.tasks,
+      customTask: existing?.customTask || incoming.customTask,
+      plan: existing ? existing.plan : incoming.plan,
       completed: existing?.completed ?? incoming.completed,
       arrivedAt: existing?.arrivedAt || timestamp
     };
@@ -205,9 +226,12 @@
     STORAGE_KEY,
     RETENTION_MS,
     PATIENT_TASKS,
+    PATIENT_PLANS,
     patientKey,
     localDateKey,
     normalizePatientTasks,
+    normalizeCustomTask,
+    normalizePatientPlan,
     normalizeState,
     getActiveShift,
     startShift,
@@ -235,8 +259,16 @@
       tasks: { ...getActiveShift(state).patients["051462:visit-a"].tasks, whatsapp: true }
     }, new Date(2026, 7, 25, 20, 0));
     assert.equal(getActiveShift(state).patients["051462:visit-a"].tasks.whatsapp, true);
+    state = updatePatient(state, "051462:visit-a", {
+      customTask: { label: "Observasi", active: true },
+      plan: "rawat_inap"
+    }, new Date(2026, 7, 25, 20, 2));
+    assert.deepEqual(getActiveShift(state).patients["051462:visit-a"].customTask, { label: "Observasi", active: true });
+    assert.equal(getActiveShift(state).patients["051462:visit-a"].plan, "rawat_inap");
     state = upsertPatient(state, { medicalRecordNumber: "051462", visitId: "visit-a", name: "SALIMUDDIN", bed: "6" }, started);
     assert.equal(getActiveShift(state).patients["051462:visit-a"].tasks.whatsapp, true);
+    assert.deepEqual(getActiveShift(state).patients["051462:visit-a"].customTask, { label: "Observasi", active: true });
+    assert.equal(getActiveShift(state).patients["051462:visit-a"].plan, "rawat_inap");
     state = updatePatient(state, "051462:visit-a", { completed: true }, new Date(2026, 7, 25, 20, 5));
     assert.equal(getActiveShift(state).patients["051462:visit-a"].completed, true);
     state = upsertPatient(state, { medicalRecordNumber: "051462", visitId: "visit-b", name: "SALIMUDDIN", bed: "9" }, started);

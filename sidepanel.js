@@ -16,6 +16,8 @@ const SUPERADMIN_WHATSAPP_URL = "https://wa.me/6282252996998";
 const WHATSAPP_SOAP_SETTINGS_KEY = "whatsappSoapSettings";
 const PATIENT_MEMORIES_KEY = "patientMemories";
 const HISTORY_RETENTION_MS = 60 * 24 * 60 * 60 * 1000;
+const SUPPORT_REMINDER_KEY = "supportReminderLastShownAt";
+const SUPPORT_REMINDER_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
 const MAX_CLINICAL_IMAGE_BYTES = 8 * 1024 * 1024;
 const CLINICAL_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const AI_WAIT_NOTE = "Proses AI dapat membutuhkan waktu 30-180 detik. Tetap biarkan panel terbuka.";
@@ -133,6 +135,28 @@ let patientMemoryReady = false;
 let shiftState = SHIFT.normalizeState({});
 let pendingSoapTarget = null;
 let floatingNoticeTimer;
+
+function supportReminderDue(lastShownAt, now = Date.now()) {
+  const timestamp = Number(lastShownAt);
+  return !Number.isFinite(timestamp) || timestamp <= 0 || now - timestamp >= SUPPORT_REMINDER_INTERVAL_MS;
+}
+
+function openSupportDialog() {
+  const dialog = $("#supportDialog");
+  if (!dialog.open) dialog.showModal();
+}
+
+function closeSupportDialog() {
+  const dialog = $("#supportDialog");
+  if (dialog.open) dialog.close();
+}
+
+async function openSupportReminderIfDue(lastShownAt, now = Date.now()) {
+  if (!supportReminderDue(lastShownAt, now)) return false;
+  openSupportDialog();
+  await chrome.storage.local.set({ [SUPPORT_REMINDER_KEY]: now });
+  return true;
+}
 
 function patientMemoryKey(profile) {
   return SHIFT.patientKey(profile);
@@ -3517,7 +3541,7 @@ async function deleteApiSettings() {
 }
 
 async function initialize() {
-  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, SHARED_PRODUCT_CATALOG_KEY, WHATSAPP_SOAP_SETTINGS_KEY, PATIENT_MEMORIES_KEY, SHIFT.STORAGE_KEY]);
+  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, SHARED_PRODUCT_CATALOG_KEY, WHATSAPP_SOAP_SETTINGS_KEY, PATIENT_MEMORIES_KEY, SHIFT.STORAGE_KEY, SUPPORT_REMINDER_KEY]);
   await loadProductAliasResources(saved[SHARED_PRODUCT_CATALOG_KEY]);
   productAliases = Array.isArray(saved[PRODUCT_ALIASES_KEY])
     ? dedupeProductAliases(saved[PRODUCT_ALIASES_KEY])
@@ -3566,6 +3590,7 @@ async function initialize() {
   }
   renderHistoryList();
   requestAnimationFrame(() => resizeTextareas());
+  await openSupportReminderIfDue(saved[SUPPORT_REMINDER_KEY]);
 }
 
 if (typeof document !== "undefined") {
@@ -3638,6 +3663,17 @@ if (typeof document !== "undefined") {
     field.addEventListener("input", () => resizeResultTextareas(field.closest(".result-panel")));
   });
   $("#openHistory").addEventListener("click", openHistoryDialog);
+  $("#openSupport").addEventListener("click", openSupportDialog);
+  $("#closeSupport").addEventListener("click", closeSupportDialog);
+  $("#contactSupport").addEventListener("click", closeSupportDialog);
+  $("#donateSupport").addEventListener("click", closeSupportDialog);
+  $("#supportDialog").addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeSupportDialog();
+  });
+  $("#supportDialog").addEventListener("click", (event) => {
+    if (event.target === $("#supportDialog")) closeSupportDialog();
+  });
   $("#closeHistory").addEventListener("click", closeHistoryDialog);
   $("#backToHistoryList").addEventListener("click", showHistoryList);
   $("#historyDialog").addEventListener("cancel", (event) => {
@@ -3845,7 +3881,8 @@ if (typeof module !== "undefined") {
     elapsedProcessSeconds,
     timedProgressStage,
     normalizeProductAlias,
-    dedupeProductAliases
+    dedupeProductAliases,
+    supportReminderDue
   };
   if (require.main === module) {
     const assert = require("node:assert/strict");
@@ -3927,6 +3964,9 @@ if (typeof module !== "undefined") {
       { id: "boundary", updatedAt: new Date(retentionNow - HISTORY_RETENTION_MS).toISOString() },
       { id: "recent", createdAt: new Date(retentionNow - (59 * 24 * 60 * 60 * 1000)).toISOString() }
     ], retentionNow).map(({ id }) => id), ["boundary", "recent"]);
+    assert.equal(supportReminderDue(undefined, retentionNow), true);
+    assert.equal(supportReminderDue(retentionNow - SUPPORT_REMINDER_INTERVAL_MS + 1, retentionNow), false);
+    assert.equal(supportReminderDue(retentionNow - SUPPORT_REMINDER_INTERVAL_MS, retentionNow), true);
     assert.throws(() => parseAiJson("bukan json"), /bukan JSON valid/);
     assert.match(buildMagicSoapPrompt({ identity: "Laki-laki 45 tahun", serviceMode: "rawat_jalan", subjektif: "Nyeri", objektif: "", assessment: "", planning: "" }), /RAWAT JALAN/);
     assert.match(buildKronologiPrompt({ skenario: "Jatuh", akibat: "Fraktur" }), /\[Akibat\]: Fraktur/);

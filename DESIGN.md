@@ -73,10 +73,12 @@ Manrope must be bundled locally so the extension works offline and complies with
 
 1. Sticky top app bar, 64px high.
 2. Product icon and title on the left.
-3. A noninteractive red/green API status dot plus compact history and settings icons on the right.
+3. A noninteractive red/green API status dot plus a compact `Support` action and history/settings icons on the right.
 4. Sticky segmented tabs with equal-width labels and a sliding active indicator immediately below the app bar.
 5. Scrollable content canvas with a maximum content width of 760px.
 6. Sticky 40px status bar at the bottom.
+
+`Support` opens a blocking support dialog with the maintainer message, a donation link, a green WhatsApp contact action, and a close action. The same dialog appears automatically on first use and then no more than once every 14 days using a local timestamp. Manual opening must not reset the automatic reminder schedule.
 
 Before a valid patient context is set, both feature tabs expose one shared identity gate as a manual fallback. On an active RSDKH eRM patient page, the side panel reads the local patient profile and keys its SOAP/Kronologi drafts by medical record number. The pastel-green patient bar shows only the patient name plus a compact editable `BED` control; the hidden form identity remains age and gender only, and that anonymous value is the only identity included in AI prompts. Saving a BED value updates the patient memory and forces the eRM browser-tab title to `<bed> <patient name>` until the patient or route changes.
 

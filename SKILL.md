@@ -49,6 +49,7 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 - Desktop drawer navigation from the reference must collapse into segmented tabs.
 - The content canvas must remain scrollable without horizontal overflow.
 - The bottom status bar must remain visible without covering content.
+- Place a compact `Support` action beside History. It opens the support dialog manually without changing the local 14-day automatic reminder timestamp.
 - Gate both tabs behind one shared anonymous identity form that requires age plus explicit gender or a recognized honorific such as `Tn.`/`Ny.`. Once confirmed, replace it with a sticky patient bar and a red change-patient action; never render a second identity field inside either tab.
 
 ### Cards
@@ -119,6 +120,12 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 - Open history from an app-bar icon as a right-side slide with identity list and combined episode details.
 - Retain history for at most 60 days from its last update and provide a confirmed 30x30px destructive trash action per episode.
 - Copy success must be visible and announced without layout shift.
+
+### Support Reminder
+
+- Show the support dialog automatically on first use and then at most once every 14 days, keyed only by a local timestamp.
+- The modal contains the approved maintainer message, a donation link, a green WhatsApp `Kontak` action, and `Tutup`.
+- Opening the modal manually from the header must not postpone the next automatic reminder.
 
 ### Duty Shift Dashboard
 

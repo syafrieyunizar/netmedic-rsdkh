@@ -250,6 +250,43 @@ h2 {
   height: 15px;
 }
 
+.support-button {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 3px 7px;
+  color: var(--primary);
+  background: var(--surface-lowest);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+  font-size: 9.9px;
+  font-weight: 600;
+  transition: color var(--motion), background-color var(--motion), border-color var(--motion);
+}
+
+.support-button:hover {
+  color: var(--primary-hover);
+  background: var(--surface-low);
+  border-color: var(--primary);
+}
+
+.support-button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.support-button svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
 main {
   flex: 1;
   min-height: 0;
@@ -1480,6 +1517,45 @@ dialog::backdrop {
   backdrop-filter: blur(2px);
 }
 
+.support-dialog {
+  width: min(440px, calc(100vw - 24px));
+}
+
+.support-shell {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.support-message {
+  display: grid;
+  gap: var(--space-3);
+  color: var(--on-surface-variant);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.support-signature {
+  color: var(--on-surface);
+  font-weight: 700;
+}
+
+.support-actions a {
+  text-decoration: none;
+}
+
+.support-contact {
+  color: var(--on-primary);
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.support-contact:hover {
+  color: var(--on-primary);
+  background: #176342;
+  border-color: #176342;
+}
+
 .result-dialog {
   position: fixed;
   inset: 0;
@@ -2539,6 +2615,19 @@ dialog::backdrop {
   main {
     padding-right: var(--space-3);
     padding-left: var(--space-3);
+  }
+
+  .support-button {
+    width: 28px;
+    padding: 0;
+  }
+
+  .support-button span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
   }
 
   .settings-header,

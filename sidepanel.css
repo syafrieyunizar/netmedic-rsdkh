@@ -257,9 +257,9 @@ h2 {
   justify-content: center;
   gap: 4px;
   padding: 3px 7px;
-  color: var(--primary);
-  background: var(--surface-lowest);
-  border: 1px solid var(--outline-variant);
+  color: var(--on-primary);
+  background: var(--primary);
+  border: 1px solid var(--primary);
   border-radius: var(--radius-sm);
   font-size: 9.9px;
   font-weight: 600;
@@ -267,9 +267,9 @@ h2 {
 }
 
 .support-button:hover {
-  color: var(--primary-hover);
-  background: var(--surface-low);
-  border-color: var(--primary);
+  color: var(--on-primary);
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 .support-button:focus-visible {

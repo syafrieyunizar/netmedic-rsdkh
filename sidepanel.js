@@ -3278,20 +3278,18 @@ function setSettingsBusy(active, message = "") {
 async function saveApiSettings(event) {
   event.preventDefault();
   const candidate = collectSettingsForm();
-  const status = $("#settingsStatus");
-  status.hidden = false;
+  $("#settingsStatus").hidden = true;
   const username = $("#adminUsername").value.trim();
   const password = $("#adminPassword").value;
   if (!adminUserSession && (!username || !password)) {
     const message = "Isi username dan password terlebih dahulu.";
     syncAdminPublicStatus(message, "error");
-    setStatus(status, "error", message);
+    showFloatingNotice(message, "error");
     return;
   }
   try {
     setSettingsBusy(true, "Mengaktifkan...");
     setAdminPublicStatus("loading", "Sedang mengaktifkan AI...");
-    setStatus(status, "loading", "Memeriksa akses AI...");
     const config = await fetchAdminPublicConfig();
     if (!config?.hasApiKey) {
       const error = new Error("AI sedang tidak tersedia. Silakan hubungi dr. M. Syafrie Yunizar.");
@@ -3316,11 +3314,11 @@ async function saveApiSettings(event) {
     syncAdminPublicStatus();
     syncAdminSessionUi();
     updateApiStatus();
-    setStatus(status, "success", "AI aktif.");
+    showFloatingNotice("AI aktif.", "success");
   } catch (error) {
     const message = error.userMessage || (error.code === "AI_UNAVAILABLE" ? error.message : adminAccessErrorMessage(error));
     syncAdminPublicStatus(message, "error");
-    setStatus(status, "error", message);
+    showFloatingNotice(message, "error");
   } finally {
     setSettingsBusy(false);
   }
@@ -3330,9 +3328,8 @@ async function logoutAdminUserFromSettings() {
   await logoutAdminAccess();
   syncAdminPublicStatus();
   syncAdminSessionUi();
-  const status = $("#settingsStatus");
-  status.hidden = false;
-  setStatus(status, "success", "AI dinonaktifkan.");
+  $("#settingsStatus").hidden = true;
+  showFloatingNotice("AI dinonaktifkan.", "success");
 }
 
 function collectOwnerConfig() {

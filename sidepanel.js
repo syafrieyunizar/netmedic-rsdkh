@@ -6,12 +6,15 @@ const APP_ID = "netmedic-rsdkh";
 const KNOWLEDGE_FUNCTION_URL = "https://yvcqgwpfjoxhuyhxuiry.supabase.co/functions/v1/knowledge-admin";
 const ADMIN_DEVICE_KEY = "magicSoap.adminAccessDeviceId";
 const ADMIN_SESSION_KEY = "magicSoap.adminUserSession";
+const ADMIN_LOGIN_REQUEST_KEY = "magicSoap.openAdminLoginAt";
 const SOAP_DRAFT_KEY = "magicSoapDraft";
 const KRONOLOGI_DRAFT_KEY = "kronologiDraft";
 const HISTORY_KEY = "patientHistory";
 const ACTIVE_PATIENT_KEY = "activePatientEpisode";
 const PRODUCT_ALIASES_KEY = "rsdkhProductAliases";
 const SHARED_PRODUCT_CATALOG_KEY = "rsdkhSharedProductCatalog";
+const SHARED_TOKEN_KEY = "rsdkhSharedToken";
+const SHARED_TOKEN_REFRESH_MS = 60 * 1000;
 const SUPERADMIN_WHATSAPP_URL = "https://wa.me/6282252996998";
 const WHATSAPP_SOAP_SETTINGS_KEY = "whatsappSoapSettings";
 const PATIENT_MEMORIES_KEY = "patientMemories";
@@ -60,7 +63,7 @@ const HELP_CONTENT = {
   }
 };
 const DEFAULT_SETTINGS = {
-  apiKeySource: "personal",
+  apiKeySource: "admin",
   provider: "gemini",
   apiKey: "",
   model: "gemini-2.0-flash",
@@ -135,6 +138,8 @@ let patientMemoryReady = false;
 let shiftState = SHIFT.normalizeState({});
 let pendingSoapTarget = null;
 let floatingNoticeTimer;
+let sharedTokenBalance = 0;
+let sharedTokenRefreshPromise = null;
 
 function supportReminderDue(lastShownAt, now = Date.now()) {
   const timestamp = Number(lastShownAt);
@@ -688,7 +693,7 @@ function setStatus(element, state, message) {
   if (state === "success" || state === "error") showFloatingNotice(message, state);
 }
 
-function showFloatingNotice(message, state) {
+function showFloatingNotice(message, state, actions = []) {
   let toast = document.getElementById("sidepanelToast");
   if (!toast) {
     toast = document.createElement("div");
@@ -700,10 +705,99 @@ function showFloatingNotice(message, state) {
   toast.dataset.state = state;
   toast.setAttribute("role", state === "error" ? "alert" : "status");
   toast.setAttribute("aria-live", state === "error" ? "assertive" : "polite");
-  toast.textContent = `${state === "error" ? "Gagal" : "Berhasil"}: ${message}`;
+  toast.replaceChildren();
+  const text = document.createElement("span");
+  text.className = "sidepanel-toast-message";
+  text.textContent = `${state === "error" ? "Gagal" : "Berhasil"}: ${message}`;
+  toast.append(text);
+  if (actions.length) {
+    const actionRow = document.createElement("div");
+    actionRow.className = "sidepanel-toast-actions";
+    actions.forEach(({ label, run }) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.addEventListener("click", () => {
+        clearTimeout(floatingNoticeTimer);
+        toast.classList.remove("is-visible");
+        run();
+      });
+      actionRow.append(button);
+    });
+    toast.append(actionRow);
+  }
   toast.classList.remove("is-visible");
   requestAnimationFrame(() => toast.classList.add("is-visible"));
   floatingNoticeTimer = setTimeout(() => toast.classList.remove("is-visible"), 5000);
+}
+
+function formatRupiah(value) {
+  const amount = Number(value);
+  const normalized = Number.isFinite(amount) ? Math.round(amount) : 0;
+  const digits = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Math.abs(normalized));
+  return normalized < 0 ? `-Rp${digits}` : `Rp${digits}`;
+}
+
+function formatInteger(value) {
+  return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(value) || 0);
+}
+
+function renderSharedToken(value = sharedTokenBalance) {
+  sharedTokenBalance = Number.isFinite(Number(value)) ? Number(value) : sharedTokenBalance;
+  const amount = $("#sharedTokenAmount");
+  if (amount) amount.textContent = formatRupiah(sharedTokenBalance);
+}
+
+async function cacheSharedToken(value) {
+  if (!Number.isFinite(Number(value))) return;
+  sharedTokenBalance = Number(value);
+  renderSharedToken();
+  await chrome.storage.local.set({ [SHARED_TOKEN_KEY]: { value: sharedTokenBalance, updatedAt: new Date().toISOString() } });
+}
+
+async function refreshSharedToken() {
+  if (sharedTokenRefreshPromise) return sharedTokenRefreshPromise;
+  sharedTokenRefreshPromise = knowledgeApi("rsdkh_shared_token_summary")
+    .then(async (data) => {
+      await cacheSharedToken(data.sharedToken);
+      return sharedTokenBalance;
+    })
+    .finally(() => {
+      sharedTokenRefreshPromise = null;
+    });
+  return sharedTokenRefreshPromise;
+}
+
+function safeAiErrorMessage(error) {
+  return String(error?.message || error || "Terjadi kesalahan saat memproses AI.")
+    .replace(/([?&](?:key|api_key|token)=)[^&\s]+/gi, "$1[disensor]")
+    .replace(/(?:Bearer\s+)[A-Za-z0-9._~-]+/gi, "Bearer [disensor]")
+    .trim();
+}
+
+async function copyAiErrorDetail(feature, message, elapsedSeconds) {
+  const version = globalThis.chrome?.runtime?.getManifest?.().version || "-";
+  const detail = [
+    `Netmedic RSDKH v${version}`,
+    `Fitur: ${feature}`,
+    `Durasi: ${elapsedSeconds}s`,
+    `Error: ${safeAiErrorMessage(message)}`
+  ].join("\n");
+  await navigator.clipboard.writeText(detail);
+  showFloatingNotice("Detail error disalin.", "success");
+}
+
+function showAiFailure(feature, error, elapsedSeconds, status) {
+  const message = safeAiErrorMessage(error);
+  setStatus(status, "error", `${message} Gagal setelah ${elapsedSeconds}s.`);
+  const actions = [{
+    label: "Salin detail",
+    run: () => copyAiErrorDetail(feature, message, elapsedSeconds).catch(() => {})
+  }];
+  if (/sesi|login|401|akses API admin/i.test(message)) {
+    actions.unshift({ label: "Login ulang", run: () => openSettingsDialog("connection") });
+  }
+  showFloatingNotice(`${message} Gagal setelah ${elapsedSeconds}s.`, "error", actions);
 }
 
 function setErmIdentityButtonState(state, message) {
@@ -1373,11 +1467,7 @@ async function callOpenAiCompatibleVision(config, image) {
 }
 
 async function callClinicalVision(image) {
-  if (settings.apiKeySource === "admin") return callAdminVision(image);
-  validateSettingsShape(settings);
-  await ensureCustomProviderPermission(settings);
-  if (settings.provider === "gemini") return callGeminiVision(settings, image);
-  return callOpenAiCompatibleVision(settings, image);
+  return callAdminVision(image);
 }
 
 function readClinicalImage(file) {
@@ -1441,9 +1531,10 @@ async function knowledgeApi(action, payload = {}) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.error) {
-    if (response.status === 401) throw new Error("Supabase menolak akses API admin.");
-    if (response.status === 524 || response.status === 546) throw new Error("API admin terlalu lama merespons. Coba ulangi.");
-    throw new Error(data.error || `API admin ${response.status}`);
+    const serverMessage = String(data.error || "").trim();
+    if (response.status === 401) throw new Error(serverMessage || "Sesi API admin ditolak. Login ulang.");
+    if (response.status === 524 || response.status === 546) throw new Error(serverMessage || "API admin terlalu lama merespons. Coba ulangi.");
+    throw new Error(serverMessage || `API admin ${response.status}`);
   }
   return data;
 }
@@ -1528,6 +1619,7 @@ async function callAdminAi(prompt, responseType) {
     feature: responseType === "soap" ? "magic_soap" : "kronologi_bpjs",
     user_session: session
   });
+  if (Number.isFinite(Number(data.sharedToken))) await cacheSharedToken(data.sharedToken);
   if (!String(data.text || "").trim()) throw new Error("Respons AI admin kosong.");
   return parseAiJson(data.text);
 }
@@ -1545,17 +1637,13 @@ async function callAdminVision(image) {
     image: { mime_type: image.mimeType, data_base64: image.base64 },
     user_session: session
   });
+  if (Number.isFinite(Number(data.sharedToken))) await cacheSharedToken(data.sharedToken);
   if (!String(data.text || "").trim()) throw new Error("Respons vision AI admin kosong.");
   return String(data.text).trim();
 }
 
 async function callAi(prompt, responseType) {
-  if (settings.apiKeySource === "admin") return callAdminAi(prompt, responseType);
-  if (!settings.apiKey) throw new Error("API key belum diatur. Buka pengaturan terlebih dahulu.");
-  if (!settings.model) throw new Error("Model belum diatur.");
-  validateSettingsShape(settings);
-  if (settings.provider === "gemini") return callGemini(settings, prompt, false, RESPONSE_SCHEMAS[responseType]);
-  return callOpenAiCompatible(settings, prompt);
+  return callAdminAi(prompt, responseType);
 }
 
 function soapDraft() {
@@ -2132,8 +2220,7 @@ async function generateSoap() {
     openResultView("soap", button, completionMessage);
   } catch (error) {
     const totalSeconds = progress.stop();
-    setStatus(status, "error", `Error: ${error.message} Gagal setelah ${totalSeconds}s.`);
-    if (settings.apiKeySource === "admin" || !settings.apiKey) openSettingsDialog("connection");
+    showAiFailure("Input SOAP", error, totalSeconds, status);
   } finally {
     progress.stop();
     setGenerating(button, false);
@@ -2169,8 +2256,7 @@ async function generateKronologi() {
     openResultView("kronologi", button, completionMessage);
   } catch (error) {
     const totalSeconds = progress.stop();
-    setStatus(status, "error", `Error: ${error.message} Gagal setelah ${totalSeconds}s.`);
-    if (settings.apiKeySource === "admin" || !settings.apiKey) openSettingsDialog("connection");
+    showAiFailure("Kronologi", error, totalSeconds, status);
   } finally {
     progress.stop();
     setGenerating(button, false);
@@ -2921,6 +3007,7 @@ function normalizeStoredSettings(stored = {}) {
     return {
       ...DEFAULT_SETTINGS,
       ...stored,
+      apiKeySource: "admin",
       provider: "custom",
       customProviderLabel: "OpenAI",
       customBaseUrl: "https://api.openai.com/v1/chat/completions",
@@ -2928,37 +3015,25 @@ function normalizeStoredSettings(stored = {}) {
       validatedAt: ""
     };
   }
-  return { ...DEFAULT_SETTINGS, ...stored };
+  return { ...DEFAULT_SETTINGS, ...stored, apiKeySource: "admin" };
 }
 
 function updateApiStatus() {
-  const useAdmin = settings.apiKeySource === "admin";
-  const personalReady = Boolean(settings.apiKey && settings.model);
   const adminReady = Boolean(adminPublicConfig?.hasApiKey && adminUserSession);
-  const ready = useAdmin ? adminReady : personalReady;
-  const state = !ready ? "empty" : useAdmin || settings.validated ? "success" : "warning";
-  const label = useAdmin ? (adminPublicConfig?.providerLabel || adminPublicConfig?.provider || "Admin") : getProviderLabel(settings);
-  const message = useAdmin
-    ? adminReady
-      ? `${label} admin aktif`
-      : adminPublicConfig?.hasApiKey
-        ? "API admin tersedia, login diperlukan"
-        : "API admin belum tersedia"
-    : !personalReady
-      ? "API pribadi belum diatur"
-      : settings.validated
-        ? `${label} aktif`
-        : `${label} tersimpan, belum divalidasi`;
-  const connection = $("#apiConnection");
-  connection.dataset.state = ready ? "success" : "empty";
-  $("#apiConnectionText").textContent = message;
+  const state = adminReady ? "success" : "empty";
+  const label = adminPublicConfig?.providerLabel || adminPublicConfig?.provider || "Admin";
+  const message = adminReady
+    ? `${label} admin aktif`
+    : adminPublicConfig?.hasApiKey
+      ? "API admin tersedia, login diperlukan"
+      : "API admin belum tersedia";
   $("#activeApiKeyStatus").dataset.state = state;
-  $("#activeApiKeyText").textContent = ready
-    ? `${message} · ${useAdmin ? adminPublicConfig?.model || "" : settings.model}`
+  $("#activeApiKeyText").textContent = adminReady
+    ? `${message} · ${adminPublicConfig?.model || ""}`
     : message;
   $("#settingsApiSummary").textContent = message;
-  $("#deleteApiKey").hidden = useAdmin;
-  $("#deleteApiKey").disabled = useAdmin || !personalReady;
+  $("#deleteApiKey").hidden = false;
+  $("#deleteApiKey").disabled = true;
 }
 
 function updateSettingsSummaries() {
@@ -2974,15 +3049,17 @@ function updateSettingsSummaries() {
       ? "Panel admin aktif"
       : adminUserSession
         ? `API admin digunakan oleh ${adminUserSession.username}`
-        : "Kelola API server dan pengguna";
+        : "Kelola API, pengguna, katalog, dan token";
   }
 }
 
 function syncApiSourceFields() {
-  const useAdmin = $("#apiKeySource").value === "admin";
-  $("#personalApiFields").hidden = useAdmin;
-  $("#adminApiFields").hidden = !useAdmin;
-  $("#saveSettings").querySelector("span").textContent = useAdmin ? "Gunakan API admin" : "Simpan";
+  $("#apiKeySource").value = "admin";
+  $("#apiKeySource").disabled = true;
+  $("#personalApiFields").hidden = false;
+  $("#personalApiFields").querySelectorAll("input, select, button").forEach((field) => { field.disabled = true; });
+  $("#adminApiFields").hidden = false;
+  $("#saveSettings").querySelector("span").textContent = "Gunakan API admin";
   updateApiStatus();
 }
 
@@ -3061,7 +3138,7 @@ function syncProviderFields(resetModel = false) {
 }
 
 function fillSettingsForm() {
-  $("#apiKeySource").value = settings.apiKeySource;
+  $("#apiKeySource").value = "admin";
   $("#provider").value = settings.provider;
   $("#customProviderLabel").value = settings.customProviderLabel;
   $("#customBaseUrl").value = settings.customBaseUrl;
@@ -3139,7 +3216,7 @@ function syncApiKeyVisibility(visible) {
 
 function collectSettingsForm() {
   return {
-    apiKeySource: $("#apiKeySource").value,
+    apiKeySource: "admin",
     provider: $("#provider").value,
     apiKey: $("#apiKey").value.trim(),
     model: $("#model").value.trim(),
@@ -3153,10 +3230,10 @@ function collectSettingsForm() {
 function setSettingsBusy(active, message = "Simpan") {
   const button = $("#saveSettings");
   button.disabled = active;
-  button.querySelector("span").textContent = !active && message === "Simpan" && $("#apiKeySource").value === "admin"
+  button.querySelector("span").textContent = !active && message === "Simpan"
     ? "Gunakan API admin"
     : message;
-  $("#deleteApiKey").disabled = active || settings.apiKeySource === "admin" || !settings.apiKey;
+  $("#deleteApiKey").disabled = true;
   $("#settingsBack").disabled = active;
   $("#closeSettings").disabled = active;
 }
@@ -3164,52 +3241,30 @@ function setSettingsBusy(active, message = "Simpan") {
 async function saveApiSettings(event) {
   event.preventDefault();
   const candidate = collectSettingsForm();
-  const shouldValidate = $("#validateBeforeSave").checked;
   const status = $("#settingsStatus");
   status.hidden = false;
   try {
-    if (candidate.apiKeySource === "admin") {
-      setSettingsBusy(true, "Memeriksa...");
-      setStatus(status, "loading", "Memeriksa API admin dan sesi pengguna...");
-      const config = await fetchAdminPublicConfig();
-      if (!config?.hasApiKey) throw new Error("API key admin untuk Magic SOAP belum diset.");
-      let session = await validateStoredAdminSession();
-      if (!session && ($("#adminUsername").value.trim() || $("#adminPassword").value)) {
-        session = await loginAdminAccess($("#adminUsername").value, $("#adminPassword").value);
-      }
-      if (!session) throw new Error("Login API admin terlebih dahulu.");
-      candidate.validated = true;
-      candidate.validatedAt = new Date().toISOString();
-      await chrome.storage.local.set({ [SETTINGS_KEY]: candidate });
-      settings = candidate;
-      syncAdminPublicStatus();
-      syncAdminSessionUi();
-      updateApiStatus();
-      setStatus(status, "success", `API admin aktif sebagai ${session.username}.`);
-      setSettingsBusy(false, "Gunakan API admin");
-      return;
+    setSettingsBusy(true, "Memeriksa...");
+    setStatus(status, "loading", "Memeriksa API admin dan sesi pengguna...");
+    const config = await fetchAdminPublicConfig();
+    if (!config?.hasApiKey) throw new Error("API key admin untuk Magic SOAP belum diset.");
+    let session = await validateStoredAdminSession();
+    if (!session && ($("#adminUsername").value.trim() || $("#adminPassword").value)) {
+      session = await loginAdminAccess($("#adminUsername").value, $("#adminPassword").value);
     }
-
-    validateSettingsShape(candidate);
-    await ensureCustomProviderPermission(candidate);
-    if (shouldValidate) {
-      setSettingsBusy(true, "Memvalidasi...");
-      setStatus(status, "loading", `Memvalidasi ${getProviderLabel(candidate)}...`);
-      await validateApiSettings(candidate);
-      candidate.validated = true;
-      candidate.validatedAt = new Date().toISOString();
-    } else {
-      setSettingsBusy(true, "Menyimpan...");
-      setStatus(status, "loading", "Menyimpan API key pribadi...");
-    }
+    if (!session) throw new Error("Login API admin terlebih dahulu.");
+    candidate.validated = true;
+    candidate.validatedAt = new Date().toISOString();
     await chrome.storage.local.set({ [SETTINGS_KEY]: candidate });
     settings = candidate;
+    syncAdminPublicStatus();
+    syncAdminSessionUi();
     updateApiStatus();
-    setStatus(status, "success", candidate.validated ? `${getProviderLabel(candidate)} aktif.` : "API key tersimpan tanpa validasi.");
-    setSettingsBusy(false);
+    setStatus(status, "success", `API admin aktif sebagai ${session.username}.`);
   } catch (error) {
-    setSettingsBusy(false);
     setStatus(status, "error", `Validasi gagal: ${error.message} Pengaturan lama tetap digunakan.`);
+  } finally {
+    setSettingsBusy(false, "Gunakan API admin");
   }
 }
 
@@ -3258,6 +3313,83 @@ function collectOwnerAuth() {
   return { ...ownerAdminAuth };
 }
 
+function normalizeSharedTokenSummary(raw = {}) {
+  return {
+    inputChars: Number(raw.inputChars) || 0,
+    outputChars: Number(raw.outputChars) || 0,
+    callCount: Number(raw.callCount) || 0,
+    totalCost: Number(raw.totalCost) || 0,
+    totalPulse: Number(raw.totalPulse) || 0,
+    sharedToken: Number(raw.sharedToken) || 0,
+    activeFrom: String(raw.activeFrom || ""),
+    inputPricePerMillion: Number(raw.inputPricePerMillion) || 0,
+    outputPricePerMillion: Number(raw.outputPricePerMillion) || 0,
+    updatedAt: raw.updatedAt || null
+  };
+}
+
+function fillOwnerSharedToken(raw = {}) {
+  const summary = normalizeSharedTokenSummary(raw);
+  $("#ownerInputPrice").value = summary.inputPricePerMillion;
+  $("#ownerOutputPrice").value = summary.outputPricePerMillion;
+  $("#ownerTotalPulse").value = summary.totalPulse;
+  $("#ownerTokenActiveFrom").value = summary.activeFrom;
+  $("#ownerInputChars").textContent = `${formatInteger(summary.inputChars)} karakter`;
+  $("#ownerOutputChars").textContent = `${formatInteger(summary.outputChars)} karakter`;
+  $("#ownerCallCount").textContent = formatInteger(summary.callCount);
+  $("#ownerTotalCost").textContent = formatRupiah(summary.totalCost);
+  $("#ownerSharedTokenBalance").textContent = formatRupiah(summary.sharedToken);
+  $("#ownerTokenUpdatedAt").textContent = summary.updatedAt
+    ? new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Makassar" }).format(new Date(summary.updatedAt))
+    : "-";
+  cacheSharedToken(summary.sharedToken).catch(() => {});
+  return summary;
+}
+
+async function loadOwnerSharedToken() {
+  const status = $("#ownerTokenStatus");
+  status.hidden = false;
+  $("#refreshOwnerSharedToken").disabled = true;
+  setStatus(status, "loading", "Memuat penggunaan Token Bersama...");
+  try {
+    const data = await knowledgeApi("rsdkh_shared_token_admin", collectOwnerAuth());
+    fillOwnerSharedToken(data.summary);
+    setStatus(status, "success", "Penggunaan Token Bersama diperbarui.");
+  } catch (error) {
+    setStatus(status, "error", `Gagal memuat Token Bersama: ${safeAiErrorMessage(error)}`);
+  } finally {
+    $("#refreshOwnerSharedToken").disabled = false;
+  }
+}
+
+async function saveOwnerSharedToken() {
+  const status = $("#ownerTokenStatus");
+  const config = {
+    inputPricePerMillion: Number($("#ownerInputPrice").value),
+    outputPricePerMillion: Number($("#ownerOutputPrice").value),
+    totalPulse: Number($("#ownerTotalPulse").value),
+    activeFrom: $("#ownerTokenActiveFrom").value
+  };
+  status.hidden = false;
+  if (![config.inputPricePerMillion, config.outputPricePerMillion, config.totalPulse].every((value) => Number.isFinite(value) && value >= 0) || !/^\d{4}-\d{2}-\d{2}$/.test(config.activeFrom)) {
+    setStatus(status, "error", "Harga, total pulsa, dan tanggal mulai wajib diisi dengan nilai yang valid.");
+    return;
+  }
+  $("#saveOwnerSharedToken").disabled = true;
+  $("#saveOwnerSharedToken span").textContent = "Menyimpan...";
+  setStatus(status, "loading", "Menyimpan pengaturan Token Bersama...");
+  try {
+    const data = await knowledgeApi("rsdkh_shared_token_save", { ...collectOwnerAuth(), config });
+    fillOwnerSharedToken(data.summary);
+    setStatus(status, "success", "Pengaturan Token Bersama berhasil disimpan.");
+  } catch (error) {
+    setStatus(status, "error", `Gagal menyimpan Token Bersama: ${safeAiErrorMessage(error)}`);
+  } finally {
+    $("#saveOwnerSharedToken").disabled = false;
+    $("#saveOwnerSharedToken span").textContent = "Simpan pengaturan";
+  }
+}
+
 function activateOwnerAdminTab(name) {
   document.querySelectorAll(".owner-admin-tab").forEach((button) => {
     const active = button.dataset.ownerTab === name;
@@ -3296,6 +3428,7 @@ function exitOwnerAdminMode() {
   $("#ownerAdminLogin").hidden = false;
   $("#ownerAdminStatus").hidden = true;
   $("#ownerLoginStatus").hidden = true;
+  $("#ownerTokenStatus").hidden = true;
   $("#adminUserList").textContent = "";
   activateOwnerAdminTab("apikey");
   updateSettingsSummaries();
@@ -3541,7 +3674,9 @@ async function deleteApiSettings() {
 }
 
 async function initialize() {
-  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, SHARED_PRODUCT_CATALOG_KEY, WHATSAPP_SOAP_SETTINGS_KEY, PATIENT_MEMORIES_KEY, SHIFT.STORAGE_KEY, SUPPORT_REMINDER_KEY]);
+  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, SHARED_PRODUCT_CATALOG_KEY, SHARED_TOKEN_KEY, WHATSAPP_SOAP_SETTINGS_KEY, PATIENT_MEMORIES_KEY, SHIFT.STORAGE_KEY, SUPPORT_REMINDER_KEY, ADMIN_LOGIN_REQUEST_KEY]);
+  sharedTokenBalance = Number(saved[SHARED_TOKEN_KEY]?.value) || 0;
+  renderSharedToken();
   await loadProductAliasResources(saved[SHARED_PRODUCT_CATALOG_KEY]);
   productAliases = Array.isArray(saved[PRODUCT_ALIASES_KEY])
     ? dedupeProductAliases(saved[PRODUCT_ALIASES_KEY])
@@ -3582,7 +3717,8 @@ async function initialize() {
   renderProductCatalog();
   renderProductAliases();
   syncSharedProductCatalog().catch(() => {});
-  if (settings.apiKeySource === "admin") await refreshAdminSettings();
+  await refreshAdminSettings();
+  refreshSharedToken().catch(() => {});
   syncResultAlerts();
   if (!hadHistoryStorage && (hasResult("soap") || hasResult("kronologi"))) {
     if (hasResult("soap")) await saveEpisodeResult("soap");
@@ -3590,7 +3726,12 @@ async function initialize() {
   }
   renderHistoryList();
   requestAnimationFrame(() => resizeTextareas());
-  await openSupportReminderIfDue(saved[SUPPORT_REMINDER_KEY]);
+  if (saved[ADMIN_LOGIN_REQUEST_KEY]) {
+    await chrome.storage.local.remove(ADMIN_LOGIN_REQUEST_KEY);
+    openSettingsDialog("connection");
+  } else {
+    await openSupportReminderIfDue(saved[SUPPORT_REMINDER_KEY]);
+  }
 }
 
 if (typeof document !== "undefined") {
@@ -3778,6 +3919,7 @@ if (typeof document !== "undefined") {
     button.addEventListener("click", () => {
       activateOwnerAdminTab(button.dataset.ownerTab);
       if (button.dataset.ownerTab === "catalog") syncSharedProductCatalog(true, $("#ownerProductCatalogStatus"));
+      if (button.dataset.ownerTab === "token") loadOwnerSharedToken();
     });
     button.addEventListener("keydown", (event) => {
       if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
@@ -3792,6 +3934,8 @@ if (typeof document !== "undefined") {
   $("#resetOwnerConfig").addEventListener("click", resetOwnerConfig);
   $("#validateOwnerConfig").addEventListener("click", () => submitOwnerConfig("validate_ai_config"));
   $("#saveOwnerConfig").addEventListener("click", () => submitOwnerConfig("save_ai_config"));
+  $("#refreshOwnerSharedToken").addEventListener("click", loadOwnerSharedToken);
+  $("#saveOwnerSharedToken").addEventListener("click", saveOwnerSharedToken);
   $("#refreshAdminUsers").addEventListener("click", loadAdminUsers);
   $("#createAdminUser").addEventListener("click", createAdminUser);
   $("#cancelResetAdminUser").addEventListener("click", cancelAdminUserReset);
@@ -3806,9 +3950,15 @@ if (typeof document !== "undefined") {
     showSettingsPage("home", "back", false);
   });
 
-  window.addEventListener("focus", syncPatientFromActiveErm);
+  window.addEventListener("focus", () => {
+    syncPatientFromActiveErm();
+    refreshSharedToken().catch(() => {});
+  });
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) syncPatientFromActiveErm();
+    if (!document.hidden) {
+      syncPatientFromActiveErm();
+      refreshSharedToken().catch(() => {});
+    }
   });
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
@@ -3834,6 +3984,14 @@ if (typeof document !== "undefined") {
       renderProductCatalog();
       renderProductAliases();
     }
+    if (changes[SHARED_TOKEN_KEY]) {
+      sharedTokenBalance = Number(changes[SHARED_TOKEN_KEY].newValue?.value) || 0;
+      renderSharedToken();
+    }
+    if (changes[ADMIN_LOGIN_REQUEST_KEY]?.newValue) {
+      chrome.storage.local.remove(ADMIN_LOGIN_REQUEST_KEY).catch(() => {});
+      openSettingsDialog("connection");
+    }
   });
   chrome.runtime.onMessage.addListener((message) => {
     if (message?.type === "rsdkh:patient-observed") {
@@ -3851,6 +4009,9 @@ if (typeof document !== "undefined") {
   setInterval(() => {
     if (!document.hidden) syncPatientFromActiveErm();
   }, 2000);
+  setInterval(() => {
+    if (!document.hidden) refreshSharedToken().catch(() => {});
+  }, SHARED_TOKEN_REFRESH_MS);
 
   initialize().catch((error) => setStatus($("#soapStatus"), "error", `Error: ${error.message}`));
 }
@@ -3882,7 +4043,10 @@ if (typeof module !== "undefined") {
     timedProgressStage,
     normalizeProductAlias,
     dedupeProductAliases,
-    supportReminderDue
+    supportReminderDue,
+    formatRupiah,
+    normalizeSharedTokenSummary,
+    safeAiErrorMessage
   };
   if (require.main === module) {
     const assert = require("node:assert/strict");
@@ -3967,6 +4131,10 @@ if (typeof module !== "undefined") {
     assert.equal(supportReminderDue(undefined, retentionNow), true);
     assert.equal(supportReminderDue(retentionNow - SUPPORT_REMINDER_INTERVAL_MS + 1, retentionNow), false);
     assert.equal(supportReminderDue(retentionNow - SUPPORT_REMINDER_INTERVAL_MS, retentionNow), true);
+    assert.equal(formatRupiah(124350.4), "Rp124.350");
+    assert.equal(formatRupiah(-12500), "-Rp12.500");
+    assert.equal(normalizeSharedTokenSummary({ sharedToken: -12500, inputChars: 1234 }).sharedToken, -12500);
+    assert.equal(safeAiErrorMessage("https://provider.test?key=secret&x=1"), "https://provider.test?key=[disensor]&x=1");
     assert.throws(() => parseAiJson("bukan json"), /bukan JSON valid/);
     assert.match(buildMagicSoapPrompt({ identity: "Laki-laki 45 tahun", serviceMode: "rawat_jalan", subjektif: "Nyeri", objektif: "", assessment: "", planning: "" }), /RAWAT JALAN/);
     assert.match(buildKronologiPrompt({ skenario: "Jatuh", akibat: "Fraktur" }), /\[Akibat\]: Fraktur/);

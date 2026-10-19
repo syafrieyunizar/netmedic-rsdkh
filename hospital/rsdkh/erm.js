@@ -754,7 +754,19 @@
     });
   }
 
-  function showToast(message, state = "success") {
+  function copyAiErrorDetail(feature, message, seconds) {
+    const version = chrome.runtime.getManifest().version;
+    return navigator.clipboard.writeText([
+      `Netmedic RSDKH v${version}`,
+      `Fitur: ${feature}`,
+      `Durasi: ${seconds}s`,
+      `Error: ${String(message)
+        .replace(/([?&](?:key|api_key|token)=)[^&\s]+/gi, "$1[disensor]")
+        .replace(/(?:Bearer\s+)[A-Za-z0-9._~-]+/gi, "Bearer [disensor]")}`
+    ].join("\n"));
+  }
+
+  function showToast(message, state = "success", action = null) {
     let toast = document.querySelector(".netmedic-rsdkh-soap-toast");
     if (!toast) {
       toast = document.createElement("div");
@@ -762,15 +774,37 @@
       document.body.append(toast);
     }
     clearTimeout(toastTimer);
+    toast.replaceChildren();
     toast.dataset.state = state;
     toast.setAttribute("role", state === "error" ? "alert" : "status");
     toast.setAttribute("aria-live", state === "error" ? "assertive" : "polite");
-    toast.textContent = `${state === "error" ? "Gagal" : "Berhasil"}: ${message}`;
+    const text = document.createElement("span");
+    text.textContent = `${state === "error" ? "Gagal" : "Berhasil"}: ${message}`;
+    toast.append(text);
+    const actions = Array.isArray(action) ? action : action ? [action] : [];
+    actions.forEach((item) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = item.label;
+      button.addEventListener("click", async () => {
+        button.disabled = true;
+        try {
+          const response = await item.run();
+          if (response?.ok === false) throw new Error(response.error || "Tindakan gagal.");
+          if (item.close !== false) toast.remove();
+          else button.disabled = false;
+        } catch (error) {
+          button.disabled = false;
+          text.textContent = `Gagal: ${error.message || "Tindakan gagal."}`;
+        }
+      });
+      toast.append(button);
+    });
     toast.classList.remove("is-visible");
     requestAnimationFrame(() => toast.classList.add("is-visible"));
     toastTimer = setTimeout(() => {
       toast.classList.remove("is-visible");
-    }, 5000);
+    }, actions.length ? 10000 : 5000);
   }
 
   function reportSoapInputProgress(message) {
@@ -899,7 +933,12 @@
     } catch (error) {
       seconds = elapsedProcessSeconds(startedAt);
       setResumeProgress(button, 0, "Gagal merapikan");
-      showToast(`${error.message || "AI gagal merapikan Resume Medis."} Gagal setelah ${seconds}s.`, "error");
+      const message = `${error.message || "AI gagal merapikan Resume Medis."} Gagal setelah ${seconds}s.`;
+      const actions = [{ label: "Salin detail", close: false, run: () => copyAiErrorDetail("Rapikan Resume Medis", message, seconds) }];
+      if (/sesi|login|401|akses API admin/i.test(message)) {
+        actions.unshift({ label: "Login ulang", run: () => chrome.runtime.sendMessage({ type: "rsdkh:open-admin-login" }) });
+      }
+      showToast(message, "error", actions);
     } finally {
       clearInterval(timer);
       await sleep(completed ? 700 : 1200);
@@ -1049,7 +1088,11 @@
       setStep(Math.max(currentStep, 0), "error");
       ui.error.hidden = false;
       ui.error.textContent = `${importErrorMessage(error)} Gagal setelah ${totalSeconds}s.`;
-      showToast(ui.error.textContent, "error");
+      const actions = [{ label: "Salin detail", close: false, run: () => copyAiErrorDetail("Input SOAP", ui.error.textContent, totalSeconds) }];
+      if (/sesi|login|401|akses API admin/i.test(ui.error.textContent)) {
+        actions.unshift({ label: "Login ulang", run: () => chrome.runtime.sendMessage({ type: "rsdkh:open-admin-login" }) });
+      }
+      showToast(ui.error.textContent, "error", actions);
       ui.cancel.disabled = false;
       ui.cancel.textContent = "Tutup";
       if (!ui.dialog.open) ui.dialog.showModal();

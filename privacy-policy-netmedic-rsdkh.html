@@ -141,7 +141,7 @@
         <tbody>
           <tr><th>Identitas pribadi</th><td>Nama pasien, jenis kelamin, umur, nomor rekam medis, nomor registrasi, identitas dokter, dan data identitas lain yang tampil atau dimasukkan pada eRM.</td></tr>
           <tr><th>Informasi kesehatan</th><td>Keluhan, riwayat penyakit, tanda vital, pemeriksaan fisik, diagnosis, rencana terapi, obat, hasil laboratorium, kronologi medis, serta foto klinis yang dipilih pengguna.</td></tr>
-          <tr><th>Informasi autentikasi</th><td>Username, password saat proses login, token sesi, pengenal perangkat, API key pribadi, nama model, dan alamat endpoint provider. Password login tidak disimpan secara persisten oleh extension; token sesi dan pengaturan API dapat disimpan secara lokal.</td></tr>
+          <tr><th>Informasi autentikasi</th><td>Username, password saat proses login, token sesi, dan pengenal perangkat. Password login tidak disimpan secara persisten oleh extension; token sesi dapat disimpan secara lokal. API key provider admin tetap berada di server.</td></tr>
           <tr><th>Konten situs</th><td>Konten pada halaman eRM RSDKH yang diperlukan untuk mengambil identitas pasien, instruksi dokter, resep, status asesmen, dan hasil laboratorium, serta untuk memasukkan kembali dokumentasi yang telah ditinjau.</td></tr>
           <tr><th>Data penggunaan khusus eRM</th><td>URL eRM pasien, nomor BED, status pasien, waktu sesi jaga, dan riwayat pasien yang diperlukan untuk navigasi dashboard lokal. Extension tidak mengumpulkan riwayat penjelajahan umum di luar halaman yang didukung.</td></tr>
         </tbody>
@@ -163,10 +163,10 @@
 
     <section>
       <h2>4. Penyimpanan lokal dan retensi</h2>
-      <p>Draft SOAP dan kronologi, hasil sebelumnya, memori pasien, daftar BED, sesi jaga, template WhatsApp, alias produk, pengaturan provider, API key pribadi, dan token sesi dapat disimpan menggunakan <code>chrome.storage.local</code> pada profil browser pengguna.</p>
+      <p>Draft SOAP dan kronologi, hasil sebelumnya, memori pasien, daftar BED, sesi jaga, template WhatsApp, alias produk, token sesi, dan cache nominal Token Bersama dapat disimpan menggunakan <code>chrome.storage.local</code> pada profil browser pengguna. Nilai API pribadi dari versi lama dapat tetap tersimpan setelah pembaruan, tetapi tidak digunakan untuk proses AI.</p>
       <ul>
         <li>Riwayat pasien dan sesi jaga dibatasi hingga sekitar 60 hari dan dapat dihapus secara manual dari antarmuka extension.</li>
-        <li>Draft, preferensi, API key pribadi, dan data lokal lain disimpan sampai dihapus oleh pengguna, extension di-reset, atau extension dihapus.</li>
+        <li>Draft, preferensi, nilai API pribadi lama, dan data lokal lain disimpan sampai extension di-reset atau dihapus. Nilai API pribadi lama tidak digunakan oleh versi 2.0.</li>
         <li>Gambar capture hasil laboratorium tidak disimpan sebagai file oleh extension; gambar hanya ditempatkan pada clipboard atas tindakan pengguna.</li>
         <li>Foto klinis disimpan sementara di memori untuk diproses dan tidak dimasukkan ke riwayat lokal oleh fitur foto klinis.</li>
       </ul>
@@ -209,12 +209,12 @@
 
     <section>
       <h2>8. Keamanan</h2>
-      <p>Extension membatasi akses host sesuai layanan yang diperlukan, membundel seluruh kode yang dijalankan, tidak menjalankan kode JavaScript atau WebAssembly dari server jarak jauh, dan menggunakan HTTPS untuk layanan internet. API key pribadi disimpan pada profil browser lokal. Tidak ada metode penyimpanan atau transmisi yang dapat dijamin aman sepenuhnya; pengguna harus menjaga keamanan perangkat, akun, dan API key.</p>
+      <p>Extension membatasi akses host sesuai layanan yang diperlukan, membundel seluruh kode yang dijalankan, tidak menjalankan kode JavaScript atau WebAssembly dari server jarak jauh, dan menggunakan HTTPS untuk layanan internet. API key provider admin tetap berada di backend dan tidak ditampilkan kepada pengguna. Tidak ada metode penyimpanan atau transmisi yang dapat dijamin aman sepenuhnya; pengguna harus menjaga keamanan perangkat dan akun.</p>
     </section>
 
     <section>
       <h2>9. Pilihan dan penghapusan data</h2>
-      <p>Pengguna dapat menghapus riwayat melalui antarmuka extension, menghapus API key pribadi melalui Pengaturan, logout dari API admin, atau menghapus seluruh data lokal dengan menghapus atau me-reset extension. Untuk permintaan terkait data backend atau akun API admin, hubungi Pengembang menggunakan alamat di bawah.</p>
+      <p>Pengguna dapat menghapus riwayat melalui antarmuka extension, logout dari API admin, atau menghapus seluruh data lokal dengan menghapus atau me-reset extension. Untuk permintaan terkait data backend atau akun API admin, hubungi Pengembang menggunakan alamat di bawah.</p>
     </section>
 
     <section>

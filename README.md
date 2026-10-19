@@ -21,7 +21,7 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 - Riwayat pasien tersimpan maksimal 60 hari dan bisa dihapus manual.
 - Pengingat kronologi pada hasil Magic SOAP bila AI menandai kasus trauma/cedera eksternal.
 - Warning JKN tampil kondisional hanya saat ada isi dari respons AI.
-- Mode API pribadi/BYOK.
+- API admin bersama dengan transparansi Token Bersama berbasis karakter.
 - Mode API admin bersama dengan login panel admin, pengaturan API key admin, dan manajemen user.
 - Tombol `Input SOAP` di sebelah judul Pengkajian Dokter IGD untuk memilah dan mengisi S/O/A/P pada satu halaman. Diagnosis disimpan melalui panel ICD 10 FreeText; S/O/P tetap ditinjau sebelum Pengkajian disimpan.
 - Tombol `Input SOAP` pada hasil Magic SOAP untuk membuka otomatis `Asesmen UGD → Pengkajian Dokter → Tambah` pada kunjungan pasien yang sama, lalu mengirim hasil S/O/A/P yang sudah diedit tanpa parsing AI ulang. User memilih rencana status pasien terlebih dahulu: rawat inap memakai `Diagnosa Awal`, sedangkan rawat jalan memakai `Primary / utama`.
@@ -91,14 +91,11 @@ Base `magic-soap` tetap tidak membaca atau menulis halaman eRM. Integrasi eRM ha
 
 ## Pengaturan API
 
-Extension mendukung dua alur:
+Semua fitur AI menggunakan API admin bersama. Pengguna login dengan akun yang terikat ke perangkat; provider key tetap berada di server. UI API pribadi masih terlihat dalam keadaan nonaktif agar perubahan versi mudah dipahami, dan nilai lama di penyimpanan lokal tidak digunakan.
 
-- API pribadi: user mengisi provider dan API key sendiri di menu pengaturan.
-- API admin: admin login melalui panel admin, menyimpan konfigurasi provider/API key bersama, lalu menambahkan user yang boleh memakai API admin.
+Analisis foto memakai model admin yang mendukung vision melalui action `ai_generate_vision`. Foto menerima format JPG, PNG, atau WebP hingga 8 MB. Tidak ada API key, token sesi, atau password yang di-hardcode di source extension.
 
-Analisis foto dapat menggunakan API pribadi/BYOK atau API admin dengan model yang mendukung vision. Foto menerima format JPG, PNG, atau WebP hingga 8 MB. Mode API admin mengirim foto melalui action `ai_generate_vision` pada shared Edge Function.
-
-API key disimpan di `chrome.storage.local` untuk mode pribadi. Tidak ada API key, token, atau password yang di-hardcode di source extension.
+Header menampilkan `Token bersama` dalam Rupiah. Nilainya dihitung dari karakter input/output panggilan AI yang berhasil sejak tanggal mulai yang diatur admin. Nilai nol atau negatif tidak menghentikan proses AI.
 
 ## Backend Admin
 

@@ -4,7 +4,7 @@ Integrasi ini aktif hanya pada halaman rekam medis SIAPMEDIS RSDKH di `rsudbalan
 
 ## File
 
-- `ai.js`: memilah SOAP dan menyusun preview e-Resep terstruktur menggunakan API pribadi atau API admin `netmedic-rsdkh`.
+- `ai.js`: memilah SOAP dan menyusun preview e-Resep terstruktur melalui API admin `netmedic-rsdkh`.
 - `erm.js`: menyisipkan tombol `Input SOAP`, menampilkan modal, dan menjalankan urutan pengisian eRM.
 - `erm.css`: tampilan tombol, modal, progres, error, dan toast yang terisolasi dari CSS SIAPMEDIS.
 - `prescription.js`: menyisipkan tombol `e-Resep otomatis`, menyediakan pintasan `Buat Resep` dari form Pengantar Opname baru di menu `Asesmen UGD` (dengan fallback modal lama), menampilkan preview editable, dan memasukkan produk secara serial ke Resep Non Racikan.

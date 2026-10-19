@@ -4,6 +4,7 @@
   const APP_ID = "netmedic-rsdkh";
   const SETTINGS_KEY = "apiSettings";
   const ADMIN_SESSION_KEY = "magicSoap.adminUserSession";
+  const SHARED_TOKEN_KEY = "rsdkhSharedToken";
   const KNOWLEDGE_FUNCTION_URL = "https://yvcqgwpfjoxhuyhxuiry.supabase.co/functions/v1/knowledge-admin";
   const PROVIDERS = {
     gemini: { endpoint: "" },
@@ -381,7 +382,11 @@ ${JSON.stringify({
       body: JSON.stringify({ ...payload, action, app_id: APP_ID })
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.error) throw new Error(data.error || `API admin gagal (${response.status}).`);
+    if (!response.ok || data.error) {
+      const message = String(data.error || "").trim();
+      if (response.status === 401) throw new Error(message || "Sesi API admin ditolak. Login ulang melalui side panel.");
+      throw new Error(message || `API admin gagal (${response.status}).`);
+    }
     return data;
   }
 
@@ -417,6 +422,11 @@ ${JSON.stringify({
       feature,
       user_session: validSession
     });
+    if (Number.isFinite(Number(data.sharedToken))) {
+      await chrome.storage.local.set({
+        [SHARED_TOKEN_KEY]: { value: Number(data.sharedToken), updatedAt: new Date().toISOString() }
+      });
+    }
     if (!String(data.text || "").trim()) throw new Error("Respons AI admin kosong.");
     return parseAiJson(data.text);
   }
@@ -480,17 +490,8 @@ ${JSON.stringify({
   }
 
   async function generateStructured(prompt, responseSchema, feature) {
-    const stored = await chrome.storage.local.get([SETTINGS_KEY, ADMIN_SESSION_KEY]);
-    const settings = stored[SETTINGS_KEY] || {};
-    let result;
-    if (settings.apiKeySource === "admin") result = await callAdmin(prompt, stored[ADMIN_SESSION_KEY], responseSchema, feature);
-    else {
-      if (!settings.apiKey || !settings.model) throw new Error("API key pribadi belum siap. Atur melalui side panel.");
-      result = settings.provider === "gemini"
-        ? await callGemini(settings, prompt, responseSchema)
-        : await callOpenAiCompatible(settings, prompt);
-    }
-    return result;
+    const stored = await chrome.storage.local.get(ADMIN_SESSION_KEY);
+    return callAdmin(prompt, stored[ADMIN_SESSION_KEY], responseSchema, feature);
   }
 
   async function generateSoapParts(soapText) {

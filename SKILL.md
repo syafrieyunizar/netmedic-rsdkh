@@ -39,13 +39,13 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 7. Keep font and other runtime assets local for MV3 CSP and offline use.
 8. Do not modify legacy application runtime code. A shared, idempotent database migration may be mirrored across related repositories only when the user explicitly requests it.
 9. Keep `app_id: netmedic-rsdkh` on every shared backend request; never infer it from visible UI text.
-10. Keep provider API keys server-side in admin mode and preserve the independent personal BYOK path.
+10. Keep provider API keys server-side. Version 2.0 uses only the admin API path; legacy personal-key fields remain visible but disabled and stored values are not used.
 
 ## Component Contract
 
 ### App Shell
 
-- The header must show Netmedic AI, Documentation Assistant, a noninteractive red/green API dot, and compact history/settings buttons.
+- The header must show Netmedic RSDKH, the cached `Token bersama` Rupiah amount, and compact support/history/settings buttons.
 - Desktop drawer navigation from the reference must collapse into segmented tabs.
 - The content canvas must remain scrollable without horizontal overflow.
 - The bottom status bar must remain visible without covering content.
@@ -90,14 +90,15 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 
 ### API Settings
 
-- `API key pribadi` uses the existing local provider fields and direct provider validation.
-- `API admin` first checks the public `netmedic-rsdkh` config, then requires a registered admin-access user session bound to the current device.
-- The header status is green only when the selected source is ready: key/model for personal mode, or server key plus valid session for admin mode.
+- `API key pribadi` remains visible but every personal provider/key/model control and source selection is disabled.
+- All AI generation uses the public `netmedic-rsdkh` admin config and a registered, device-bound user session.
+- The header shows only `Token bersama` and its cached Rupiah amount. Zero and negative values remain visible and never block generation.
+- AI failures stay on the current screen, show the backend/provider message and elapsed time, and offer sanitized `Salin detail`; session failures also offer `Login ulang`.
 - Owner validate/save/reset actions require main admin credentials and must send them only to the shared Edge Function.
 - Reset is destructive, requires confirmation, and must leave the provider inactive until a new key is saved.
 - Owner user management reuses the shared global account table and supports list, create, password reset, and confirmed deletion without persisting passwords locally.
 - Never reveal owner API or user controls before `login` succeeds. The unauthenticated panel contains only username, password, login action, and inline status.
-- The authenticated owner panel contains only `API Key` and `Pengguna` tabs. Do not add a Knowledge tab until that product capability is explicitly requested.
+- The authenticated owner panel contains `API Key`, `Pengguna`, `Katalog`, and `Token` tabs. The Token tab edits rates, pulse, and calculation start date, while usage totals remain read-only.
 
 ### Results
 

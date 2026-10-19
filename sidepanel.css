@@ -145,7 +145,7 @@ h2 {
 
 .app-title,
 .header-actions,
-.api-connection,
+.shared-token,
 .active-api-status,
 .status,
 .app-footer > span {
@@ -192,21 +192,23 @@ h2 {
   gap: var(--space-1);
 }
 
-.api-connection {
-  width: 12px;
-  height: 28px;
+.shared-token {
+  min-height: 28px;
+  flex-direction: column;
+  align-items: flex-end;
   justify-content: center;
+  padding: 2px 6px;
   color: var(--on-surface-variant);
-  background: transparent;
-  pointer-events: none;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+  font-size: 8.5px;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
-#apiConnectionText {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
+.shared-token strong {
+  color: var(--on-surface);
+  font-size: 10px;
 }
 
 .connection-dot,
@@ -220,14 +222,6 @@ h2 {
   border-radius: 50%;
 }
 
-.api-connection .connection-dot {
-  width: 9px;
-  height: 9px;
-  margin: 0;
-  background: var(--error);
-}
-
-.api-connection[data-state="success"] .connection-dot,
 .active-api-status[data-state="success"] .connection-dot,
 .footer-dot {
   background: #217a56;
@@ -650,7 +644,7 @@ main {
 }
 
 .owner-admin-tabs {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .product-settings-tabs {
@@ -729,6 +723,65 @@ main {
 #resetAdminUserTarget {
   color: var(--on-surface);
   font-size: 10px;
+}
+
+.personal-api-disabled-note {
+  padding: var(--space-3);
+  color: var(--warning);
+  background: var(--warning-container);
+  border: 1px solid var(--warning-outline);
+  border-radius: var(--radius-md);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+#personalApiFields {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.shared-token-form .primary {
+  width: 100%;
+}
+
+.shared-token-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.shared-token-metrics > div {
+  min-width: 0;
+  padding: var(--space-3);
+  background: var(--surface-low);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-md);
+}
+
+.shared-token-metrics dt {
+  color: var(--on-surface-variant);
+  font-size: 9px;
+}
+
+.shared-token-metrics dd {
+  margin: 4px 0 0;
+  color: var(--on-surface);
+  font-size: 11px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.shared-token-metrics .shared-token-metric-balance {
+  grid-column: 1 / -1;
+  background: var(--primary-container);
+  border-color: var(--primary);
+}
+
+.shared-token-metric-balance dd {
+  color: var(--primary);
+  font-size: 16px;
 }
 
 .admin-user-list {
@@ -1391,7 +1444,50 @@ summary:focus-visible,
 
 .sidepanel-toast.is-visible {
   opacity: 1;
+  pointer-events: auto;
   transform: translate(-50%, 0);
+}
+
+.sidepanel-toast-message {
+  display: block;
+}
+
+.sidepanel-toast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.sidepanel-toast-actions button {
+  min-height: 30px;
+  padding: 4px 9px;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+@media (max-width: 420px) {
+  .app-header {
+    flex-wrap: wrap;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .shared-token-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .shared-token-metrics .shared-token-metric-balance {
+    grid-column: auto;
+  }
 }
 
 .actions {

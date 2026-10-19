@@ -1313,7 +1313,11 @@
       const totalSeconds = progress.stop();
       const message = `${error.message || "AI gagal merapikan resep."} Gagal setelah ${totalSeconds}s.`;
       setStatus("error", message);
-      showToast(message, null, "error");
+      const actions = [{ label: "Salin detail", close: false, run: () => copyAiErrorDetail("e-Resep otomatis", message, totalSeconds) }];
+      if (/sesi|login|401|akses API admin/i.test(message)) {
+        actions.unshift({ label: "Login ulang", run: () => chrome.runtime.sendMessage({ type: "rsdkh:open-admin-login" }) });
+      }
+      showToast(message, actions, "error");
     } finally {
       progress.stop();
       setRunning(false);
@@ -1513,6 +1517,18 @@
     }
   }
 
+  function copyAiErrorDetail(feature, message, seconds) {
+    const version = chrome.runtime.getManifest().version;
+    return navigator.clipboard.writeText([
+      `Netmedic RSDKH v${version}`,
+      `Fitur: ${feature}`,
+      `Durasi: ${seconds}s`,
+      `Error: ${String(message)
+        .replace(/([?&](?:key|api_key|token)=)[^&\s]+/gi, "$1[disensor]")
+        .replace(/(?:Bearer\s+)[A-Za-z0-9._~-]+/gi, "Bearer [disensor]")}`
+    ].join("\n"));
+  }
+
   function showToast(message, action = null, state = "success") {
     let toast = document.querySelector(".netmedic-rsdkh-erx-toast");
     if (!toast) {
@@ -1528,16 +1544,22 @@
     const text = document.createElement("span");
     text.textContent = `${state === "error" ? "Gagal" : state === "success" ? "Berhasil" : "Info"}: ${message}`;
     toast.append(text);
-    if (action) {
+    const actions = Array.isArray(action) ? action : action ? [action] : [];
+    actions.forEach((item) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.textContent = action.label;
+      button.textContent = item.label;
       button.addEventListener("click", async () => {
         button.disabled = true;
         try {
-          await action.run();
-          clearTimeout(toastTimer);
-          toast.remove();
+          const response = await item.run();
+          if (response?.ok === false) throw new Error(response.error || "Tindakan gagal.");
+          if (item.close !== false) {
+            clearTimeout(toastTimer);
+            toast.remove();
+          } else {
+            button.disabled = false;
+          }
         } catch (error) {
           button.disabled = false;
           toast.dataset.state = "error";
@@ -1546,12 +1568,12 @@
         }
       });
       toast.append(button);
-    }
+    });
     toast.classList.remove("is-visible");
     requestAnimationFrame(() => toast.classList.add("is-visible"));
     toastTimer = setTimeout(() => {
       toast.classList.remove("is-visible");
-    }, 6000);
+    }, actions.length ? 10000 : 6000);
   }
 
   function createUi() {

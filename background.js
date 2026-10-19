@@ -211,6 +211,14 @@ async function updatePatientBed(patient, bed) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "rsdkh:open-admin-login") {
+    const windowId = sender.tab?.windowId;
+    chrome.storage.local.set({ "magicSoap.openAdminLoginAt": Date.now() })
+      .then(() => windowId ? chrome.sidePanel.open({ windowId }) : null)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: error.message || "Side panel gagal dibuka." }));
+    return true;
+  }
   if (message?.type === "rsdkh:copy-image-to-clipboard") {
     copyImageToClipboard(message.dataUrl)
       .then(() => sendResponse({ ok: true }))

@@ -265,6 +265,17 @@
   transform: translateY(0);
 }
 
+.netmedic-rsdkh-soap-toast button {
+  min-height: 32px;
+  margin-left: 12px;
+  padding: 4px 10px;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 6px;
+  font: inherit;
+}
+
 :host {
   --soap-primary: #006874;
   --soap-primary-hover: #005861;

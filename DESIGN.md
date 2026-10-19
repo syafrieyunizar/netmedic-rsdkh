@@ -73,7 +73,7 @@ Manrope must be bundled locally so the extension works offline and complies with
 
 1. Sticky top app bar, 64px high.
 2. Product icon and title on the left.
-3. A noninteractive red/green API status dot plus a compact `Support` action and history/settings icons on the right.
+3. A compact `Token bersama` Rupiah amount plus `Support` and history/settings actions on the right.
 4. Sticky segmented tabs with equal-width labels and a sliding active indicator immediately below the app bar.
 5. Scrollable content canvas with a maximum content width of 760px.
 6. Sticky 40px status bar at the bottom.
@@ -88,7 +88,7 @@ Each dashboard patient row exposes manual toggles, in order, for `Ketikan WA`, `
 
 The Magic SOAP result view exposes one primary `Input SOAP` command after the editable S/O/A/P fields. It first opens a compact required status choice: inpatient maps to `Diagnosa Awal`, while outpatient maps to `Primary / utama`. It then sends the current edited values to the active Pengkajian Dokter IGD page, verifies that age and gender match before writing, confirms any S/O/A overwrite, and fills the same one-page workflow used by the in-page button. Both entry points save the Diagnosis inside ICD 10 FreeText; S, O, and P remain unsaved for clinical review.
 
-The desktop navigation drawer in the reference must not be rendered inside the Side Panel. At widths below 370px, the API status label must collapse visually to its status dot while preserving its accessible name.
+The desktop navigation drawer in the reference must not be rendered inside the Side Panel. At narrow widths the header may wrap into two rows, but the full `Token bersama` amount must remain visible without horizontal overflow.
 
 ### Content Cards
 
@@ -145,7 +145,7 @@ The desktop navigation drawer in the reference must not be rendered inside the S
 
 ### Status
 
-- The header API dot is green when an API key/model is active and red when inactive; it has no hover or click behavior.
+- The header displays only the latest cached `Token bersama` amount. It may be zero or negative and must not imply that generation is blocked.
 - Loading uses info-container, an animated dot, disabled submit button, and descriptive text.
 - Success uses success-container and a green dot.
 - Error uses error-container and a red dot.
@@ -179,19 +179,19 @@ The desktop navigation drawer in the reference must not be rendered inside the S
 - Provider-specific fields must appear progressively. API key must use a show/hide icon button within the input boundary.
 - Save and destructive actions must remain distinct; do not render one global save action across unrelated subpages.
 - On failed validation, the existing stored configuration must remain active.
-- `Sumber API` offers personal BYOK and server-side admin API modes.
+- `Sumber API` is locked to server-side admin API. Personal BYOK controls remain visible but disabled with the approved maintainer message.
 - Admin mode shows the public provider/model status, then requires a registered user login before generation.
 - Owner administration uses the dedicated `Panel Admin` subpage. Before authentication, it renders only username, password, login feedback, and `Login Panel Admin`.
-- Successful owner login replaces the login form with a memory-only admin session, a `Keluar Admin` command, and exactly two tabs: `API Key` and `Pengguna`; no Knowledge interface is rendered.
-- The `API Key` tab provides provider configuration, validation, save, and confirmed reset. The `Pengguna` tab provides global admin-access user management: list, create, reset password, and confirmed deletion.
+- Successful owner login replaces the login form with a memory-only admin session, a `Keluar Admin` command, and `API Key`, `Pengguna`, `Katalog`, and `Token` tabs; no Knowledge interface is rendered.
+- The `Token` tab edits input/output price per one million characters, total pulse, and the inclusive WITA calculation start date. Usage totals, calculated cost, and balance are read-only.
 - Closing Settings or choosing `Keluar Admin` clears the owner credentials and requires a fresh login.
 - The admin provider key must never be returned to or stored by the extension; only the public provider label/model and `hasApiKey` state may be shown.
 
 ### API Administration
 
 - The backend application identifier is always `netmedic-rsdkh`.
-- Personal BYOK continues to call the selected provider directly and stores its key only in `chrome.storage.local`.
-- Admin mode sends generation requests through the shared `knowledge-admin` Edge Function using a seven-day, device-bound user session.
+- All generation requests use the shared `knowledge-admin` Edge Function with a seven-day, device-bound user session. Legacy personal keys may remain in local storage after upgrade but are never read for generation.
+- Shared-token aggregation is isolated to `app_id: netmedic-rsdkh`, counts only successful `api_call` logs, and permits a negative balance without blocking AI.
 - The shared endpoint is deployed without JWT gateway verification and performs its own user-session/owner checks. No Supabase anon key, provider key, owner credential, or user password may be hardcoded.
 - The existing shared Edge Function is app-aware and must receive `app_id: netmedic-rsdkh` for config, login, session, generation, validate, save, and reset operations.
 - A failed admin session must clear the local session and return the user to the login state.

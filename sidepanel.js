@@ -14,7 +14,9 @@ const ACTIVE_PATIENT_KEY = "activePatientEpisode";
 const PRODUCT_ALIASES_KEY = "rsdkhProductAliases";
 const SHARED_PRODUCT_CATALOG_KEY = "rsdkhSharedProductCatalog";
 const SHARED_TOKEN_KEY = "rsdkhSharedToken";
-const SHARED_TOKEN_REFRESH_MS = 60 * 1000;
+const SHARED_TOKEN_PERIOD_MS = 3 * 60 * 60 * 1000;
+const SHARED_TOKEN_REFRESH_GRACE_MS = 60 * 1000;
+const WITA_OFFSET_MS = 8 * 60 * 60 * 1000;
 const SUPERADMIN_WHATSAPP_URL = "https://wa.me/6282252996998";
 const WHATSAPP_SOAP_SETTINGS_KEY = "whatsappSoapSettings";
 const PATIENT_MEMORIES_KEY = "patientMemories";
@@ -139,8 +141,9 @@ let patientMemoryReady = false;
 let shiftState = SHIFT.normalizeState({});
 let pendingSoapTarget = null;
 let floatingNoticeTimer;
-let sharedTokenBalance = 0;
+let sharedTokenSnapshot = null;
 let sharedTokenRefreshPromise = null;
+let sharedTokenRefreshTimer = null;
 
 function supportReminderDue(lastShownAt, now = Date.now()) {
   const timestamp = Number(lastShownAt);
@@ -743,30 +746,157 @@ function formatInteger(value) {
   return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(value) || 0);
 }
 
-function renderSharedToken(value = sharedTokenBalance) {
-  sharedTokenBalance = Number.isFinite(Number(value)) ? Number(value) : sharedTokenBalance;
-  const amount = $("#sharedTokenAmount");
-  if (amount) amount.textContent = formatRupiah(sharedTokenBalance);
+function sharedTokenPeriodStart(now = Date.now()) {
+  const wita = new Date(now + WITA_OFFSET_MS);
+  const hour = Math.floor(wita.getUTCHours() / 3) * 3;
+  return Date.UTC(wita.getUTCFullYear(), wita.getUTCMonth(), wita.getUTCDate(), hour) - WITA_OFFSET_MS;
 }
 
-async function cacheSharedToken(value) {
-  if (!Number.isFinite(Number(value))) return;
-  sharedTokenBalance = Number(value);
+function nextSharedTokenRefreshAt(now = Date.now()) {
+  return sharedTokenPeriodStart(now) + SHARED_TOKEN_PERIOD_MS + SHARED_TOKEN_REFRESH_GRACE_MS;
+}
+
+function normalizeSharedTokenSnapshot(raw = {}) {
+  const source = raw?.summary && typeof raw.summary === "object" ? raw.summary : raw;
+  return {
+    value: Number(source.sharedToken ?? source.value) || 0,
+    totalCost: Number(source.totalCost) || 0,
+    activeFrom: String(source.activeFrom || ""),
+    snapshotAt: String(source.snapshotAt || ""),
+    expiresAt: String(source.expiresAt || ""),
+    estimatedDepletionAt: source.estimatedDepletionAt ? String(source.estimatedDepletionAt) : "",
+    recentDailyCost: Number(source.recentDailyCost) || 0,
+    updatedAt: source.updatedAt ? String(source.updatedAt) : ""
+  };
+}
+
+function isCurrentSharedTokenSnapshot(snapshot = sharedTokenSnapshot, now = Date.now()) {
+  const snapshotAt = Date.parse(snapshot?.snapshotAt || "");
+  return Number.isFinite(snapshotAt) && snapshotAt === sharedTokenPeriodStart(now);
+}
+
+function formatWitaDate(value) {
+  const date = typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(`${value}T00:00:00+08:00`)
+    : new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Makassar" }).format(date);
+}
+
+function formatWitaDateTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return `${new Intl.DateTimeFormat("id-ID", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Asia/Makassar"
+  }).format(date)} WITA`;
+}
+
+function sharedTokenEstimateText(snapshot = sharedTokenSnapshot, now = Date.now()) {
+  const expiresAt = Date.parse(snapshot?.expiresAt || "");
+  const estimatedAt = Date.parse(snapshot?.estimatedDepletionAt || "");
+  if (Number.isFinite(expiresAt) && now >= expiresAt) return "Token kedaluwarsa";
+  if (Number(snapshot?.value) <= 0) return "Token telah habis";
+  if (!Number.isFinite(estimatedAt)) return "Estimasi belum tersedia";
+  if (Number.isFinite(expiresAt) && estimatedAt >= expiresAt) return "Tidak diperkirakan habis sebelum masa aktif berakhir";
+  const days = Math.max(1, Math.ceil((estimatedAt - now) / (24 * 60 * 60 * 1000)));
+  return `${formatWitaDate(estimatedAt)} (sekitar ${days} hari lagi)`;
+}
+
+function renderSharedToken(snapshot = sharedTokenSnapshot) {
+  if (!snapshot) return;
+  $("#sharedTokenAmount").textContent = formatRupiah(snapshot.value);
+  $("#sharedTokenDialogAmount").textContent = formatRupiah(snapshot.value);
+  $("#sharedTokenTotalUsage").textContent = formatRupiah(snapshot.totalCost);
+  $("#sharedTokenUsagePeriod").textContent = snapshot.activeFrom && snapshot.snapshotAt
+    ? `Sejak ${formatWitaDate(snapshot.activeFrom)} sampai ${formatWitaDateTime(snapshot.snapshotAt)}`
+    : "Belum ada snapshot penggunaan.";
+  $("#sharedTokenEstimate").textContent = sharedTokenEstimateText(snapshot);
+  const expiresAt = Date.parse(snapshot.expiresAt || "");
+  $("#sharedTokenActivePeriod").textContent = snapshot.activeFrom && Number.isFinite(expiresAt)
+    ? `${formatWitaDate(snapshot.activeFrom)} - ${formatWitaDate(expiresAt - 1)}`
+    : "-";
+  $("#sharedTokenUpdatedAt").textContent = snapshot.snapshotAt
+    ? `Diperbarui ${formatWitaDateTime(snapshot.snapshotAt)}.`
+    : "Snapshot belum tersedia.";
+}
+
+async function cacheSharedToken(snapshot) {
+  const normalized = normalizeSharedTokenSnapshot(snapshot);
+  if (!normalized.snapshotAt) return null;
+  sharedTokenSnapshot = normalized;
   renderSharedToken();
-  await chrome.storage.local.set({ [SHARED_TOKEN_KEY]: { value: sharedTokenBalance, updatedAt: new Date().toISOString() } });
+  await chrome.storage.local.set({ [SHARED_TOKEN_KEY]: normalized });
+  return normalized;
 }
 
-async function refreshSharedToken() {
+function sharedTokenAccessActive() {
+  return Boolean(adminPublicConfig?.hasApiKey && adminUserSession);
+}
+
+function scheduleSharedTokenRefresh(now = Date.now()) {
+  clearTimeout(sharedTokenRefreshTimer);
+  sharedTokenRefreshTimer = null;
+  if (!sharedTokenAccessActive()) return;
+  const delay = Math.max(1000, nextSharedTokenRefreshAt(now) - now);
+  sharedTokenRefreshTimer = setTimeout(async () => {
+    if (!document.hidden) await refreshSharedToken(true).catch(() => {});
+    scheduleSharedTokenRefresh();
+  }, delay);
+}
+
+function syncSharedTokenVisibility(now = Date.now()) {
+  const visible = sharedTokenAccessActive() && isCurrentSharedTokenSnapshot(sharedTokenSnapshot, now);
+  $("#sharedToken").hidden = !visible;
+  if (visible) renderSharedToken();
+  else if ($("#sharedTokenDialog").open) $("#sharedTokenDialog").close();
+  scheduleSharedTokenRefresh(now);
+  return visible;
+}
+
+async function refreshSharedToken(force = false, now = Date.now()) {
+  if (!sharedTokenAccessActive()) {
+    syncSharedTokenVisibility(now);
+    return null;
+  }
+  if (!force && isCurrentSharedTokenSnapshot(sharedTokenSnapshot, now)) {
+    syncSharedTokenVisibility(now);
+    return sharedTokenSnapshot;
+  }
   if (sharedTokenRefreshPromise) return sharedTokenRefreshPromise;
-  sharedTokenRefreshPromise = knowledgeApi("rsdkh_shared_token_summary")
+  sharedTokenRefreshPromise = knowledgeApi("rsdkh_shared_token_summary", { user_session: adminUserSession })
     .then(async (data) => {
-      await cacheSharedToken(data.sharedToken);
-      return sharedTokenBalance;
+      const snapshot = await cacheSharedToken(data.summary || data);
+      syncSharedTokenVisibility();
+      return snapshot;
     })
     .finally(() => {
       sharedTokenRefreshPromise = null;
     });
   return sharedTokenRefreshPromise;
+}
+
+async function syncSharedTokenAccess(now = Date.now()) {
+  if (syncSharedTokenVisibility(now)) return sharedTokenSnapshot;
+  if (!sharedTokenAccessActive()) return null;
+  return refreshSharedToken(false, now);
+}
+
+function openSharedTokenDialog() {
+  if (!sharedTokenAccessActive() || !isCurrentSharedTokenSnapshot()) return;
+  renderSharedToken();
+  const dialog = $("#sharedTokenDialog");
+  if (!dialog.open) dialog.showModal();
+}
+
+function closeSharedTokenDialog() {
+  const dialog = $("#sharedTokenDialog");
+  if (dialog.open) dialog.close();
 }
 
 function safeAiErrorMessage(error) {
@@ -1642,7 +1772,6 @@ async function callAdminAi(prompt, responseType) {
     feature: responseType === "soap" ? "magic_soap" : "kronologi_bpjs",
     user_session: session
   });
-  if (Number.isFinite(Number(data.sharedToken))) await cacheSharedToken(data.sharedToken);
   if (!String(data.text || "").trim()) throw new Error("Respons AI admin kosong.");
   return parseAiJson(data.text);
 }
@@ -1660,7 +1789,6 @@ async function callAdminVision(image) {
     image: { mime_type: image.mimeType, data_base64: image.base64 },
     user_session: session
   });
-  if (Number.isFinite(Number(data.sharedToken))) await cacheSharedToken(data.sharedToken);
   if (!String(data.text || "").trim()) throw new Error("Respons vision AI admin kosong.");
   return String(data.text).trim();
 }
@@ -3086,6 +3214,7 @@ function syncAdminSessionUi() {
   updateApiStatus();
   updateSettingsSummaries();
   setSettingsBusy(false);
+  syncSharedTokenAccess().catch(() => {});
 }
 
 function setAdminPublicStatus(state, message) {
@@ -3363,6 +3492,10 @@ function normalizeSharedTokenSummary(raw = {}) {
     activeFrom: String(raw.activeFrom || ""),
     inputPricePerMillion: Number(raw.inputPricePerMillion) || 0,
     outputPricePerMillion: Number(raw.outputPricePerMillion) || 0,
+    snapshotAt: raw.snapshotAt || null,
+    expiresAt: raw.expiresAt || null,
+    recentDailyCost: Number(raw.recentDailyCost) || 0,
+    estimatedDepletionAt: raw.estimatedDepletionAt || null,
     updatedAt: raw.updatedAt || null
   };
 }
@@ -3378,10 +3511,10 @@ function fillOwnerSharedToken(raw = {}) {
   $("#ownerCallCount").textContent = formatInteger(summary.callCount);
   $("#ownerTotalCost").textContent = formatRupiah(summary.totalCost);
   $("#ownerSharedTokenBalance").textContent = formatRupiah(summary.sharedToken);
-  $("#ownerTokenUpdatedAt").textContent = summary.updatedAt
-    ? new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Makassar" }).format(new Date(summary.updatedAt))
+  $("#ownerTokenUpdatedAt").textContent = summary.snapshotAt || summary.updatedAt
+    ? new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Makassar" }).format(new Date(summary.snapshotAt || summary.updatedAt))
     : "-";
-  cacheSharedToken(summary.sharedToken).catch(() => {});
+  cacheSharedToken(summary).then(() => syncSharedTokenVisibility()).catch(() => {});
   return summary;
 }
 
@@ -3714,8 +3847,8 @@ async function deleteApiSettings() {
 
 async function initialize() {
   const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, SHARED_PRODUCT_CATALOG_KEY, SHARED_TOKEN_KEY, WHATSAPP_SOAP_SETTINGS_KEY, PATIENT_MEMORIES_KEY, SHIFT.STORAGE_KEY, SUPPORT_REMINDER_KEY, ADMIN_LOGIN_REQUEST_KEY]);
-  sharedTokenBalance = Number(saved[SHARED_TOKEN_KEY]?.value) || 0;
-  renderSharedToken();
+  sharedTokenSnapshot = normalizeSharedTokenSnapshot(saved[SHARED_TOKEN_KEY]);
+  $("#sharedToken").hidden = true;
   await loadProductAliasResources(saved[SHARED_PRODUCT_CATALOG_KEY]);
   productAliases = Array.isArray(saved[PRODUCT_ALIASES_KEY])
     ? dedupeProductAliases(saved[PRODUCT_ALIASES_KEY])
@@ -3757,7 +3890,6 @@ async function initialize() {
   renderProductAliases();
   syncSharedProductCatalog().catch(() => {});
   await refreshAdminSettings();
-  refreshSharedToken().catch(() => {});
   syncResultAlerts();
   if (!hadHistoryStorage && (hasResult("soap") || hasResult("kronologi"))) {
     if (hasResult("soap")) await saveEpisodeResult("soap");
@@ -3843,6 +3975,15 @@ if (typeof document !== "undefined") {
     field.addEventListener("input", () => resizeResultTextareas(field.closest(".result-panel")));
   });
   $("#openHistory").addEventListener("click", openHistoryDialog);
+  $("#sharedToken").addEventListener("click", openSharedTokenDialog);
+  $("#closeSharedToken").addEventListener("click", closeSharedTokenDialog);
+  $("#sharedTokenDialog").addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeSharedTokenDialog();
+  });
+  $("#sharedTokenDialog").addEventListener("click", (event) => {
+    if (event.target === $("#sharedTokenDialog")) closeSharedTokenDialog();
+  });
   $("#openSupport").addEventListener("click", openSupportDialog);
   $("#closeSupport").addEventListener("click", closeSupportDialog);
   $("#contactSupport").addEventListener("click", closeSupportDialog);
@@ -3991,12 +4132,12 @@ if (typeof document !== "undefined") {
 
   window.addEventListener("focus", () => {
     syncPatientFromActiveErm();
-    refreshSharedToken().catch(() => {});
+    syncSharedTokenAccess().catch(() => {});
   });
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       syncPatientFromActiveErm();
-      refreshSharedToken().catch(() => {});
+      syncSharedTokenAccess().catch(() => {});
     }
   });
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -4024,8 +4165,8 @@ if (typeof document !== "undefined") {
       renderProductAliases();
     }
     if (changes[SHARED_TOKEN_KEY]) {
-      sharedTokenBalance = Number(changes[SHARED_TOKEN_KEY].newValue?.value) || 0;
-      renderSharedToken();
+      sharedTokenSnapshot = normalizeSharedTokenSnapshot(changes[SHARED_TOKEN_KEY].newValue);
+      syncSharedTokenVisibility();
     }
     if (changes[ADMIN_LOGIN_REQUEST_KEY]?.newValue) {
       chrome.storage.local.remove(ADMIN_LOGIN_REQUEST_KEY).catch(() => {});
@@ -4048,9 +4189,6 @@ if (typeof document !== "undefined") {
   setInterval(() => {
     if (!document.hidden) syncPatientFromActiveErm();
   }, 2000);
-  setInterval(() => {
-    if (!document.hidden) refreshSharedToken().catch(() => {});
-  }, SHARED_TOKEN_REFRESH_MS);
 
   initialize().catch((error) => setStatus($("#soapStatus"), "error", `Error: ${error.message}`));
 }
@@ -4084,6 +4222,11 @@ if (typeof module !== "undefined") {
     dedupeProductAliases,
     supportReminderDue,
     formatRupiah,
+    sharedTokenPeriodStart,
+    nextSharedTokenRefreshAt,
+    normalizeSharedTokenSnapshot,
+    isCurrentSharedTokenSnapshot,
+    sharedTokenEstimateText,
     normalizeSharedTokenSummary,
     safeAiErrorMessage,
     adminAccessErrorMessage
@@ -4173,6 +4316,18 @@ if (typeof module !== "undefined") {
     assert.equal(supportReminderDue(retentionNow - SUPPORT_REMINDER_INTERVAL_MS, retentionNow), true);
     assert.equal(formatRupiah(124350.4), "Rp124.350");
     assert.equal(formatRupiah(-12500), "-Rp12.500");
+    const tokenClock = Date.parse("2026-10-19T07:01:00Z");
+    assert.equal(new Date(sharedTokenPeriodStart(tokenClock)).toISOString(), "2026-10-19T07:00:00.000Z");
+    assert.equal(new Date(nextSharedTokenRefreshAt(tokenClock)).toISOString(), "2026-10-19T10:01:00.000Z");
+    const tokenSnapshot = normalizeSharedTokenSnapshot({
+      sharedToken: 128000,
+      totalCost: 172000,
+      activeFrom: "2026-10-01",
+      snapshotAt: "2026-10-19T07:00:00.000Z",
+      expiresAt: "2026-10-29T16:00:00.000Z"
+    });
+    assert.equal(isCurrentSharedTokenSnapshot(tokenSnapshot, tokenClock), true);
+    assert.equal(sharedTokenEstimateText({ ...tokenSnapshot, value: 0 }, tokenClock), "Token telah habis");
     assert.equal(normalizeSharedTokenSummary({ sharedToken: -12500, inputChars: 1234 }).sharedToken, -12500);
     assert.equal(safeAiErrorMessage("https://provider.test?key=secret&x=1"), "https://provider.test?key=[disensor]&x=1");
     assert.equal(adminAccessErrorMessage(Object.assign(new Error("Unauthorized"), { status: 401 }), "login"), "Username/password kamu salah. Silakan hubungi dr. M. Syafrie Yunizar untuk mendapatkan akses login.");

@@ -4,7 +4,6 @@
   const APP_ID = "netmedic-rsdkh";
   const SETTINGS_KEY = "apiSettings";
   const ADMIN_SESSION_KEY = "magicSoap.adminUserSession";
-  const SHARED_TOKEN_KEY = "rsdkhSharedToken";
   const KNOWLEDGE_FUNCTION_URL = "https://yvcqgwpfjoxhuyhxuiry.supabase.co/functions/v1/knowledge-admin";
   const PROVIDERS = {
     gemini: { endpoint: "" },
@@ -422,11 +421,6 @@ ${JSON.stringify({
       feature,
       user_session: validSession
     });
-    if (Number.isFinite(Number(data.sharedToken))) {
-      await chrome.storage.local.set({
-        [SHARED_TOKEN_KEY]: { value: Number(data.sharedToken), updatedAt: new Date().toISOString() }
-      });
-    }
     if (!String(data.text || "").trim()) throw new Error("Respons AI admin kosong.");
     return parseAiJson(data.text);
   }

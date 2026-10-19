@@ -22,6 +22,7 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 - Pengingat kronologi pada hasil Magic SOAP bila AI menandai kasus trauma/cedera eksternal.
 - Warning JKN tampil kondisional hanya saat ada isi dari respons AI.
 - API admin bersama dengan transparansi Token Bersama berbasis karakter.
+- Snapshot Token Bersama seragam setiap tiga jam WITA, tampil hanya setelah AI aktif, dan dapat dibuka untuk melihat total penggunaan, masa aktif 28 hari, serta estimasi waktu habis.
 - Mode API admin bersama dengan login panel admin, pengaturan API key admin, dan manajemen user.
 - Tombol `Input SOAP` di sebelah judul Pengkajian Dokter IGD untuk memilah dan mengisi S/O/A/P pada satu halaman. Diagnosis disimpan melalui panel ICD 10 FreeText; S/O/P tetap ditinjau sebelum Pengkajian disimpan.
 - Tombol `Input SOAP` pada hasil Magic SOAP untuk membuka otomatis `Asesmen UGD → Pengkajian Dokter → Tambah` pada kunjungan pasien yang sama, lalu mengirim hasil S/O/A/P yang sudah diedit tanpa parsing AI ulang. User memilih rencana status pasien terlebih dahulu: rawat inap memakai `Diagnosa Awal`, sedangkan rawat jalan memakai `Primary / utama`.
@@ -92,6 +93,8 @@ Base `magic-soap` tetap tidak membaca atau menulis halaman eRM. Integrasi eRM ha
 ## Pengaturan API
 
 Semua fitur AI menggunakan API admin bersama. Pengguna mengaktifkan AI melalui satu kotak login yang terikat ke perangkat; status membedakan AI tidak aktif, proses aktivasi, masalah akses, dan AI aktif dengan bahasa sederhana. Provider, endpoint, model, dan API key hanya terlihat di panel pemilik. Nilai API pribadi lama tetap tersimpan secara lokal, tetapi disembunyikan dan tidak digunakan.
+
+Token Bersama menggunakan snapshot global pada pukul 00.00, 03.00, 06.00, dan seterusnya dalam WITA. Sidepanel hanya mengambil snapshot setelah login dan ketika periode berubah; membuka ulang sidepanel pada periode yang sama atau membuka modal rincian tidak memicu request baru.
 
 Analisis foto memakai model admin yang mendukung vision melalui action `ai_generate_vision`. Foto menerima format JPG, PNG, atau WebP hingga 8 MB. Tidak ada API key, token sesi, atau password yang di-hardcode di source extension.
 

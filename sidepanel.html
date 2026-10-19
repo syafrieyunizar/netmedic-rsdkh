@@ -16,10 +16,10 @@
       </div>
     </div>
     <div class="header-actions">
-      <span id="sharedToken" class="shared-token" role="status" aria-live="polite" title="Sisa Token Bersama">
+      <button id="sharedToken" class="shared-token" type="button" aria-label="Buka rincian Token Bersama" title="Rincian Token Bersama" hidden>
         <span>Token bersama</span>
         <strong id="sharedTokenAmount">Rp0</strong>
-      </span>
+      </button>
       <button id="openSupport" class="support-button" type="button" aria-label="Buka dukungan extension" title="Support">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"/></svg>
         <span>Support</span>
@@ -191,8 +191,42 @@
 
   <footer class="app-footer">
     <span><span class="footer-dot" aria-hidden="true"></span>Siap digunakan</span>
-    <span id="appVersion">v2.1.2</span>
+    <span id="appVersion">v2.1.3</span>
   </footer>
+
+  <dialog id="sharedTokenDialog" class="compact-dialog shared-token-dialog" aria-labelledby="sharedTokenTitle">
+    <div class="shared-token-dialog-shell">
+      <div class="dialog-heading">
+        <div>
+          <span class="section-kicker">TOKEN BERSAMA</span>
+          <h2 id="sharedTokenTitle">Rincian penggunaan</h2>
+        </div>
+        <button id="closeSharedToken" class="icon-button" type="button" aria-label="Tutup rincian Token Bersama" title="Tutup">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="shared-token-balance">
+        <span>Sisa token bersama</span>
+        <strong id="sharedTokenDialogAmount">Rp0</strong>
+      </div>
+      <dl class="shared-token-details">
+        <div>
+          <dt>Total penggunaan</dt>
+          <dd id="sharedTokenTotalUsage">Rp0</dd>
+          <small id="sharedTokenUsagePeriod">Belum ada snapshot penggunaan.</small>
+        </div>
+        <div>
+          <dt>Estimasi token habis</dt>
+          <dd id="sharedTokenEstimate">Estimasi belum tersedia</dd>
+        </div>
+        <div>
+          <dt>Masa aktif</dt>
+          <dd id="sharedTokenActivePeriod">-</dd>
+        </div>
+      </dl>
+      <p id="sharedTokenUpdatedAt" class="shared-token-updated">Snapshot belum tersedia.</p>
+    </div>
+  </dialog>
 
   <dialog id="supportDialog" class="support-dialog" aria-labelledby="supportTitle">
     <div class="support-shell">

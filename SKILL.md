@@ -92,7 +92,7 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 
 - The user connection page must not reveal provider, endpoint, API key, or model details. Keep those controls exclusively in the authenticated owner panel.
 - All AI generation uses the public `netmedic-rsdkh` admin config and a registered, device-bound user session.
-- The header shows only `Token bersama` and its cached Rupiah amount. Zero and negative values remain visible and never block generation.
+- The header shows `Token bersama` only after AI access is active and a current cached snapshot exists. It opens a compact detail dialog without fetching. Snapshot periods are global WITA boundaries every three hours, expire informationally after 28 days, and zero, negative, or expired values never block generation.
 - AI failures stay on the current screen, show the backend/provider message and elapsed time, and offer sanitized `Salin detail`; session failures also offer `Login ulang`.
 - Owner validate/save/reset actions require main admin credentials and must send them only to the shared Edge Function.
 - Reset is destructive, requires confirmation, and must leave the provider inactive until a new key is saved.

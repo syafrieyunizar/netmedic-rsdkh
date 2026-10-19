@@ -183,7 +183,7 @@ The desktop navigation drawer in the reference must not be rendered inside the S
 - Admin mode shows the public provider/model status, then requires a registered user login before generation.
 - Owner administration uses the dedicated `Panel Admin` subpage. Before authentication, it renders only username, password, login feedback, and `Login Panel Admin`.
 - Successful owner login replaces the login form with a memory-only admin session, a `Keluar Admin` command, and `API Key`, `Pengguna`, `Katalog`, and `Token` tabs; no Knowledge interface is rendered.
-- The `Token` tab edits input/output price per one million characters, total pulse, and the inclusive WITA calculation start date. Usage totals, calculated cost, and balance are read-only.
+- The `Token` tab edits input/output price per one million characters, total pulse, and the inclusive WITA calculation start date. Usage totals, calculated cost, and balance are read-only. The user-facing header token stays hidden until AI access is active, opens a compact cached-detail dialog, and uses one global three-hour WITA snapshot with an automatic 28-day informational expiry.
 - Closing Settings or choosing `Keluar Admin` clears the owner credentials and requires a fresh login.
 - The admin provider key must never be returned to or stored by the extension; only the public provider label/model and `hasApiKey` state may be shown.
 

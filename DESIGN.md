@@ -176,7 +176,7 @@ The desktop navigation drawer in the reference must not be rendered inside the S
 - Use a full-height native `<dialog>` that slides in from the right without a dark backdrop.
 - The first view is a compact settings hub with separate entries for `Koneksi AI`, `Kamus Produk RSDKH`, and `Panel Admin`.
 - Each entry opens a dedicated subpage with a predictable back button, fixed header, scrollable body, and contextual bottom actions.
-- The user-facing `Koneksi AI` page contains a bordered username/password login at the top, one generic connection status, and one full-width `Gunakan API admin` action. Provider-specific fields stay exclusively in the authenticated owner panel; password and owner API key fields use an in-boundary show/hide icon button.
+- The user-facing `Koneksi AI` page contains a bordered username/password login at the top, one plain-language AI status, and one full-width `Aktifkan AI` action. Its status distinguishes inactive, loading, invalid credentials, expired sessions, connectivity problems, unavailable service, and active states without exposing provider details. Provider-specific fields stay exclusively in the authenticated owner panel; password and owner API key fields use an in-boundary show/hide icon button.
 - Save and destructive actions must remain distinct; do not render one global save action across unrelated subpages.
 - On failed validation, the existing stored configuration must remain active.
 - The server-side admin API is the only source. Personal BYOK controls and technical provider details stay hidden from regular users.

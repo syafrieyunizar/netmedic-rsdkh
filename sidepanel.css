@@ -231,6 +231,15 @@ h2 {
   background: #8a6d00;
 }
 
+.active-api-status[data-state="loading"] .connection-dot {
+  background: #525e7d;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.active-api-status[data-state="error"] .connection-dot {
+  background: var(--error);
+}
+
 .header-actions > .icon-button {
   flex-basis: 28px;
   width: 28px;
@@ -2593,6 +2602,18 @@ dialog::backdrop {
   color: #624f00;
   background: #fff5c2;
   border-color: #d9c96c;
+}
+
+.active-api-status[data-state="loading"] {
+  color: #273657;
+  background: var(--info-container);
+  border-color: #b7c5e8;
+}
+
+.active-api-status[data-state="error"] {
+  color: #8c1010;
+  background: var(--error-container);
+  border-color: #efb3b3;
 }
 
 .field-hint,

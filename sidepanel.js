@@ -106,6 +106,7 @@ const RESPONSE_SCHEMAS = {
 let settings = { ...DEFAULT_SETTINGS };
 let adminPublicConfig = null;
 let adminUserSession = null;
+let adminSessionIssue = "";
 let ownerAdminAuth = null;
 let ownerUserResetTarget = "";
 let historyEntries = [];
@@ -773,6 +774,17 @@ function safeAiErrorMessage(error) {
     .replace(/([?&](?:key|api_key|token)=)[^&\s]+/gi, "$1[disensor]")
     .replace(/(?:Bearer\s+)[A-Za-z0-9._~-]+/gi, "Bearer [disensor]")
     .trim();
+}
+
+function adminAccessErrorMessage(error, context = "activate") {
+  const message = safeAiErrorMessage(error);
+  if (context === "login" && (error?.status === 401 || /username.*password|password.*salah|invalid credentials|unauthorized/i.test(message))) {
+    return "Username/password kamu salah. Silakan hubungi dr. M. Syafrie Yunizar untuk mendapatkan akses login.";
+  }
+  if (/failed to fetch|network|load failed|terlalu lama merespons/i.test(message) || [500, 502, 503, 504, 524, 546].includes(error?.status)) {
+    return "AI belum dapat diaktifkan. Periksa koneksi lalu coba lagi.";
+  }
+  return `AI belum dapat diaktifkan. ${message}`;
 }
 
 async function copyAiErrorDetail(feature, message, elapsedSeconds) {
@@ -1532,9 +1544,14 @@ async function knowledgeApi(action, payload = {}) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.error) {
     const serverMessage = String(data.error || "").trim();
-    if (response.status === 401) throw new Error(serverMessage || "Sesi API admin ditolak. Login ulang.");
-    if (response.status === 524 || response.status === 546) throw new Error(serverMessage || "API admin terlalu lama merespons. Coba ulangi.");
-    throw new Error(serverMessage || `API admin ${response.status}`);
+    const message = response.status === 401
+      ? serverMessage || "Sesi API admin ditolak. Login ulang."
+      : response.status === 524 || response.status === 546
+        ? serverMessage || "API admin terlalu lama merespons. Coba ulangi."
+        : serverMessage || `API admin ${response.status}`;
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
   return data;
 }
@@ -1563,6 +1580,7 @@ async function loginAdminAccess(username, password) {
   const deviceId = await getOrCreateAdminDeviceId();
   const data = await knowledgeApi("login_user", { username: username.trim(), password, device_id: deviceId });
   adminUserSession = normalizeAdminSession(data.session, username, deviceId);
+  adminSessionIssue = "";
   await chrome.storage.local.set({ [ADMIN_SESSION_KEY]: adminUserSession });
   return adminUserSession;
 }
@@ -1572,6 +1590,7 @@ async function validateStoredAdminSession() {
   const session = saved[ADMIN_SESSION_KEY];
   if (!session?.username || !session?.sessionToken || !session?.deviceId) {
     adminUserSession = null;
+    adminSessionIssue = "";
     return null;
   }
   try {
@@ -1581,10 +1600,13 @@ async function validateStoredAdminSession() {
       device_id: session.deviceId
     });
     adminUserSession = normalizeAdminSession(data.session, session.username, session.deviceId, session.sessionToken, session.expiresAt);
+    adminSessionIssue = "";
     await chrome.storage.local.set({ [ADMIN_SESSION_KEY]: adminUserSession });
     return adminUserSession;
-  } catch {
+  } catch (error) {
+    if (error?.status !== 401) throw error;
     adminUserSession = null;
+    adminSessionIssue = "expired";
     await chrome.storage.local.remove(ADMIN_SESSION_KEY);
     return null;
   }
@@ -1597,6 +1619,7 @@ async function logoutAdminAccess() {
     // Local logout must still complete if the backend cannot be reached.
   }
   adminUserSession = null;
+  adminSessionIssue = "";
   await chrome.storage.local.remove(ADMIN_SESSION_KEY);
 }
 
@@ -1608,9 +1631,9 @@ async function fetchAdminPublicConfig() {
 
 async function callAdminAi(prompt, responseType) {
   const config = await fetchAdminPublicConfig();
-  if (!config?.hasApiKey) throw new Error("API key admin untuk Magic SOAP belum diset.");
+  if (!config?.hasApiKey) throw new Error("AI sedang tidak tersedia. Silakan hubungi dr. M. Syafrie Yunizar.");
   const session = await validateStoredAdminSession();
-  if (!session) throw new Error("Sesi API admin tidak aktif. Buka pengaturan dan login ulang.");
+  if (!session) throw new Error("Sesi AI berakhir. Buka pengaturan dan login kembali.");
   const data = await knowledgeApi("ai_generate", {
     prompt,
     userPrompt: prompt,
@@ -1626,9 +1649,9 @@ async function callAdminAi(prompt, responseType) {
 
 async function callAdminVision(image) {
   const config = await fetchAdminPublicConfig();
-  if (!config?.hasApiKey) throw new Error("API key admin untuk Magic SOAP belum diset.");
+  if (!config?.hasApiKey) throw new Error("AI sedang tidak tersedia. Silakan hubungi dr. M. Syafrie Yunizar.");
   const session = await validateStoredAdminSession();
-  if (!session) throw new Error("Sesi API admin tidak aktif. Buka pengaturan dan login ulang.");
+  if (!session) throw new Error("Sesi AI berakhir. Buka pengaturan dan login kembali.");
   const data = await knowledgeApi("ai_generate_vision", {
     prompt: CLINICAL_VISION_PROMPT,
     userPrompt: CLINICAL_VISION_PROMPT,
@@ -3021,11 +3044,7 @@ function normalizeStoredSettings(stored = {}) {
 function updateApiStatus() {
   const adminReady = Boolean(adminPublicConfig?.hasApiKey && adminUserSession);
   const state = adminReady ? "success" : "empty";
-  const message = adminReady
-    ? "API admin aktif"
-    : adminPublicConfig?.hasApiKey
-      ? "Login API admin diperlukan"
-      : "API admin belum tersedia";
+  const message = adminReady ? "AI aktif" : "AI tidak aktif";
   $("#activeApiKeyStatus").dataset.state = state;
   $("#activeApiKeyText").textContent = message;
   $("#settingsApiSummary").textContent = message;
@@ -3056,7 +3075,7 @@ function syncApiSourceFields() {
   $("#personalApiFields").hidden = true;
   $("#personalApiFields").querySelectorAll("input, select, button").forEach((field) => { field.disabled = true; });
   $("#adminApiFields").hidden = false;
-  $("#saveSettings").querySelector("span").textContent = "Gunakan API admin";
+  $("#saveSettings").querySelector("span").textContent = adminUserSession ? "AI aktif" : "Aktifkan AI";
   updateApiStatus();
 }
 
@@ -3066,22 +3085,28 @@ function syncAdminSessionUi() {
   $("#adminSessionUsername").textContent = adminUserSession?.username || "";
   updateApiStatus();
   updateSettingsSummaries();
+  setSettingsBusy(false);
 }
 
-function syncAdminPublicStatus(error = "") {
+function setAdminPublicStatus(state, message) {
   const status = $("#adminPublicStatus");
-  if (error) {
-    status.dataset.state = "warning";
-    $("#adminPublicStatusText").textContent = "Gagal memeriksa API admin";
+  status.dataset.state = state;
+  status.setAttribute("role", state === "error" ? "alert" : "status");
+  status.setAttribute("aria-live", state === "error" ? "assertive" : "polite");
+  $("#adminPublicStatusText").textContent = message;
+}
+
+function syncAdminPublicStatus(message = "", state = "") {
+  if (message) {
+    setAdminPublicStatus(state || "warning", message);
   } else if (adminPublicConfig?.hasApiKey && adminUserSession) {
-    status.dataset.state = "success";
-    $("#adminPublicStatusText").textContent = "API admin aktif";
+    setAdminPublicStatus("success", "AI aktif");
+  } else if (adminSessionIssue === "expired") {
+    setAdminPublicStatus("warning", "Sesi berakhir. Silakan login kembali.");
   } else if (adminPublicConfig?.hasApiKey) {
-    status.dataset.state = "empty";
-    $("#adminPublicStatusText").textContent = "API admin tersedia";
+    setAdminPublicStatus("empty", "AI tidak aktif");
   } else {
-    status.dataset.state = "empty";
-    $("#adminPublicStatusText").textContent = "API admin belum tersedia";
+    setAdminPublicStatus("empty", "AI tidak aktif");
   }
   updateApiStatus();
 }
@@ -3113,7 +3138,7 @@ async function refreshAdminSettings() {
     syncAdminSessionUi();
     fillOwnerConfig();
   } catch (error) {
-    syncAdminPublicStatus(`Gagal memeriksa API admin: ${error.message}`);
+    syncAdminPublicStatus(adminAccessErrorMessage(error), "warning");
     syncAdminSessionUi();
   }
 }
@@ -3240,12 +3265,11 @@ function collectSettingsForm() {
   };
 }
 
-function setSettingsBusy(active, message = "Simpan") {
+function setSettingsBusy(active, message = "") {
   const button = $("#saveSettings");
-  button.disabled = active;
-  button.querySelector("span").textContent = !active && message === "Simpan"
-    ? "Gunakan API admin"
-    : message;
+  const aiActive = Boolean(adminPublicConfig?.hasApiKey && adminUserSession);
+  button.disabled = active || aiActive;
+  button.querySelector("span").textContent = active ? message : aiActive ? "AI aktif" : "Aktifkan AI";
   $("#deleteApiKey").disabled = true;
   $("#settingsBack").disabled = active;
   $("#closeSettings").disabled = active;
@@ -3256,17 +3280,35 @@ async function saveApiSettings(event) {
   const candidate = collectSettingsForm();
   const status = $("#settingsStatus");
   status.hidden = false;
+  const username = $("#adminUsername").value.trim();
+  const password = $("#adminPassword").value;
+  if (!adminUserSession && (!username || !password)) {
+    const message = "Isi username dan password terlebih dahulu.";
+    syncAdminPublicStatus(message, "error");
+    setStatus(status, "error", message);
+    return;
+  }
   try {
-    setSettingsBusy(true, "Memeriksa...");
-    setStatus(status, "loading", "Memeriksa API admin dan sesi pengguna...");
+    setSettingsBusy(true, "Mengaktifkan...");
+    setAdminPublicStatus("loading", "Sedang mengaktifkan AI...");
+    setStatus(status, "loading", "Memeriksa akses AI...");
     const config = await fetchAdminPublicConfig();
-    if (!config?.hasApiKey) throw new Error("API key admin untuk Magic SOAP belum diset.");
+    if (!config?.hasApiKey) {
+      const error = new Error("AI sedang tidak tersedia. Silakan hubungi dr. M. Syafrie Yunizar.");
+      error.code = "AI_UNAVAILABLE";
+      throw error;
+    }
     let session = await validateStoredAdminSession();
-    if (!session && ($("#adminUsername").value.trim() || $("#adminPassword").value)) {
-      session = await loginAdminAccess($("#adminUsername").value, $("#adminPassword").value);
+    if (!session) {
+      try {
+        session = await loginAdminAccess(username, password);
+      } catch (error) {
+        $("#adminPassword").value = "";
+        error.userMessage = adminAccessErrorMessage(error, "login");
+        throw error;
+      }
       $("#adminPassword").value = "";
     }
-    if (!session) throw new Error("Login API admin terlebih dahulu.");
     candidate.validated = true;
     candidate.validatedAt = new Date().toISOString();
     await chrome.storage.local.set({ [SETTINGS_KEY]: candidate });
@@ -3274,20 +3316,23 @@ async function saveApiSettings(event) {
     syncAdminPublicStatus();
     syncAdminSessionUi();
     updateApiStatus();
-    setStatus(status, "success", `API admin aktif sebagai ${session.username}.`);
+    setStatus(status, "success", "AI aktif.");
   } catch (error) {
-    setStatus(status, "error", `Validasi gagal: ${error.message} Pengaturan lama tetap digunakan.`);
+    const message = error.userMessage || (error.code === "AI_UNAVAILABLE" ? error.message : adminAccessErrorMessage(error));
+    syncAdminPublicStatus(message, "error");
+    setStatus(status, "error", message);
   } finally {
-    setSettingsBusy(false, "Gunakan API admin");
+    setSettingsBusy(false);
   }
 }
 
 async function logoutAdminUserFromSettings() {
   await logoutAdminAccess();
+  syncAdminPublicStatus();
   syncAdminSessionUi();
   const status = $("#settingsStatus");
   status.hidden = false;
-  setStatus(status, "success", "Logout API admin berhasil.");
+  setStatus(status, "success", "AI dinonaktifkan.");
 }
 
 function collectOwnerConfig() {
@@ -4043,7 +4088,8 @@ if (typeof module !== "undefined") {
     supportReminderDue,
     formatRupiah,
     normalizeSharedTokenSummary,
-    safeAiErrorMessage
+    safeAiErrorMessage,
+    adminAccessErrorMessage
   };
   if (require.main === module) {
     const assert = require("node:assert/strict");
@@ -4132,6 +4178,8 @@ if (typeof module !== "undefined") {
     assert.equal(formatRupiah(-12500), "-Rp12.500");
     assert.equal(normalizeSharedTokenSummary({ sharedToken: -12500, inputChars: 1234 }).sharedToken, -12500);
     assert.equal(safeAiErrorMessage("https://provider.test?key=secret&x=1"), "https://provider.test?key=[disensor]&x=1");
+    assert.equal(adminAccessErrorMessage(Object.assign(new Error("Unauthorized"), { status: 401 }), "login"), "Username/password kamu salah. Silakan hubungi dr. M. Syafrie Yunizar untuk mendapatkan akses login.");
+    assert.equal(adminAccessErrorMessage(new TypeError("Failed to fetch")), "AI belum dapat diaktifkan. Periksa koneksi lalu coba lagi.");
     assert.throws(() => parseAiJson("bukan json"), /bukan JSON valid/);
     assert.match(buildMagicSoapPrompt({ identity: "Laki-laki 45 tahun", serviceMode: "rawat_jalan", subjektif: "Nyeri", objektif: "", assessment: "", planning: "" }), /RAWAT JALAN/);
     assert.match(buildKronologiPrompt({ skenario: "Jatuh", akibat: "Fraktur" }), /\[Akibat\]: Fraktur/);

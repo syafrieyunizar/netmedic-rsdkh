@@ -91,7 +91,7 @@ Base `magic-soap` tetap tidak membaca atau menulis halaman eRM. Integrasi eRM ha
 
 ## Pengaturan API
 
-Semua fitur AI menggunakan API admin bersama. Pengguna login melalui satu kotak akses yang terikat ke perangkat; provider, endpoint, model, dan API key hanya terlihat di panel pemilik. Nilai API pribadi lama tetap tersimpan secara lokal, tetapi disembunyikan dan tidak digunakan.
+Semua fitur AI menggunakan API admin bersama. Pengguna mengaktifkan AI melalui satu kotak login yang terikat ke perangkat; status membedakan AI tidak aktif, proses aktivasi, masalah akses, dan AI aktif dengan bahasa sederhana. Provider, endpoint, model, dan API key hanya terlihat di panel pemilik. Nilai API pribadi lama tetap tersimpan secara lokal, tetapi disembunyikan dan tidak digunakan.
 
 Analisis foto memakai model admin yang mendukung vision melalui action `ai_generate_vision`. Foto menerima format JPG, PNG, atau WebP hingga 8 MB. Tidak ada API key, token sesi, atau password yang di-hardcode di source extension.
 

@@ -1723,6 +1723,8 @@ dialog::backdrop {
 }
 
 .shared-token-updated {
+  display: grid;
+  gap: 3px;
   margin: 0;
   line-height: 1.4;
 }

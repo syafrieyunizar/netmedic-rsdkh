@@ -824,6 +824,10 @@ function renderSharedToken(snapshot = sharedTokenSnapshot) {
   $("#sharedTokenUpdatedAt").textContent = snapshot.snapshotAt
     ? `Diperbarui ${formatWitaDateTime(snapshot.snapshotAt)}.`
     : "Snapshot belum tersedia.";
+  const snapshotAt = Date.parse(snapshot.snapshotAt || "");
+  $("#sharedTokenNextUpdate").textContent = Number.isFinite(snapshotAt)
+    ? `Pembaruan berikutnya ${formatWitaDateTime(snapshotAt + SHARED_TOKEN_PERIOD_MS)}.`
+    : "Jadwal pembaruan belum tersedia.";
 }
 
 async function cacheSharedToken(snapshot) {

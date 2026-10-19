@@ -191,7 +191,7 @@
 
   <footer class="app-footer">
     <span><span class="footer-dot" aria-hidden="true"></span>Siap digunakan</span>
-    <span id="appVersion">v2.0.0</span>
+    <span id="appVersion">v2.1.0</span>
   </footer>
 
   <dialog id="supportDialog" class="support-dialog" aria-labelledby="supportTitle">
@@ -550,75 +550,85 @@
 
         <section class="settings-page" data-settings-page="connection" hidden>
           <div class="settings-page-body">
-            <div id="activeApiKeyStatus" class="active-api-status" data-state="empty" role="status" aria-live="polite">
-              <span class="connection-dot" aria-hidden="true"></span>
-              <span id="activeApiKeyText">Tidak ada API key aktif</span>
-            </div>
-            <label>Sumber API
-              <select id="apiKeySource" disabled aria-disabled="true">
-                <option value="personal" disabled>API key pribadi</option>
-                <option value="admin" selected>API admin</option>
-              </select>
-            </label>
-            <p class="personal-api-disabled-note">Saat ini API key hanya dapat menggunakan API key admin. Silakan hubungi dr. M. Syafrie Yunizar.</p>
-            <div id="personalApiFields" class="settings-group">
-              <label>Provider
-                <select id="provider">
-                  <option value="gemini">Gemini (Google)</option>
-                  <option value="sumopod">Sumopod</option>
-                  <option value="aimurah">AImurah</option>
-                  <option value="semutssh">SemutSSH</option>
-                  <option value="custom">Provider lain</option>
-                </select>
-              </label>
-              <div id="customProviderFields" class="settings-group" hidden>
-                <label>Nama provider
-                  <input id="customProviderLabel" type="text" placeholder="Contoh: OpenAI" autocomplete="off">
-                </label>
-                <label>Endpoint URL
-                  <input id="customBaseUrl" type="url" placeholder="https://api.provider.com/v1/chat/completions" autocomplete="off" spellcheck="false">
-                  <span class="field-hint">Endpoint HTTPS OpenAI-compatible chat/completions.</span>
-                </label>
-              </div>
-              <div class="field"><label id="apiKeyLabel" for="apiKey">Gemini API key</label>
-                <span class="password-control">
-                  <input id="apiKey" type="password" placeholder="Masukkan API key" autocomplete="off" spellcheck="false">
-                  <button id="toggleApiKey" class="input-icon-button" type="button" aria-label="Tampilkan API key" title="Tampilkan API key">
-                    <svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
-                    <svg class="eye-closed" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 4.2A10.5 10.5 0 0 1 12 4c6.5 0 10 8 10 8a18 18 0 0 1-2.1 3.1M6.6 6.6C3.5 8.6 2 12 2 12s3.5 8 10 8a9.8 9.8 0 0 0 3.4-.6"/></svg>
-                  </button>
-                </span>
-                <span class="field-hint">Disimpan lokal di Chrome dan dikirim hanya ke provider pilihan.</span>
-              </div>
-              <label>Model
-                <input id="model" type="text" value="gemini-2.0-flash" placeholder="Masukkan nama model" autocomplete="off" spellcheck="false">
-              </label>
-              <label class="toggle-row">
-                <span><strong>Validasi sebelum menyimpan</strong><small>Konfigurasi lama tetap dipakai bila validasi gagal.</small></span>
-                <input id="validateBeforeSave" type="checkbox" checked>
-              </label>
-            </div>
-            <div id="adminApiFields" class="settings-group" hidden>
-              <div id="adminPublicStatus" class="active-api-status" data-state="empty" role="status" aria-live="polite">
-                <span class="connection-dot" aria-hidden="true"></span>
-                <span id="adminPublicStatusText">Memeriksa API admin...</span>
+            <div id="adminApiFields" class="admin-access-card">
+              <div id="adminLoginFields" class="settings-group">
+                <div class="admin-access-heading">
+                  <span class="section-kicker">AKSES API ADMIN</span>
+                  <h3>Masuk untuk menggunakan AI</h3>
+                </div>
+                <label>Username<input id="adminUsername" type="text" autocomplete="username" placeholder="Username akses admin"></label>
+                <div class="field"><label for="adminPassword">Password</label>
+                  <span class="password-control">
+                    <input id="adminPassword" type="password" autocomplete="current-password" placeholder="Password akses admin">
+                    <button id="toggleAdminPassword" class="input-icon-button" type="button" aria-label="Tampilkan password" title="Tampilkan password">
+                      <svg class="admin-eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                      <svg class="admin-eye-closed" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 4.2A10.5 10.5 0 0 1 12 4c6.5 0 10 8 10 8a18 18 0 0 1-2.1 3.1M6.6 6.6C3.5 8.6 2 12 2 12s3.5 8 10 8a9.8 9.8 0 0 0 3.4-.6"/></svg>
+                    </button>
+                  </span>
+                </div>
               </div>
               <div id="adminLoggedIn" class="admin-session" hidden>
                 <div><span class="field-hint">Login sebagai</span><strong id="adminSessionUsername"></strong></div>
                 <button id="logoutAdminUser" class="button" type="button">Logout</button>
               </div>
-              <div id="adminLoginFields" class="settings-group">
-                <label>Username<input id="adminUsername" type="text" autocomplete="username" placeholder="Username akses admin"></label>
-                <label>Password<input id="adminPassword" type="password" autocomplete="current-password" placeholder="Password akses admin"></label>
-                <button id="loginAdminUser" class="button" type="button">Login API admin</button>
+            </div>
+            <div id="adminPublicStatus" class="active-api-status" data-state="empty" role="status" aria-live="polite">
+              <span class="connection-dot" aria-hidden="true"></span>
+              <span id="adminPublicStatusText">Memeriksa API admin...</span>
+            </div>
+            <div class="legacy-personal-api" hidden aria-hidden="true">
+              <div id="activeApiKeyStatus" class="active-api-status" data-state="empty">
+                <span id="activeApiKeyText">Tidak ada API key aktif</span>
               </div>
-              <span class="field-hint">API key admin tetap di server dan tidak ditampilkan pada perangkat ini.</span>
+              <label>Sumber API
+                <select id="apiKeySource" disabled>
+                  <option value="personal" disabled>API key pribadi</option>
+                  <option value="admin" selected>API admin</option>
+                </select>
+              </label>
+              <div id="personalApiFields" class="settings-group">
+                <label>Provider
+                  <select id="provider">
+                    <option value="gemini">Gemini (Google)</option>
+                    <option value="sumopod">Sumopod</option>
+                    <option value="aimurah">AImurah</option>
+                    <option value="semutssh">SemutSSH</option>
+                    <option value="custom">Provider lain</option>
+                  </select>
+                </label>
+                <div id="customProviderFields" class="settings-group" hidden>
+                  <label>Nama provider
+                    <input id="customProviderLabel" type="text" placeholder="Contoh: OpenAI" autocomplete="off">
+                  </label>
+                  <label>Endpoint URL
+                    <input id="customBaseUrl" type="url" placeholder="https://api.provider.com/v1/chat/completions" autocomplete="off" spellcheck="false">
+                    <span class="field-hint">Endpoint HTTPS OpenAI-compatible chat/completions.</span>
+                  </label>
+                </div>
+                <div class="field"><label id="apiKeyLabel" for="apiKey">Gemini API key</label>
+                  <span class="password-control">
+                    <input id="apiKey" type="password" placeholder="Masukkan API key" autocomplete="off" spellcheck="false">
+                    <button id="toggleApiKey" class="input-icon-button" type="button" aria-label="Tampilkan API key" title="Tampilkan API key">
+                      <svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                      <svg class="eye-closed" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 4.2A10.5 10.5 0 0 1 12 4c6.5 0 10 8 10 8a18 18 0 0 1-2.1 3.1M6.6 6.6C3.5 8.6 2 12 2 12s3.5 8 10 8a9.8 9.8 0 0 0 3.4-.6"/></svg>
+                    </button>
+                  </span>
+                  <span class="field-hint">Disimpan lokal di Chrome dan dikirim hanya ke provider pilihan.</span>
+                </div>
+                <label>Model
+                  <input id="model" type="text" value="gemini-2.0-flash" placeholder="Masukkan nama model" autocomplete="off" spellcheck="false">
+                </label>
+                <label class="toggle-row">
+                  <span><strong>Validasi sebelum menyimpan</strong><small>Konfigurasi lama tetap dipakai bila validasi gagal.</small></span>
+                  <input id="validateBeforeSave" type="checkbox" checked>
+                </label>
+              </div>
             </div>
             <div id="settingsStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
           </div>
           <div class="settings-actions">
-            <button id="deleteApiKey" class="button danger" type="button">Hapus key</button>
-            <button id="saveSettings" class="button primary" type="submit"><span>Simpan</span></button>
+            <button id="deleteApiKey" class="button danger" type="button" hidden>Hapus key</button>
+            <button id="saveSettings" class="button primary" type="submit"><span>Gunakan API admin</span></button>
           </div>
         </section>
 

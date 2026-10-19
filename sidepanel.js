@@ -3021,18 +3021,15 @@ function normalizeStoredSettings(stored = {}) {
 function updateApiStatus() {
   const adminReady = Boolean(adminPublicConfig?.hasApiKey && adminUserSession);
   const state = adminReady ? "success" : "empty";
-  const label = adminPublicConfig?.providerLabel || adminPublicConfig?.provider || "Admin";
   const message = adminReady
-    ? `${label} admin aktif`
+    ? "API admin aktif"
     : adminPublicConfig?.hasApiKey
-      ? "API admin tersedia, login diperlukan"
+      ? "Login API admin diperlukan"
       : "API admin belum tersedia";
   $("#activeApiKeyStatus").dataset.state = state;
-  $("#activeApiKeyText").textContent = adminReady
-    ? `${message} · ${adminPublicConfig?.model || ""}`
-    : message;
+  $("#activeApiKeyText").textContent = message;
   $("#settingsApiSummary").textContent = message;
-  $("#deleteApiKey").hidden = false;
+  $("#deleteApiKey").hidden = true;
   $("#deleteApiKey").disabled = true;
 }
 
@@ -3056,7 +3053,7 @@ function updateSettingsSummaries() {
 function syncApiSourceFields() {
   $("#apiKeySource").value = "admin";
   $("#apiKeySource").disabled = true;
-  $("#personalApiFields").hidden = false;
+  $("#personalApiFields").hidden = true;
   $("#personalApiFields").querySelectorAll("input, select, button").forEach((field) => { field.disabled = true; });
   $("#adminApiFields").hidden = false;
   $("#saveSettings").querySelector("span").textContent = "Gunakan API admin";
@@ -3075,13 +3072,16 @@ function syncAdminPublicStatus(error = "") {
   const status = $("#adminPublicStatus");
   if (error) {
     status.dataset.state = "warning";
-    $("#adminPublicStatusText").textContent = error;
-  } else if (adminPublicConfig?.hasApiKey) {
+    $("#adminPublicStatusText").textContent = "Gagal memeriksa API admin";
+  } else if (adminPublicConfig?.hasApiKey && adminUserSession) {
     status.dataset.state = "success";
-    $("#adminPublicStatusText").textContent = `${adminPublicConfig.providerLabel || adminPublicConfig.provider} · ${adminPublicConfig.model}`;
+    $("#adminPublicStatusText").textContent = "API admin aktif";
+  } else if (adminPublicConfig?.hasApiKey) {
+    status.dataset.state = "empty";
+    $("#adminPublicStatusText").textContent = "API admin tersedia";
   } else {
     status.dataset.state = "empty";
-    $("#adminPublicStatusText").textContent = "API admin Magic SOAP belum dikonfigurasi";
+    $("#adminPublicStatusText").textContent = "API admin belum tersedia";
   }
   updateApiStatus();
 }
@@ -3146,6 +3146,11 @@ function fillSettingsForm() {
   $("#apiKey").type = "password";
   $("#model").value = settings.model;
   $("#validateBeforeSave").checked = true;
+  $("#adminPassword").type = "password";
+  $("#toggleAdminPassword").setAttribute("aria-label", "Tampilkan password");
+  $("#toggleAdminPassword").title = "Tampilkan password";
+  $(".admin-eye-open").hidden = false;
+  $(".admin-eye-closed").hidden = true;
   $("#settingsStatus").hidden = true;
   $("#productAliasStatus").hidden = true;
   $("#sharedProductCatalogStatus").hidden = true;
@@ -3214,6 +3219,14 @@ function syncApiKeyVisibility(visible) {
   $(".eye-closed").hidden = !visible;
 }
 
+function syncAdminPasswordVisibility(visible) {
+  $("#adminPassword").type = visible ? "text" : "password";
+  $("#toggleAdminPassword").setAttribute("aria-label", visible ? "Sembunyikan password" : "Tampilkan password");
+  $("#toggleAdminPassword").title = visible ? "Sembunyikan password" : "Tampilkan password";
+  $(".admin-eye-open").hidden = visible;
+  $(".admin-eye-closed").hidden = !visible;
+}
+
 function collectSettingsForm() {
   return {
     apiKeySource: "admin",
@@ -3251,6 +3264,7 @@ async function saveApiSettings(event) {
     let session = await validateStoredAdminSession();
     if (!session && ($("#adminUsername").value.trim() || $("#adminPassword").value)) {
       session = await loginAdminAccess($("#adminUsername").value, $("#adminPassword").value);
+      $("#adminPassword").value = "";
     }
     if (!session) throw new Error("Login API admin terlebih dahulu.");
     candidate.validated = true;
@@ -3265,23 +3279,6 @@ async function saveApiSettings(event) {
     setStatus(status, "error", `Validasi gagal: ${error.message} Pengaturan lama tetap digunakan.`);
   } finally {
     setSettingsBusy(false, "Gunakan API admin");
-  }
-}
-
-async function loginAdminUserFromSettings() {
-  const status = $("#settingsStatus");
-  status.hidden = false;
-  $("#loginAdminUser").disabled = true;
-  setStatus(status, "loading", "Login API admin...");
-  try {
-    await loginAdminAccess($("#adminUsername").value, $("#adminPassword").value);
-    $("#adminPassword").value = "";
-    syncAdminSessionUi();
-    setStatus(status, "success", `Login berhasil sebagai ${adminUserSession.username}.`);
-  } catch (error) {
-    setStatus(status, "error", `Login gagal: ${error.message}`);
-  } finally {
-    $("#loginAdminUser").disabled = false;
   }
 }
 
@@ -3862,8 +3859,8 @@ if (typeof document !== "undefined") {
   });
   $("#customProviderLabel").addEventListener("input", () => syncProviderFields());
   $("#toggleApiKey").addEventListener("click", () => syncApiKeyVisibility($("#apiKey").type === "password"));
+  $("#toggleAdminPassword").addEventListener("click", () => syncAdminPasswordVisibility($("#adminPassword").type === "password"));
   $("#deleteApiKey").addEventListener("click", deleteApiSettings);
-  $("#loginAdminUser").addEventListener("click", loginAdminUserFromSettings);
   $("#logoutAdminUser").addEventListener("click", logoutAdminUserFromSettings);
   $("#addProductAlias").addEventListener("click", () => {
     $("#productAliasSearch").value = "";

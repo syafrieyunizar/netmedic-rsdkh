@@ -39,7 +39,7 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 7. Keep font and other runtime assets local for MV3 CSP and offline use.
 8. Do not modify legacy application runtime code. A shared, idempotent database migration may be mirrored across related repositories only when the user explicitly requests it.
 9. Keep `app_id: netmedic-rsdkh` on every shared backend request; never infer it from visible UI text.
-10. Keep provider API keys server-side. Version 2.0 uses only the admin API path; legacy personal-key fields remain visible but disabled and stored values are not used.
+10. Keep provider API keys server-side. Version 2.1 uses only the admin API path; the user connection page shows only the bordered admin login, generic connection status, and one `Gunakan API admin` action. Legacy personal-key values remain stored but hidden and unused.
 
 ## Component Contract
 
@@ -90,7 +90,7 @@ Read `DESIGN.md` before changing any visible UI. The supplied Netmedic RSDKH HTM
 
 ### API Settings
 
-- `API key pribadi` remains visible but every personal provider/key/model control and source selection is disabled.
+- The user connection page must not reveal provider, endpoint, API key, or model details. Keep those controls exclusively in the authenticated owner panel.
 - All AI generation uses the public `netmedic-rsdkh` admin config and a registered, device-bound user session.
 - The header shows only `Token bersama` and its cached Rupiah amount. Zero and negative values remain visible and never block generation.
 - AI failures stay on the current screen, show the backend/provider message and elapsed time, and offer sanitized `Salin detail`; session failures also offer `Login ulang`.

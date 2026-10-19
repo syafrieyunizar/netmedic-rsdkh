@@ -588,6 +588,30 @@ main {
   font-size: 10px;
 }
 
+.admin-access-card {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface-lowest);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.admin-access-heading {
+  display: grid;
+  gap: 2px;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.admin-access-heading h3 {
+  margin: 0;
+  color: var(--on-surface);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .owner-admin-settings {
   padding: 0 var(--space-3) var(--space-3);
   background: var(--surface-low);
@@ -2527,6 +2551,10 @@ dialog::backdrop {
 
 .settings-actions .primary {
   min-width: 128px;
+}
+
+.settings-page[data-settings-page="connection"] .settings-actions .primary {
+  width: 100%;
 }
 
 @keyframes settings-page-forward {

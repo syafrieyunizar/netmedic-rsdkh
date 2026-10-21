@@ -94,6 +94,8 @@ Base `magic-soap` tetap tidak membaca atau menulis halaman eRM. Integrasi eRM ha
 
 Semua fitur AI menggunakan API admin bersama. Pengguna mengaktifkan AI melalui satu kotak login yang terikat ke perangkat; status membedakan AI tidak aktif, proses aktivasi, masalah akses, dan AI aktif dengan bahasa sederhana. Provider, endpoint, model, dan API key hanya terlihat di panel pemilik. Nilai API pribadi lama tetap tersimpan secara lokal, tetapi disembunyikan dan tidak digunakan.
 
+Jika sesi perangkat sudah tidak aktif atau kedaluwarsa, extension membersihkan token sesi lama sebelum memproses login ulang. Gangguan jaringan biasa tidak menghapus sesi pengguna.
+
 Token Bersama menggunakan snapshot global pada pukul 00.00, 03.00, 06.00, dan seterusnya dalam WITA. Sidepanel hanya mengambil snapshot setelah login dan ketika periode berubah; membuka ulang sidepanel pada periode yang sama atau membuka modal rincian tidak memicu request baru. Modal menampilkan waktu snapshot terakhir dan jadwal pembaruan berikutnya.
 
 Analisis foto memakai model admin yang mendukung vision melalui action `ai_generate_vision`. Foto menerima format JPG, PNG, atau WebP hingga 8 MB. Tidak ada API key, token sesi, atau password yang di-hardcode di source extension.

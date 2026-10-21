@@ -921,6 +921,12 @@ function adminAccessErrorMessage(error, context = "activate") {
   return `AI belum dapat diaktifkan. ${message}`;
 }
 
+function isInvalidAdminSessionError(error) {
+  const message = safeAiErrorMessage(error);
+  return error?.status === 401
+    || /sesi (?:admin|api admin|login).*?(?:tidak aktif|berakhir|ditolak|belum lengkap)|username tidak terdaftar|silakan login ulang/i.test(message);
+}
+
 async function copyAiErrorDetail(feature, message, elapsedSeconds) {
   const version = globalThis.chrome?.runtime?.getManifest?.().version || "-";
   const detail = [
@@ -1738,7 +1744,7 @@ async function validateStoredAdminSession() {
     await chrome.storage.local.set({ [ADMIN_SESSION_KEY]: adminUserSession });
     return adminUserSession;
   } catch (error) {
-    if (error?.status !== 401) throw error;
+    if (!isInvalidAdminSessionError(error)) throw error;
     adminUserSession = null;
     adminSessionIssue = "expired";
     await chrome.storage.local.remove(ADMIN_SESSION_KEY);
@@ -4233,7 +4239,8 @@ if (typeof module !== "undefined") {
     sharedTokenEstimateText,
     normalizeSharedTokenSummary,
     safeAiErrorMessage,
-    adminAccessErrorMessage
+    adminAccessErrorMessage,
+    isInvalidAdminSessionError
   };
   if (require.main === module) {
     const assert = require("node:assert/strict");
@@ -4336,6 +4343,8 @@ if (typeof module !== "undefined") {
     assert.equal(safeAiErrorMessage("https://provider.test?key=secret&x=1"), "https://provider.test?key=[disensor]&x=1");
     assert.equal(adminAccessErrorMessage(Object.assign(new Error("Unauthorized"), { status: 401 }), "login"), "Username/password kamu salah. Silakan hubungi dr. M. Syafrie Yunizar untuk mendapatkan akses login.");
     assert.equal(adminAccessErrorMessage(new TypeError("Failed to fetch")), "AI belum dapat diaktifkan. Periksa koneksi lalu coba lagi.");
+    assert.equal(isInvalidAdminSessionError(Object.assign(new Error("Sesi admin di perangkat ini sudah tidak aktif. Silakan login ulang."), { status: 400 })), true);
+    assert.equal(isInvalidAdminSessionError(new TypeError("Failed to fetch")), false);
     assert.throws(() => parseAiJson("bukan json"), /bukan JSON valid/);
     assert.match(buildMagicSoapPrompt({ identity: "Laki-laki 45 tahun", serviceMode: "rawat_jalan", subjektif: "Nyeri", objektif: "", assessment: "", planning: "" }), /RAWAT JALAN/);
     assert.match(buildKronologiPrompt({ skenario: "Jatuh", akibat: "Fraktur" }), /\[Akibat\]: Fraktur/);

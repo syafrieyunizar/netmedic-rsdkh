@@ -383,10 +383,19 @@ ${JSON.stringify({
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.error) {
       const message = String(data.error || "").trim();
-      if (response.status === 401) throw new Error(message || "Sesi API admin ditolak. Login ulang melalui side panel.");
-      throw new Error(message || `API admin gagal (${response.status}).`);
+      const error = new Error(message || (response.status === 401
+        ? "Sesi API admin ditolak. Login ulang melalui side panel."
+        : `API admin gagal (${response.status}).`));
+      error.status = response.status;
+      throw error;
     }
     return data;
+  }
+
+  function isInvalidAdminSessionError(error) {
+    const message = String(error?.message || error || "");
+    return error?.status === 401
+      || /sesi (?:admin|api admin|login).*?(?:tidak aktif|berakhir|ditolak|belum lengkap)|username tidak terdaftar|silakan login ulang/i.test(message);
   }
 
   async function callAdmin(prompt, session, responseSchema = SOAP_SCHEMA, feature = "rsdkh_input_soap") {
@@ -402,7 +411,8 @@ ${JSON.stringify({
         session_token: session.sessionToken,
         device_id: session.deviceId
       });
-    } catch {
+    } catch (error) {
+      if (!isInvalidAdminSessionError(error)) throw error;
       await chrome.storage.local.remove(ADMIN_SESSION_KEY);
       throw new Error("Sesi API admin tidak aktif. Login ulang melalui pengaturan side panel.");
     }
@@ -518,6 +528,7 @@ ${JSON.stringify({
     buildPrescriptionPrompt,
     buildResumePrompt,
     parseAiJson,
+    isInvalidAdminSessionError,
     normalizeSoap,
     normalizePrescription,
     normalizeResume,
@@ -533,6 +544,8 @@ if (typeof module !== "undefined" && require.main === module) {
   const assert = require("node:assert/strict");
   assert.deepEqual(module.exports.normalizeSoap({ s: "S", o: "O", a: "A", p: "P" }), { s: "S", o: "O", a: "A", p: "P" });
   assert.deepEqual(module.exports.parseAiJson("```json\n{\"s\":\"S\",\"o\":\"O\",\"a\":\"A\",\"p\":\"P\"}\n```"), { s: "S", o: "O", a: "A", p: "P" });
+  assert.equal(module.exports.isInvalidAdminSessionError(Object.assign(new Error("Sesi admin di perangkat ini sudah tidak aktif. Silakan login ulang."), { status: 400 })), true);
+  assert.equal(module.exports.isInvalidAdminSessionError(new TypeError("Failed to fetch")), false);
   assert.deepEqual(module.exports.normalizePrescription({ summary: "IVFD", warning: "", items: [{ display_name: "NaCl", search_term: "NaCl", qty: 1 }] }), {
     summary: "IVFD",
     warning: "",

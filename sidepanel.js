@@ -746,6 +746,11 @@ function formatInteger(value) {
   return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(Number(value) || 0);
 }
 
+function isValidTokenPeriod(activeFrom, activeUntil) {
+  const pattern = /^\d{4}-\d{2}-\d{2}$/;
+  return pattern.test(activeFrom) && pattern.test(activeUntil) && activeUntil >= activeFrom;
+}
+
 function sharedTokenPeriodStart(now = Date.now()) {
   const wita = new Date(now + WITA_OFFSET_MS);
   const hour = Math.floor(wita.getUTCHours() / 3) * 3;
@@ -762,6 +767,7 @@ function normalizeSharedTokenSnapshot(raw = {}) {
     value: Number(source.sharedToken ?? source.value) || 0,
     totalCost: Number(source.totalCost) || 0,
     activeFrom: String(source.activeFrom || ""),
+    activeUntil: String(source.activeUntil || ""),
     snapshotAt: String(source.snapshotAt || ""),
     expiresAt: String(source.expiresAt || ""),
     estimatedDepletionAt: source.estimatedDepletionAt ? String(source.estimatedDepletionAt) : "",
@@ -813,18 +819,21 @@ function renderSharedToken(snapshot = sharedTokenSnapshot) {
   $("#sharedTokenAmount").textContent = formatRupiah(snapshot.value);
   $("#sharedTokenDialogAmount").textContent = formatRupiah(snapshot.value);
   $("#sharedTokenTotalUsage").textContent = formatRupiah(snapshot.totalCost);
+  const snapshotAt = Date.parse(snapshot.snapshotAt || "");
+  const expiresAt = Date.parse(snapshot.expiresAt || "");
+  const usageUntil = Number.isFinite(snapshotAt) && Number.isFinite(expiresAt) && snapshotAt >= expiresAt
+    ? expiresAt - 1
+    : snapshotAt;
   $("#sharedTokenUsagePeriod").textContent = snapshot.activeFrom && snapshot.snapshotAt
-    ? `Sejak ${formatWitaDate(snapshot.activeFrom)} sampai ${formatWitaDateTime(snapshot.snapshotAt)}`
+    ? `Sejak ${formatWitaDate(snapshot.activeFrom)} sampai ${formatWitaDateTime(usageUntil)}`
     : "Belum ada snapshot penggunaan.";
   $("#sharedTokenEstimate").textContent = sharedTokenEstimateText(snapshot);
-  const expiresAt = Date.parse(snapshot.expiresAt || "");
   $("#sharedTokenActivePeriod").textContent = snapshot.activeFrom && Number.isFinite(expiresAt)
-    ? `${formatWitaDate(snapshot.activeFrom)} - ${formatWitaDate(expiresAt - 1)}`
+    ? `${formatWitaDate(snapshot.activeFrom)} - ${formatWitaDate(snapshot.activeUntil || expiresAt - 1)}`
     : "-";
   $("#sharedTokenUpdatedAt").textContent = snapshot.snapshotAt
     ? `Diperbarui ${formatWitaDateTime(snapshot.snapshotAt)}.`
     : "Snapshot belum tersedia.";
-  const snapshotAt = Date.parse(snapshot.snapshotAt || "");
   $("#sharedTokenNextUpdate").textContent = Number.isFinite(snapshotAt)
     ? `Pembaruan berikutnya ${formatWitaDateTime(snapshotAt + SHARED_TOKEN_PERIOD_MS)}.`
     : "Jadwal pembaruan belum tersedia.";
@@ -3500,6 +3509,7 @@ function normalizeSharedTokenSummary(raw = {}) {
     totalPulse: Number(raw.totalPulse) || 0,
     sharedToken: Number(raw.sharedToken) || 0,
     activeFrom: String(raw.activeFrom || ""),
+    activeUntil: String(raw.activeUntil || ""),
     inputPricePerMillion: Number(raw.inputPricePerMillion) || 0,
     outputPricePerMillion: Number(raw.outputPricePerMillion) || 0,
     snapshotAt: raw.snapshotAt || null,
@@ -3516,6 +3526,7 @@ function fillOwnerSharedToken(raw = {}) {
   $("#ownerOutputPrice").value = summary.outputPricePerMillion;
   $("#ownerTotalPulse").value = summary.totalPulse;
   $("#ownerTokenActiveFrom").value = summary.activeFrom;
+  $("#ownerTokenActiveUntil").value = summary.activeUntil;
   $("#ownerInputChars").textContent = `${formatInteger(summary.inputChars)} karakter`;
   $("#ownerOutputChars").textContent = `${formatInteger(summary.outputChars)} karakter`;
   $("#ownerCallCount").textContent = formatInteger(summary.callCount);
@@ -3550,11 +3561,12 @@ async function saveOwnerSharedToken() {
     inputPricePerMillion: Number($("#ownerInputPrice").value),
     outputPricePerMillion: Number($("#ownerOutputPrice").value),
     totalPulse: Number($("#ownerTotalPulse").value),
-    activeFrom: $("#ownerTokenActiveFrom").value
+    activeFrom: $("#ownerTokenActiveFrom").value,
+    activeUntil: $("#ownerTokenActiveUntil").value
   };
   status.hidden = false;
-  if (![config.inputPricePerMillion, config.outputPricePerMillion, config.totalPulse].every((value) => Number.isFinite(value) && value >= 0) || !/^\d{4}-\d{2}-\d{2}$/.test(config.activeFrom)) {
-    setStatus(status, "error", "Harga, total pulsa, dan tanggal mulai wajib diisi dengan nilai yang valid.");
+  if (![config.inputPricePerMillion, config.outputPricePerMillion, config.totalPulse].every((value) => Number.isFinite(value) && value >= 0) || !isValidTokenPeriod(config.activeFrom, config.activeUntil)) {
+    setStatus(status, "error", "Harga, total pulsa, serta tanggal mulai dan akhir wajib valid. Tanggal akhir tidak boleh mendahului tanggal mulai.");
     return;
   }
   $("#saveOwnerSharedToken").disabled = true;
@@ -4238,6 +4250,7 @@ if (typeof module !== "undefined") {
     isCurrentSharedTokenSnapshot,
     sharedTokenEstimateText,
     normalizeSharedTokenSummary,
+    isValidTokenPeriod,
     safeAiErrorMessage,
     adminAccessErrorMessage,
     isInvalidAdminSessionError
@@ -4339,6 +4352,9 @@ if (typeof module !== "undefined") {
     });
     assert.equal(isCurrentSharedTokenSnapshot(tokenSnapshot, tokenClock), true);
     assert.equal(sharedTokenEstimateText({ ...tokenSnapshot, value: 0 }, tokenClock), "Token telah habis");
+    assert.equal(isValidTokenPeriod("2026-11-01", "2026-11-30"), true);
+    assert.equal(isValidTokenPeriod("2026-11-01", "2026-11-01"), true);
+    assert.equal(isValidTokenPeriod("2026-11-30", "2026-11-01"), false);
     assert.equal(normalizeSharedTokenSummary({ sharedToken: -12500, inputChars: 1234 }).sharedToken, -12500);
     assert.equal(safeAiErrorMessage("https://provider.test?key=secret&x=1"), "https://provider.test?key=[disensor]&x=1");
     assert.equal(adminAccessErrorMessage(Object.assign(new Error("Unauthorized"), { status: 401 }), "login"), "Username/password kamu salah. Silakan hubungi dr. M. Syafrie Yunizar untuk mendapatkan akses login.");

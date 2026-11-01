@@ -22,7 +22,7 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 - Pengingat kronologi pada hasil Magic SOAP bila AI menandai kasus trauma/cedera eksternal.
 - Warning JKN tampil kondisional hanya saat ada isi dari respons AI.
 - API admin bersama dengan transparansi Token Bersama berbasis karakter.
-- Snapshot Token Bersama seragam setiap tiga jam WITA, tampil hanya setelah AI aktif, dan dapat dibuka untuk melihat total penggunaan, masa aktif 28 hari, serta estimasi waktu habis.
+- Snapshot Token Bersama seragam setiap tiga jam WITA, tampil hanya setelah AI aktif, dan dapat dibuka untuk melihat total penggunaan, masa aktif yang ditentukan admin, serta estimasi waktu habis.
 - Mode API admin bersama dengan login panel admin, pengaturan API key admin, dan manajemen user.
 - Tombol `Input SOAP` di sebelah judul Pengkajian Dokter IGD untuk memilah dan mengisi S/O/A/P pada satu halaman. Diagnosis disimpan melalui panel ICD 10 FreeText; S/O/P tetap ditinjau sebelum Pengkajian disimpan.
 - Tombol `Input SOAP` pada hasil Magic SOAP untuk membuka otomatis `Asesmen UGD → Pengkajian Dokter → Tambah` pada kunjungan pasien yang sama, lalu mengirim hasil S/O/A/P yang sudah diedit tanpa parsing AI ulang. User memilih rencana status pasien terlebih dahulu: rawat inap memakai `Diagnosa Awal`, sedangkan rawat jalan memakai `Primary / utama`.
@@ -100,7 +100,7 @@ Token Bersama menggunakan snapshot global pada pukul 00.00, 03.00, 06.00, dan se
 
 Analisis foto memakai model admin yang mendukung vision melalui action `ai_generate_vision`. Foto menerima format JPG, PNG, atau WebP hingga 8 MB. Tidak ada API key, token sesi, atau password yang di-hardcode di source extension.
 
-Header menampilkan `Token bersama` dalam Rupiah. Nilainya dihitung dari karakter input/output panggilan AI yang berhasil sejak tanggal mulai yang diatur admin. Nilai nol atau negatif tidak menghentikan proses AI.
+Header menampilkan `Token bersama` dalam Rupiah. Nilainya dihitung dari karakter input/output panggilan AI yang berhasil dalam rentang tanggal mulai dan akhir yang diatur admin. Tanggal akhir berlaku inklusif sampai 23.59 WITA. Nilai nol atau negatif tidak menghentikan proses AI.
 
 ## Backend Admin
 

@@ -1,5 +1,5 @@
 #rsdkh-visite-button { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; min-height: 40px; margin-left: 12px; background: #006874; color: white; border: 1px solid #006874; border-radius: 8px; font: inherit; cursor: pointer; }
-#rsdkh-visite-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; }
+#rsdkh-visite-button .rsdkh-visite-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; font-size: 20px; line-height: 1; }
 #rsdkh-visite-button:disabled { opacity: .6; cursor: wait; }
 .rsdkh-visite-modal { width: min(560px, calc(100% - 32px)); max-height: 85vh; padding: 24px; color: #1a1a1a; background: white; border: 1px solid #c4c6d0; border-radius: 16px; font: 14px/1.5 Arial, sans-serif; }
 .rsdkh-visite-modal::backdrop { background: #0006; }

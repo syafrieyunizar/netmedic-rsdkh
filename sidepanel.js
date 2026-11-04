@@ -32,6 +32,11 @@ const PHOTO_AI_STAGES = ["Menganalisis foto klinis", "Menyusun temuan objektif",
 const KRONOLOGI_AI_STAGES = ["Membaca skenario kejadian", "Menyusun urutan kronologi", "Memeriksa konsistensi kronologi"];
 const UPDATE_LOG = [
   {
+    version: "2.2.3",
+    date: "4 November 2026",
+    changes: ["Ikon tombol VISITE diganti menjadi emoji stetoskop agar lebih mudah dikenali."]
+  },
+  {
     version: "2.2.2",
     date: "4 November 2026",
     changes: ["Pengambilan link VISITE dipercepat dengan maksimal tiga pasien secara paralel.", "Progres menampilkan jumlah pasien yang selesai. Tab sementara ditutup setelah berhasil atau gagal.", "Pencarian satu registrasi di tab sementara menghindari pemuatan 100 baris yang tidak diperlukan."]

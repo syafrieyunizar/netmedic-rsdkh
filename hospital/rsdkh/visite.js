@@ -211,7 +211,7 @@
     const anchor = target.closest("li") || target.closest("a,button") || target;
     const button = document.createElement("button"); button.id = "rsdkh-visite-button"; button.type = "button";
     button.dataset.visiteBuild = "2.2.2-parallel-three";
-    button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="3"/><path d="M2 21v-3a7 7 0 0 1 14 0v3M17 4a3 3 0 0 1 0 6m3 11v-3a7 7 0 0 0-3-6"/></svg><span>VISITE</span>';
+    button.innerHTML = '<span class="rsdkh-visite-icon" aria-hidden="true">&#129658;</span><span>VISITE</span>';
     button.addEventListener("click", start); anchor.after(button);
   }
   new MutationObserver(inject).observe(document.documentElement, { childList: true, subtree: true });

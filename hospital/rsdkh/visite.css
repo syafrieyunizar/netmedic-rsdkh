@@ -1,0 +1,17 @@
+#rsdkh-visite-button { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; min-height: 40px; margin-left: 12px; background: #006874; color: white; border: 1px solid #006874; border-radius: 8px; font: inherit; cursor: pointer; }
+#rsdkh-visite-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; }
+#rsdkh-visite-button:disabled { opacity: .6; cursor: wait; }
+.rsdkh-visite-modal { width: min(560px, calc(100% - 32px)); max-height: 85vh; padding: 24px; color: #1a1a1a; background: white; border: 1px solid #c4c6d0; border-radius: 16px; font: 14px/1.5 Arial, sans-serif; }
+.rsdkh-visite-modal::backdrop { background: #0006; }
+.rsdkh-visite-modal h2 { margin: 0 0 16px; color: #006874; font-size: 20px; }
+.rsdkh-visite-modal fieldset { border: 1px solid #c4c6d0; border-radius: 8px; margin: 16px 0; padding: 12px; }
+.rsdkh-visite-modal legend { font-weight: bold; padding: 0 4px; }
+.rsdkh-visite-modal label { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; }
+.rsdkh-visite-modal input { accent-color: #006874; }
+.rsdkh-visite-modal footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.rsdkh-visite-modal button { min-height: 44px; padding: 8px 16px; border: 1px solid #c4c6d0; border-radius: 8px; background: white; color: #1a1a1a; cursor: pointer; }
+.rsdkh-visite-modal button[type=submit] { background: #006874; color: white; }
+.rsdkh-visite-modal button:disabled { opacity: .6; cursor: wait; }
+.rsdkh-visite-modal button:hover, #rsdkh-visite-button:hover { filter: brightness(.95); }
+.rsdkh-visite-modal button:focus-visible, #rsdkh-visite-button:focus-visible { outline: 2px solid #006874; outline-offset: 2px; }
+.rsdkh-visite-error { color: #ba1a1a; }

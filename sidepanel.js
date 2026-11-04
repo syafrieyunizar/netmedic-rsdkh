@@ -32,6 +32,11 @@ const PHOTO_AI_STAGES = ["Menganalisis foto klinis", "Menyusun temuan objektif",
 const KRONOLOGI_AI_STAGES = ["Membaca skenario kejadian", "Menyusun urutan kronologi", "Memeriksa konsistensi kronologi"];
 const UPDATE_LOG = [
   {
+    version: "2.2.0",
+    date: "4 November 2026",
+    changes: ["Sesi VISITE baru dari daftar pasien rawat inap, dengan pilihan beberapa dokter per ruangan.", "Dashboard visite memakai kapsul dokter, daftar pasien ringkas, penanda Raber, dan akses langsung CPPT.", "Ruangan baru digabung ke sesi aktif tanpa duplikasi. Selesai Visite menghapus sesi tanpa riwayat."]
+  },
+  {
     version: "2.1.7",
     date: "4 November 2026",
     changes: [

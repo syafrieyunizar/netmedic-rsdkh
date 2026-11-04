@@ -1,10 +1,50 @@
-importScripts("hospital/rsdkh/ai.js", "shift.js");
+importScripts("hospital/rsdkh/ai.js", "shift.js", "visite-state.js");
 
 const SHIFT = self.NetmedicShift;
 const DASHBOARD_TAB_KEY = "netmedicDashboardTabId";
 const PATIENT_MEMORIES_KEY = "patientMemories";
 let shiftMutationQueue = Promise.resolve();
 let clipboardCopyRequest;
+let visiteQueue = Promise.resolve();
+
+async function openVisiteDashboard() {
+  const url = chrome.runtime.getURL("visite.html");
+  const tabs = await chrome.tabs.query({});
+  const existing = tabs.find((tab) => tab.url === url);
+  if (existing) {
+    await chrome.windows.update(existing.windowId, { focused: true });
+    return chrome.tabs.update(existing.id, { active: true, pinned: true });
+  }
+  return chrome.tabs.create({ url, active: true, pinned: true });
+}
+
+function mutateVisite(groups) {
+  const operation = visiteQueue.then(async () => {
+    const V = self.NetmedicVisite;
+    if (groups === null) { await chrome.storage.local.remove(V.KEY); return; }
+    const saved = await chrome.storage.local.get(V.KEY);
+    const session = V.mergeSession(saved[V.KEY], groups);
+    await chrome.storage.local.set({ [V.KEY]: session });
+    await openVisiteDashboard();
+  });
+  visiteQueue = operation.catch(() => {});
+  return operation;
+}
+
+async function openVisitePatient(patient) {
+  const url = self.NetmedicVisite.cpptUrl(patient?.ermUrl);
+  const target = new URL(url);
+  const route = target.hash.replace(/\/cppt$/, "");
+  const tabs = await chrome.tabs.query({});
+  const existing = tabs.find((tab) => {
+    try { const current = new URL(tab.url); return current.origin === target.origin && (current.hash === route || current.hash.startsWith(`${route}/`)); } catch { return false; }
+  });
+  if (existing) {
+    await chrome.windows.update(existing.windowId, { focused: true });
+    return chrome.tabs.update(existing.id, { url, active: true });
+  }
+  return chrome.tabs.create({ url, active: true });
+}
 
 function enableSidePanel() {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
@@ -211,6 +251,15 @@ async function updatePatientBed(patient, bed) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  const visiteAction = {
+    "rsdkh:visite-start": () => mutateVisite(message.groups),
+    "rsdkh:visite-finish": () => mutateVisite(null),
+    "rsdkh:visite-open-patient": () => openVisitePatient(message.patient)
+  }[message?.type];
+  if (visiteAction) {
+    visiteAction().then(() => sendResponse({ ok: true })).catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
   if (message?.type === "rsdkh:open-admin-login") {
     const windowId = sender.tab?.windowId;
     chrome.storage.local.set({ "magicSoap.openAdminLoginAt": Date.now() })

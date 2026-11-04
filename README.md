@@ -144,3 +144,13 @@ node sidepanel.js
 - Opsi `Pakai tanda vital pasien saat ini` mengambil entri Vital Sign terbaru dari kunjungan aktif tanpa meninggalkan halaman kerja dan mengirimkannya tanpa identitas pasien ke provider AI aktif; komponen yang belum tersedia tetap dilengkapi AI.
 - Foto klinis hanya disimpan sementara di memori side panel, dikirim ke provider saat Generate, lalu dilepas setelah analisis berhasil.
 - Admin credential hanya dipakai untuk sesi panel admin dan tidak disimpan permanen di extension.
+
+## VISITE (v2.2.0)
+
+Pada daftar pasien rawat inap, pilih ruangan lalu tekan VISITE di sebelah Pasien Pulang. Extension mematikan filter Hanya Pasien Dokter Saya, memuat 100 baris per halaman, dan mengambil halaman berikutnya jika tersedia. Pilih satu atau beberapa dokter per ruangan lalu Mulai Visite.
+
+Dashboard `visite.html` dibuka sebagai pinned tab. Pilih satu kapsul dokter untuk melihat pasien per ruangan; `(Raber)` menandakan dokter pada kolom Dokter Bersama. Klik nama pasien atau CPPT untuk membuka CPPT kunjungan tersebut. Penambahan ruangan/dokter digabung ke sesi aktif, dengan ruangan terbaru di atas dan tanpa duplikasi per dokter/kunjungan. Selesai Visite menghapus sesi lokal setelah konfirmasi, tanpa riwayat.
+
+Jika tombol stetoskop tidak menyediakan tautan langsung, pengambilan link membuka eRM lalu kembali ke daftar secara berurutan. Tunggu sampai selesai. Perubahan filter/halaman yang membuat pasien tidak ditemukan akan menghentikan pengambilan dengan pesan error. Fitur ini tidak mengirim data ke AI atau Supabase.
+
+Pemeriksaan logika: `node visite-state.test.js`.

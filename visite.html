@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="id">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dashboard Visite</title><link rel="stylesheet" href="dashboard.css"><link rel="stylesheet" href="visite.css"></head>
+<body>
+  <header class="dashboard-header"><div class="brand"><img src="icons/icon-64.png" alt=""><div><strong>Netmedic RSDKH</strong><span>Dashboard Visite</span></div></div><span>Data lokal</span></header>
+  <main>
+    <header class="visite-heading"><div><h1>VISITE</h1><p id="sessionMeta"></p></div><button id="finishVisite" class="button danger" type="button" hidden>Selesai Visite</button></header>
+    <p id="emptyVisite">Belum ada sesi visite. Pilih ruangan dan tekan VISITE pada halaman Pasien Rawat Inap.</p>
+    <nav id="doctorTabs" aria-label="Pilih dokter"></nav>
+    <div id="roomList"></div>
+  </main>
+  <div id="visiteNotice" role="status" aria-live="polite" hidden></div>
+  <script src="visite-state.js"></script><script src="visite.js"></script>
+</body></html>

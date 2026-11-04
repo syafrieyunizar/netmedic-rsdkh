@@ -151,6 +151,6 @@ Pada daftar pasien rawat inap, pilih ruangan lalu tekan VISITE di sebelah Pasien
 
 Dashboard `visite.html` dibuka sebagai pinned tab. Pilih satu kapsul dokter untuk melihat pasien per ruangan; `(Raber)` menandakan dokter pada kolom Dokter Bersama. Klik nama pasien atau CPPT untuk membuka CPPT kunjungan tersebut. Penambahan ruangan/dokter digabung ke sesi aktif, dengan ruangan terbaru di atas dan tanpa duplikasi per dokter/kunjungan. Selesai Visite menghapus sesi lokal setelah konfirmasi, tanpa riwayat.
 
-Jika tombol stetoskop tidak menyediakan tautan langsung, pengambilan link membuka eRM lalu kembali ke daftar secara berurutan. Tunggu sampai selesai. Perubahan filter/halaman yang membuat pasien tidak ditemukan akan menghentikan pengambilan dengan pesan error. Fitur ini tidak mengirim data ke AI atau Supabase.
+Pemilihan dokter dilakukan sebelum pengambilan link. Hanya pasien dokter terpilih yang dicari berdasarkan RM dan registrasi dalam tab sementara di latar belakang, lalu tombol stetoskop dijalankan untuk membaca URL kunjungan. Tab sementara ditutup setelah selesai atau gagal. Halaman daftar utama tetap terbuka. Pasien rawat bersama cukup diambil link-nya sekali untuk digunakan pada kedua kelompok dokter. Fitur ini tidak mengirim data ke AI atau Supabase.
 
 Pemeriksaan logika: `node visite-state.test.js`.

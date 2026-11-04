@@ -8,11 +8,12 @@ const { chromium } = require("playwright");
       const split = layout !== "normal";
       const page = await browser.newPage();
       try {
-        let groups;
+        let groups; const linkRequests = [];
         const labels = ["Aksi", "No", "Tgl Registrasi", "No RM", "Noregistrasi", "Nama Pasien", "Resume", "Dokter", "Dokter Bersama", "Kelas", "Ruangan", "Kamar"];
         const head = `<thead><tr>${labels.map((label) => `<th>${label}</th>`).join("")}</tr></thead>`;
         const data = ['<a href="#/rekam-medis/p/visit-a"><i class="fa-stethoscope"></i></a>', "1", "2026-11-04", "001234", "2611000854", "ABDULLAH", "-", "dr. Akhmad, Sp.PD", "dr. Rahmat, Sp.JP", "Kelas 1", "ANGGREK", "ANGGREK 8"];
-        const body = `<tbody><tr>${data.map((value, index) => `<td><span class="p-column-title">${labels[index]}</span>${value}</td>`).join("")}</tr></tbody>`;
+        const excluded = [...data]; excluded[3] = '009999'; excluded[4] = '2611000999'; excluded[5] = 'PASIEN LAIN'; excluded[7] = 'dr. Lain'; excluded[8] = '';
+        const body = `<tbody>${[data, excluded].map((row) => `<tr>${row.map((value, index) => `<td><span class="p-column-title">${labels[index]}</span>${value}</td>`).join("")}</tr>`).join('')}</tbody>`;
         // PrimeNG keeps the visible header and patient rows in different tables.
         const tables = split
           ? `<div class="p-datatable-scrollable-wrapper ng-star-inserted"><div class="p-datatable-scrollable-view"><div class="p-datatable-scrollable-header"><table>${head}</table></div><div class="p-datatable-scrollable-body ng-star-inserted"><table>${layout === "split-hidden-header" ? head : ""}${body}</table></div></div></div>`
@@ -21,19 +22,30 @@ const { chromium } = require("playwright");
         await page.route("https://rsudbalangan.com:91/**", (route) => route.fulfill({ contentType: "text/html", body: html }));
         await page.goto("https://rsudbalangan.com:91/#/daftar-pasien-dirawat");
         await page.exposeFunction("saveGroups", (value) => { groups = value; });
-        await page.evaluate(() => { window.chrome = { runtime: { sendMessage: async (message) => { await window.saveGroups(message.groups); return { ok: true }; } } }; });
+        await page.exposeFunction('recordLink', (patient) => { linkRequests.push(patient); });
+        await page.evaluate(() => { window.chrome = { runtime: { onMessage: { addListener: () => {} }, sendMessage: async (message) => {
+          if (message.type === 'rsdkh:visite-resolve-link') { await window.recordLink(message.patient); return { ok: true, ermUrl: 'https://rsudbalangan.com:91/#/rekam-medis/p/visit-a/cppt' }; }
+          await window.saveGroups(message.groups); return { ok: true };
+        } } }; });
         await page.addScriptTag({ path: "visite-state.js" });
         await page.addScriptTag({ path: "hospital/rsdkh/visite.js" });
         await page.click("#rsdkh-visite-button");
         await page.waitForFunction(() => document.querySelector('.rsdkh-visite-modal input') || document.querySelector('.rsdkh-visite-error'), null, { timeout: 12000 });
         const error = await page.locator('.rsdkh-visite-error').count() ? await page.locator('.rsdkh-visite-error').textContent() : "";
         assert.equal(error, "", `Layout ${split ? "split" : "normal"}: ${error}`);
-        assert.equal(await page.locator('.rsdkh-visite-modal input').count(), 2);
+        assert.equal(await page.locator('.rsdkh-visite-modal input').count(), 3);
+        assert.equal(linkRequests.length, 0, 'No link collection before doctor selection');
+        assert.equal(new URL(page.url()).hash, '#/daftar-pasien-dirawat');
         assert.equal(await page.locator('select').inputValue(), "100");
         assert.equal(await page.locator('body > label input').isChecked(), false);
-        for (const checkbox of await page.locator('.rsdkh-visite-modal input').all()) await checkbox.check();
+        await page.locator('.rsdkh-visite-modal input').nth(0).check();
+        await page.locator('.rsdkh-visite-modal input').nth(1).check();
         await page.click('.rsdkh-visite-modal button[type=submit]');
         assert.equal(groups.length, 2);
+        assert.equal(linkRequests.length, 1, 'Shared patient link collected once, excluded doctor ignored');
+        assert.equal(linkRequests[0].medicalRecordNumber, '001234');
+        assert.equal(new URL(page.url()).hash, '#/daftar-pasien-dirawat');
+        assert.match(groups[0].patients[0].ermUrl, /visit-a\/cppt$/);
         assert.equal(groups[0].patients[0].name, "ABDULLAH");
         assert.equal(groups[0].patients[0].medicalRecordNumber, "001234");
         assert.equal(groups[0].patients[0].raber, false);

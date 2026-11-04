@@ -6,6 +6,45 @@ const PATIENT_MEMORIES_KEY = "patientMemories";
 let shiftMutationQueue = Promise.resolve();
 let clipboardCopyRequest;
 let visiteQueue = Promise.resolve();
+let visiteLinkRunning = false;
+
+async function resolveVisiteLink(patient, sender) {
+  const source = new URL(sender.tab?.url || '');
+  if (!['rsudbalangan.com', '10.10.0.3'].includes(source.hostname) || !['http:', 'https:'].includes(source.protocol) || source.hash.split('?')[0] !== '#/daftar-pasien-dirawat') throw new Error('Buka pengambilan visite dari daftar pasien dirawat.');
+  if (!/^\d{5,8}$/.test(String(patient?.medicalRecordNumber || '')) || !/^\d{9,11}$/.test(String(patient?.registrationNumber || '')) || !patient?.room) throw new Error('RM, registrasi, atau ruangan pasien belum lengkap.');
+  if (visiteLinkRunning) throw new Error('Pengambilan link visite lain masih berjalan.');
+  visiteLinkRunning = true;
+  let tabId, timer;
+  try {
+    const tab = await chrome.tabs.create({ url: source.href, active: false });
+    tabId = tab.id;
+    const result = await Promise.race([
+      (async () => {
+        const deadline = Date.now() + 20000;
+        while (Date.now() < deadline) {
+          try {
+            const result = await chrome.tabs.sendMessage(tabId, { type: 'rsdkh:visite-resolve-patient', patient });
+            if (!result?.ok) throw new Error(result?.error || 'Link pasien tidak ditemukan.');
+            const current = await chrome.tabs.get(tabId);
+            const ermUrl = self.NetmedicVisite.cpptUrl(result.ermUrl);
+            if (new URL(ermUrl).origin !== source.origin || self.NetmedicVisite.cpptUrl(current.url) !== ermUrl) throw new Error('Tujuan eRM pasien tidak dapat diverifikasi.');
+            return { ermUrl };
+          } catch (error) {
+            if (!/receiving end does not exist|could not establish connection/i.test(error.message)) throw error;
+            await new Promise((resolve) => setTimeout(resolve, 500));
+          }
+        }
+        throw new Error('Tab pengambilan belum siap. Coba ulang.');
+      })(),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Pengambilan link pasien melebihi 60 detik. Coba ulang.')), 60000); })
+    ]);
+    return result;
+  } finally {
+    clearTimeout(timer);
+    if (tabId) await chrome.tabs.remove(tabId).catch(() => {});
+    visiteLinkRunning = false;
+  }
+}
 
 async function openVisiteDashboard() {
   const url = chrome.runtime.getURL("visite.html");
@@ -251,6 +290,10 @@ async function updatePatientBed(patient, bed) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === 'rsdkh:visite-resolve-link') {
+    resolveVisiteLink(message.patient, sender).then((result) => sendResponse({ ok: true, ...result })).catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
   const visiteAction = {
     "rsdkh:visite-start": () => mutateVisite(message.groups),
     "rsdkh:visite-finish": () => mutateVisite(null),

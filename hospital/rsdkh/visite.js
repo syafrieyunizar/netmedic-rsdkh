@@ -54,7 +54,9 @@
       const href = anchor?.getAttribute("href");
       let ermUrl = "";
       if (href) { try { ermUrl = V.cpptUrl(new URL(href, location.href).href); } catch {} }
-      return [{ name, medicalRecordNumber, room, doctors: doctors(doctorCell), sharedDoctors: doctors(sharedCell), ermUrl, action }];
+      const registrationIndex = index('noregistrasi', 'nomorregistrasi');
+      const registrationNumber = registrationIndex >= 0 ? cellText(cells[registrationIndex]) : '';
+      return [{ name, medicalRecordNumber, registrationNumber, room, doctors: doctors(doctorCell), sharedDoctors: doctors(sharedCell), ermUrl, action }];
     });
   }
   function paginator() {
@@ -101,32 +103,27 @@
     const first = paginator()?.querySelector(".p-paginator-first");
     if (first && !first.disabled && first.getAttribute("aria-disabled") !== "true") { first.click(); await settle(); }
   }
-  async function resolveLink(patient) {
-    if (patient.ermUrl) return patient.ermUrl;
-    if (!patient.action) throw new Error(`Tombol stetoskop ${patient.name} tidak ditemukan.`);
-    const previousHash = location.hash;
-    const previousPage = Number(clean(paginator()?.querySelector('.p-paginator-page.p-highlight, .p-paginator-page[aria-current="page"]')?.textContent)) || 1;
-    patient.action.click();
-    let url;
-    try {
-      await until(() => /^#\/rekam-medis\/[^/]+\/[^/]+/.test(location.hash), `Link eRM ${patient.name} tidak terbaca.`);
-      url = V.cpptUrl(location.href);
-    } finally {
-      if (location.hash !== previousHash) {
-        history.back();
-        await until(() => location.hash === previousHash && sourceTable(), "Kembali ke daftar pasien gagal. Buka ulang daftar dan coba lagi.");
-        await prepare();
-        let currentPage = Number(clean(paginator()?.querySelector('.p-paginator-page.p-highlight, .p-paginator-page[aria-current="page"]')?.textContent)) || 1;
-        if (currentPage > previousPage) { paginator()?.querySelector('.p-paginator-first')?.click(); await settle(); currentPage = 1; }
-        while (currentPage < previousPage) {
-          const next = paginator()?.querySelector('.p-paginator-next');
-          if (!next || next.disabled) throw new Error("Halaman pasien tidak dapat dipulihkan.");
-          next.click(); await settle(); currentPage++;
-        }
-      }
+  async function resolveBackgroundPatient(patient) {
+    if (!onList() || !patient.registrationNumber) throw new Error('Nomor registrasi pasien belum tersedia untuk pengambilan link.');
+    await until(() => sourceTable(), 'Daftar pasien belum tersedia di tab pengambilan.');
+    const registration = document.querySelector('input[placeholder="No Registrasi"]');
+    if (!registration) throw new Error('Kolom pencarian registrasi tidak ditemukan.');
+    for (const [placeholder, value] of [['No Rekam Medis', patient.medicalRecordNumber], ['Nama Pasien', ''], ['No Registrasi', patient.registrationNumber]]) {
+      const field = document.querySelector(`input[placeholder="${placeholder}"]`);
+      if (field) { field.value = value; field.dispatchEvent(new Event('input', { bubbles: true })); field.dispatchEvent(new Event('change', { bubbles: true })); }
     }
-    return url;
+    await prepare();
+    const row = await until(() => sourceTable() && rows().find((item) => item.medicalRecordNumber === patient.medicalRecordNumber && item.registrationNumber === patient.registrationNumber && item.room === patient.room), 'Pasien dengan RM dan registrasi yang dipilih tidak ditemukan di tab pengambilan.');
+    if (!row.action) throw new Error('Tombol stetoskop pasien tidak ditemukan.');
+    row.action.click();
+    await until(() => /^#\/rekam-medis\/[^/]+\/[^/]+/.test(location.hash), 'Link eRM pasien tidak terbaca.');
+    return V.cpptUrl(location.href);
   }
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type !== 'rsdkh:visite-resolve-patient') return false;
+    resolveBackgroundPatient(message.patient).then((ermUrl) => sendResponse({ ok: true, ermUrl })).catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  });
   async function collect(status) {
     await prepare();
     const patients = new Map(), seenPages = new Set();
@@ -136,10 +133,8 @@
       if (seenPages.has(pageKey)) throw new Error("Halaman tabel berulang. Pengambilan dihentikan agar tidak ada data terlewat.");
       seenPages.add(pageKey);
       for (const source of pageRows) {
-        status.textContent = `Mengambil ${source.name}…`;
-        const current = await until(() => sourceTable() && rows().find((row) => row.medicalRecordNumber === source.medicalRecordNumber && row.room === source.room), "Pasien belum muncul kembali setelah daftar dimuat ulang. Coba ulang pengambilan visite.");
-        const ermUrl = await resolveLink(current);
-        patients.set(`${source.medicalRecordNumber}:${new URL(ermUrl).hash.split('/')[3]}`, { ...source, action: undefined, ermUrl });
+        status.textContent = 'Membaca daftar pasien dan dokter…';
+        patients.set(`${source.medicalRecordNumber}:${source.registrationNumber}`, { ...source, action: undefined });
       }
       const next = paginator()?.querySelector(".p-paginator-next");
       if (!next || next.disabled || next.getAttribute("aria-disabled") === "true" || next.classList.contains("p-disabled")) break;
@@ -187,14 +182,27 @@
       status.textContent = "Pilih dokter untuk setiap ruangan yang ingin ditambahkan."; submit.hidden = false;
       form.addEventListener("submit", async (event) => {
         event.preventDefault(); submit.disabled = true; cancel.disabled = true; running = true;
+        fields.querySelectorAll('fieldset').forEach((fieldset) => { fieldset.disabled = true; });
         try {
           const groups = selections.filter((item) => item.checkbox.checked).map(({ room, doctor, patients }) => ({ room, doctor, patients }));
           if (!groups.length) throw new Error("Pilih setidaknya satu dokter.");
+          const selectedPatients = new Map();
+          for (const group of groups) for (const patient of group.patients) selectedPatients.set(`${patient.medicalRecordNumber}:${patient.registrationNumber}`, patient);
+          let completed = 0;
+          for (const patient of selectedPatients.values()) {
+            status.textContent = `Mengambil link pasien terpilih ${++completed}/${selectedPatients.size}…`;
+            status.className = '';
+            const response = await chrome.runtime.sendMessage({ type: 'rsdkh:visite-resolve-link', patient, sourceUrl: location.href });
+            if (!response?.ok) throw new Error(response?.error || 'Link pasien belum berhasil diambil.');
+            for (const group of groups) for (const item of group.patients) {
+              if (item.medicalRecordNumber === patient.medicalRecordNumber && item.registrationNumber === patient.registrationNumber) item.ermUrl = response.ermUrl;
+            }
+          }
           const response = await chrome.runtime.sendMessage({ type: "rsdkh:visite-start", groups });
           if (!response?.ok) throw new Error(response?.error || "Sesi visite gagal dibuat.");
           dialog.close(); dialog.remove();
         } catch (error) { status.textContent = error.message; status.className = "rsdkh-visite-error"; }
-        finally { submit.disabled = false; cancel.disabled = false; running = false; }
+        finally { submit.disabled = false; cancel.disabled = false; running = false; fields.querySelectorAll('fieldset').forEach((fieldset) => { fieldset.disabled = false; }); }
       });
     } catch (error) { status.textContent = error.message; status.className = "rsdkh-visite-error"; }
     finally { running = false; cancel.disabled = false; button.disabled = false; }
@@ -205,7 +213,7 @@
     if (!target) return;
     const anchor = target.closest("li") || target.closest("a,button") || target;
     const button = document.createElement("button"); button.id = "rsdkh-visite-button"; button.type = "button";
-    button.dataset.visiteBuild = "2.2.1-restore-filter";
+    button.dataset.visiteBuild = "2.2.1-selected-background";
     button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="3"/><path d="M2 21v-3a7 7 0 0 1 14 0v3M17 4a3 3 0 0 1 0 6m3 11v-3a7 7 0 0 0-3-6"/></svg><span>VISITE</span>';
     button.addEventListener("click", start); anchor.after(button);
   }

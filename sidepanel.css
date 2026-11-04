@@ -1861,6 +1861,68 @@ dialog::backdrop {
   overflow-y: auto;
 }
 
+.history-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 0 var(--space-4);
+  background: var(--surface-lowest);
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.history-tabs button {
+  min-height: 42px;
+  color: var(--on-surface-variant);
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  font-weight: 700;
+}
+
+.history-tabs button.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.update-log-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.update-log-item {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-lowest);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+}
+
+.update-log-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.update-log-heading strong {
+  color: var(--primary);
+  font-size: 13px;
+}
+
+.update-log-heading span {
+  color: #686c74;
+  font-size: 9.9px;
+}
+
+.update-log-item ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: 18px;
+  color: var(--on-surface-variant);
+  line-height: 1.45;
+}
+
 .history-list,
 .history-detail {
   display: grid;

@@ -191,7 +191,7 @@
 
   <footer class="app-footer">
     <span><span class="footer-dot" aria-hidden="true"></span>Siap digunakan</span>
-    <span id="appVersion">v2.1.6</span>
+    <span id="appVersion">v2.1.7</span>
   </footer>
 
   <dialog id="sharedTokenDialog" class="compact-dialog shared-token-dialog" aria-labelledby="sharedTokenTitle">
@@ -274,6 +274,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </header>
+      <nav id="historyTabs" class="history-tabs" role="tablist" aria-label="Riwayat dan log update">
+        <button id="historyPatientTab" class="active" type="button" role="tab" aria-selected="true" aria-controls="historyListView">Riwayat</button>
+        <button id="historyUpdateTab" type="button" role="tab" aria-selected="false" aria-controls="updateLogView">Log Update</button>
+      </nav>
       <div id="historyListView" class="history-content">
         <p class="history-retention">Disimpan maksimal 60 hari.</p>
         <div id="historyEmpty" class="history-empty">
@@ -285,6 +289,9 @@
       </div>
       <div id="historyDetailView" class="history-content" hidden>
         <div id="historyDetail" class="history-detail"></div>
+      </div>
+      <div id="updateLogView" class="history-content" hidden>
+        <div id="updateLogList" class="update-log-list"></div>
       </div>
     </div>
   </dialog>

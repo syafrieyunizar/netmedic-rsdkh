@@ -29,6 +29,58 @@ const AI_WAIT_NOTE = "Proses AI dapat membutuhkan waktu 30-180 detik. Tetap biar
 const SOAP_AI_STAGES = ["Memproses anamnesis", "Menyusun pemeriksaan fisik", "Menyelaraskan Assessment dan Planning", "Memeriksa konsistensi SOAP"];
 const PHOTO_AI_STAGES = ["Menganalisis foto klinis", "Menyusun temuan objektif", "Memeriksa deskripsi foto"];
 const KRONOLOGI_AI_STAGES = ["Membaca skenario kejadian", "Menyusun urutan kronologi", "Memeriksa konsistensi kronologi"];
+const UPDATE_LOG = [
+  {
+    version: "2.1.7",
+    date: "4 November 2026",
+    changes: [
+      "Hasil Magic SOAP kini tetap tersedia saat berpindah antar-tab pasien.",
+      "Hasil Riwayat menjadi cadangan aman bila draft kunjungan belum lengkap.",
+      "Tombol Input SOAP format WA dan Input SOAP kembali aktif saat tab pasien dibuka lagi.",
+      "Log Update ditambahkan di dalam menu Riwayat."
+    ]
+  },
+  {
+    version: "2.1.6",
+    date: "1 November 2026",
+    changes: ["Periode Token Bersama kini dapat ditentukan admin dengan tanggal awal dan akhir."]
+  },
+  {
+    version: "2.1.5",
+    date: "21 Oktober 2026",
+    changes: ["Login ulang dengan akun yang sama diperbaiki setelah sesi AI perangkat berakhir."]
+  },
+  {
+    version: "2.1.4",
+    date: "19 Oktober 2026",
+    changes: ["Rincian Token Bersama menampilkan jadwal pembaruan berikutnya."]
+  },
+  {
+    version: "2.1.3",
+    date: "19 Oktober 2026",
+    changes: ["Token Bersama memakai snapshot seragam setiap tiga jam dan memiliki rincian penggunaan."]
+  },
+  {
+    version: "2.1.2",
+    date: "19 Oktober 2026",
+    changes: ["Pemberitahuan status AI ganda pada halaman Koneksi AI dihapus."]
+  },
+  {
+    version: "2.1.1",
+    date: "19 Oktober 2026",
+    changes: ["Status AI aktif, tidak aktif, dan kegagalan login dibuat lebih jelas."]
+  },
+  {
+    version: "2.1.0",
+    date: "19 Oktober 2026",
+    changes: ["Login API admin disederhanakan agar pengguna cukup memakai satu tombol aktivasi."]
+  },
+  {
+    version: "2.0.0",
+    date: "19 Oktober 2026",
+    changes: ["Kontrol Token Bersama dan transparansi penggunaan AI ditambahkan untuk admin dan pengguna."]
+  }
+];
 const SOAP_FIELD_IDS = ["identity", "serviceMode", "subjektif", "objektif", "useCurrentVitals", "assessment", "planning", "resultS", "resultO", "resultA", "resultP", "requiresChronology", "chronologyReason", "chronologyEffect"];
 const KRONOLOGI_FIELD_IDS = ["skenario", "akibat", "resultKronologi", "resultWarning", "resultWarningRule"];
 const WHATSAPP_STEP_TITLES = ["Pesan Pembuka", "Identitas Pasien", "Subjektif", "Objektif", "Assessment", "Planning", "Kalimat Penutup"];
@@ -1873,6 +1925,42 @@ function restoreDraft(draft) {
   requestAnimationFrame(() => resizeTextareas());
 }
 
+function restorePatientResultsFromHistory(memory, entries = historyEntries) {
+  const episodeId = memory?.episode?.id;
+  const entry = episodeId && (Array.isArray(entries) ? entries : []).find((item) => item?.id === episodeId);
+  if (!entry) return memory;
+
+  const soapDraft = { ...(memory.soapDraft || {}) };
+  const storedSoapComplete = ["resultS", "resultO", "resultA", "resultP"]
+    .every((key) => String(soapDraft[key] || "").trim());
+  const soapFields = {
+    resultS: entry.soap?.s,
+    resultO: entry.soap?.o,
+    resultA: entry.soap?.a,
+    resultP: entry.soap?.p,
+    chronologyReason: entry.soap?.chronologyReason,
+    chronologyEffect: entry.soap?.chronologyEffect
+  };
+  Object.entries(soapFields).forEach(([key, value]) => {
+    if (!String(soapDraft[key] || "").trim() && String(value || "").trim()) soapDraft[key] = value;
+  });
+  if (entry.soap && (!storedSoapComplete || !["true", "false"].includes(String(soapDraft.requiresChronology)))) {
+    soapDraft.requiresChronology = String(Boolean(entry.soap.requiresChronology));
+  }
+
+  const kronologiDraft = { ...(memory.kronologiDraft || {}) };
+  const kronologiFields = {
+    resultKronologi: entry.kronologi?.kronologi,
+    resultWarning: entry.kronologi?.warning,
+    resultWarningRule: entry.kronologi?.warningRule
+  };
+  Object.entries(kronologiFields).forEach(([key, value]) => {
+    if (!String(kronologiDraft[key] || "").trim() && String(value || "").trim()) kronologiDraft[key] = value;
+  });
+
+  return { ...memory, soapDraft, kronologiDraft };
+}
+
 function snapshotActivePatientMemory() {
   const key = patientMemoryKey(activePatientProfile);
   if (!key) return null;
@@ -1943,6 +2031,7 @@ async function activatePatientProfile(profile) {
       episode: createEpisode(anonymousIdentity)
     };
   }
+  memory = restorePatientResultsFromHistory(memory);
 
   activePatientProfile = { ...profile };
   resetFields(SOAP_FIELD_IDS);
@@ -1964,6 +2053,8 @@ async function activatePatientProfile(profile) {
   await persistActivePatientMemory();
   await setActivePatientTabTitle(patientTabTitle(profile, patientMemories[key].bed), profile).catch(() => {});
   await registerActivePatientToShift(profile).catch(() => {});
+  if (hasResult("soap")) openResultView("soap", document.activeElement, "Hasil Magic SOAP pasien dipulihkan dari kunjungan ini.");
+  else if (hasResult("kronologi")) openResultView("kronologi", document.activeElement, "Hasil Kronologi pasien dipulihkan dari kunjungan ini.");
 }
 
 async function syncPatientFromActiveErm() {
@@ -2264,12 +2355,47 @@ function renderHistoryList() {
   });
 }
 
-function showHistoryList() {
-  $("#historyListView").hidden = false;
+function renderUpdateLog() {
+  const list = $("#updateLogList");
+  list.replaceChildren();
+  UPDATE_LOG.forEach((release) => {
+    const article = document.createElement("article");
+    article.className = "update-log-item";
+    const heading = document.createElement("div");
+    heading.className = "update-log-heading";
+    const version = document.createElement("strong");
+    version.textContent = `v${release.version}`;
+    const date = document.createElement("span");
+    date.textContent = release.date;
+    heading.append(version, date);
+    const changes = document.createElement("ul");
+    release.changes.forEach((change) => {
+      const item = document.createElement("li");
+      item.textContent = change;
+      changes.append(item);
+    });
+    article.append(heading, changes);
+    list.append(article);
+  });
+}
+
+function showHistorySection(section) {
+  const historyActive = section === "history";
+  $("#historyListView").hidden = !historyActive;
   $("#historyDetailView").hidden = true;
+  $("#updateLogView").hidden = historyActive;
   $("#backToHistoryList").hidden = true;
-  $("#historyTitle").textContent = "Riwayat";
-  renderHistoryList();
+  $("#historyTitle").textContent = historyActive ? "Riwayat" : "Log Update";
+  $("#historyPatientTab").classList.toggle("active", historyActive);
+  $("#historyUpdateTab").classList.toggle("active", !historyActive);
+  $("#historyPatientTab").setAttribute("aria-selected", String(historyActive));
+  $("#historyUpdateTab").setAttribute("aria-selected", String(!historyActive));
+  if (historyActive) renderHistoryList();
+  else renderUpdateLog();
+}
+
+function showHistoryList() {
+  showHistorySection("history");
 }
 
 function openHistoryDialog() {
@@ -3997,6 +4123,8 @@ if (typeof document !== "undefined") {
     field.addEventListener("input", () => resizeResultTextareas(field.closest(".result-panel")));
   });
   $("#openHistory").addEventListener("click", openHistoryDialog);
+  $("#historyPatientTab").addEventListener("click", () => showHistorySection("history"));
+  $("#historyUpdateTab").addEventListener("click", () => showHistorySection("updates"));
   $("#sharedToken").addEventListener("click", openSharedTokenDialog);
   $("#closeSharedToken").addEventListener("click", closeSharedTokenDialog);
   $("#sharedTokenDialog").addEventListener("cancel", (event) => {
@@ -4228,6 +4356,7 @@ if (typeof module !== "undefined") {
     parseProviderPayload,
     embeddedProviderError,
     pruneExpiredHistory,
+    restorePatientResultsFromHistory,
     parseAnonymousIdentity,
     patientMemoryKey,
     samePatientEncounter,
@@ -4289,6 +4418,20 @@ if (typeof module !== "undefined") {
     assert.equal(sameAnonymousIdentity("Perempuan 48 tahun", anonymousIdentityForProfile(patientProfile)), false);
     assert.equal(patientTabTitle(patientProfile, "6"), "6 SALIMUDDIN");
     assert.equal(patientTabTitle(patientProfile, ""), "SALIMUDDIN");
+    const restoredMemory = restorePatientResultsFromHistory({
+      episode: { id: "episode-a" },
+      soapDraft: { resultS: "", resultO: "Temuan baru" },
+      kronologiDraft: {}
+    }, [{
+      id: "episode-a",
+      soap: { s: "Keluhan lama", o: "Temuan lama", a: "Diagnosis", p: "Terapi", requiresChronology: true },
+      kronologi: { kronologi: "Kejadian" }
+    }]);
+    assert.equal(restoredMemory.soapDraft.resultS, "Keluhan lama");
+    assert.equal(restoredMemory.soapDraft.resultO, "Temuan baru");
+    assert.equal(restoredMemory.soapDraft.resultA, "Diagnosis");
+    assert.equal(restoredMemory.soapDraft.requiresChronology, "true");
+    assert.equal(restoredMemory.kronologiDraft.resultKronologi, "Kejadian");
     assert.equal(formatLatestVitalSigns({
       bloodPressure: "69/47",
       pulse: "96",

@@ -23,6 +23,7 @@ const PATIENT_MEMORIES_KEY = "patientMemories";
 const HISTORY_RETENTION_MS = 60 * 24 * 60 * 60 * 1000;
 const SUPPORT_REMINDER_KEY = "supportReminderLastShownAt";
 const SUPPORT_REMINDER_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
+const UPDATE_LOG_SEEN_VERSION_KEY = "updateLogLastSeenVersion";
 const MAX_CLINICAL_IMAGE_BYTES = 8 * 1024 * 1024;
 const CLINICAL_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const AI_WAIT_NOTE = "Proses AI dapat membutuhkan waktu 30-180 detik. Tetap biarkan panel terbuka.";
@@ -37,7 +38,8 @@ const UPDATE_LOG = [
       "Hasil Magic SOAP kini tetap tersedia saat berpindah antar-tab pasien.",
       "Hasil Riwayat menjadi cadangan aman bila draft kunjungan belum lengkap.",
       "Tombol Input SOAP format WA dan Input SOAP kembali aktif saat tab pasien dibuka lagi.",
-      "Log Update ditambahkan di dalam menu Riwayat."
+      "Log Update ditambahkan di dalam menu Riwayat.",
+      "Log versi terbaru tampil otomatis satu kali setelah extension diperbarui."
     ]
   },
   {
@@ -216,6 +218,20 @@ async function openSupportReminderIfDue(lastShownAt, now = Date.now()) {
   if (!supportReminderDue(lastShownAt, now)) return false;
   openSupportDialog();
   await chrome.storage.local.set({ [SUPPORT_REMINDER_KEY]: now });
+  return true;
+}
+
+function shouldShowUpdateLog(seenVersion, currentVersion, releases = UPDATE_LOG) {
+  return Boolean(currentVersion
+    && seenVersion !== currentVersion
+    && releases.some((release) => release.version === currentVersion));
+}
+
+async function openUpdateLogIfNeeded(seenVersion) {
+  const currentVersion = globalThis.chrome?.runtime?.getManifest?.().version || UPDATE_LOG[0]?.version;
+  if (!shouldShowUpdateLog(seenVersion, currentVersion)) return false;
+  openHistoryDialog("updates");
+  await chrome.storage.local.set({ [UPDATE_LOG_SEEN_VERSION_KEY]: currentVersion });
   return true;
 }
 
@@ -2398,10 +2414,10 @@ function showHistoryList() {
   showHistorySection("history");
 }
 
-function openHistoryDialog() {
+function openHistoryDialog(section = "history") {
   const dialog = $("#historyDialog");
   clearTimeout(historyCloseTimer);
-  showHistoryList();
+  showHistorySection(section);
   if (!dialog.open) dialog.showModal();
   requestAnimationFrame(() => {
     dialog.classList.add("is-visible");
@@ -3994,7 +4010,7 @@ async function deleteApiSettings() {
 }
 
 async function initialize() {
-  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, SHARED_PRODUCT_CATALOG_KEY, SHARED_TOKEN_KEY, WHATSAPP_SOAP_SETTINGS_KEY, PATIENT_MEMORIES_KEY, SHIFT.STORAGE_KEY, SUPPORT_REMINDER_KEY, ADMIN_LOGIN_REQUEST_KEY]);
+  const saved = await chrome.storage.local.get([SETTINGS_KEY, SOAP_DRAFT_KEY, KRONOLOGI_DRAFT_KEY, HISTORY_KEY, ACTIVE_PATIENT_KEY, PRODUCT_ALIASES_KEY, SHARED_PRODUCT_CATALOG_KEY, SHARED_TOKEN_KEY, WHATSAPP_SOAP_SETTINGS_KEY, PATIENT_MEMORIES_KEY, SHIFT.STORAGE_KEY, SUPPORT_REMINDER_KEY, UPDATE_LOG_SEEN_VERSION_KEY, ADMIN_LOGIN_REQUEST_KEY]);
   sharedTokenSnapshot = normalizeSharedTokenSnapshot(saved[SHARED_TOKEN_KEY]);
   $("#sharedToken").hidden = true;
   await loadProductAliasResources(saved[SHARED_PRODUCT_CATALOG_KEY]);
@@ -4048,7 +4064,7 @@ async function initialize() {
   if (saved[ADMIN_LOGIN_REQUEST_KEY]) {
     await chrome.storage.local.remove(ADMIN_LOGIN_REQUEST_KEY);
     openSettingsDialog("connection");
-  } else {
+  } else if (!await openUpdateLogIfNeeded(saved[UPDATE_LOG_SEEN_VERSION_KEY])) {
     await openSupportReminderIfDue(saved[SUPPORT_REMINDER_KEY]);
   }
 }
@@ -4122,7 +4138,7 @@ if (typeof document !== "undefined") {
   document.querySelectorAll(".result-panel textarea").forEach((field) => {
     field.addEventListener("input", () => resizeResultTextareas(field.closest(".result-panel")));
   });
-  $("#openHistory").addEventListener("click", openHistoryDialog);
+  $("#openHistory").addEventListener("click", () => openHistoryDialog());
   $("#historyPatientTab").addEventListener("click", () => showHistorySection("history"));
   $("#historyUpdateTab").addEventListener("click", () => showHistorySection("updates"));
   $("#sharedToken").addEventListener("click", openSharedTokenDialog);
@@ -4357,6 +4373,7 @@ if (typeof module !== "undefined") {
     embeddedProviderError,
     pruneExpiredHistory,
     restorePatientResultsFromHistory,
+    shouldShowUpdateLog,
     parseAnonymousIdentity,
     patientMemoryKey,
     samePatientEncounter,
@@ -4432,6 +4449,9 @@ if (typeof module !== "undefined") {
     assert.equal(restoredMemory.soapDraft.resultA, "Diagnosis");
     assert.equal(restoredMemory.soapDraft.requiresChronology, "true");
     assert.equal(restoredMemory.kronologiDraft.resultKronologi, "Kejadian");
+    assert.equal(shouldShowUpdateLog("", "2.1.7", UPDATE_LOG), true);
+    assert.equal(shouldShowUpdateLog("2.1.7", "2.1.7", UPDATE_LOG), false);
+    assert.equal(shouldShowUpdateLog("2.1.7", "2.1.8", UPDATE_LOG), false);
     assert.equal(formatLatestVitalSigns({
       bloodPressure: "69/47",
       pulse: "96",

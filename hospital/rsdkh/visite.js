@@ -11,7 +11,13 @@
     throw new Error(message);
   }
   function sourceTable() {
-    return [...document.querySelectorAll("table")].find((table) => visible(table) && /Dokter Bersama/i.test(table.textContent) && /Nama Pasien/i.test(table.textContent));
+    const hasPatientHeaders = (element) => /Dokter Bersama/i.test(element?.textContent || "") && /Nama Pasien/i.test(element?.textContent || "");
+    const scrollBody = [...document.querySelectorAll('.p-datatable-scrollable-body > table')].find((table) => {
+      const view = table.closest('.p-datatable-scrollable-view') || table.closest('.p-datatable');
+      return visible(table) && hasPatientHeaders(view?.querySelector('.p-datatable-scrollable-header'));
+    });
+    if (scrollBody) return scrollBody;
+    return [...document.querySelectorAll("table")].find((table) => visible(table) && table.querySelector('tbody') && hasPatientHeaders(table));
   }
   function cellText(cell) {
     if (!cell) return "";
@@ -22,7 +28,11 @@
   function rows() {
     const table = sourceTable();
     if (!table) throw new Error("Tabel pasien rawat inap belum tersedia.");
-    const headerRow = [...table.querySelectorAll("thead tr")].find((row) => row.closest("table") === table && /Nama Pasien/i.test(row.textContent) && /Dokter Bersama/i.test(row.textContent));
+    const view = table.closest('.p-datatable-scrollable-view') || table.closest('.p-datatable');
+    const headerTable = table.closest('.p-datatable-scrollable-body')
+      ? view?.querySelector('.p-datatable-scrollable-header table') || table
+      : table;
+    const headerRow = [...headerTable.querySelectorAll("thead tr")].find((row) => row.closest("table") === headerTable && /Nama Pasien/i.test(row.textContent) && /Dokter Bersama/i.test(row.textContent));
     const headers = [...(headerRow?.children || [])].map((node) => cellText(node).toLowerCase().replace(/[^a-z0-9]/g, ""));
     const index = (...names) => headers.findIndex((header) => names.includes(header));
     const columns = { name: index("namapasien"), rm: index("norm", "norekammedis"), room: index("ruangan"), doctor: index("dokter"), shared: index("dokterbersama") };
@@ -47,7 +57,10 @@
       return [{ name, medicalRecordNumber, room, doctors: doctors(doctorCell), sharedDoctors: doctors(sharedCell), ermUrl, action }];
     });
   }
-  function paginator() { return [...document.querySelectorAll(".p-paginator")].find(visible); }
+  function paginator() {
+    const scope = sourceTable()?.closest('p-table, .p-datatable') || document;
+    return [...scope.querySelectorAll(".p-paginator")].find(visible);
+  }
   async function settle() {
     await sleep(500);
     await until(() => ![...document.querySelectorAll('.p-datatable-loading-overlay, .p-datatable-loading, .p-progress-spinner')].some(visible), "Daftar pasien masih memuat data.");

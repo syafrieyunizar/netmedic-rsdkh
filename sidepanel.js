@@ -34,7 +34,7 @@ const UPDATE_LOG = [
   {
     version: "2.2.1",
     date: "4 November 2026",
-    changes: ["Pembacaan tabel VISITE diperbaiki untuk label kolom responsif dan header berulang.", "Pesan VISITE membedakan daftar kosong dengan baris pasien yang belum dapat dibaca."]
+    changes: ["Pembacaan tabel VISITE mendukung struktur PrimeNG dengan header dan isi tabel terpisah, label kolom responsif, serta header berulang.", "Pesan VISITE membedakan daftar kosong dengan baris pasien yang belum dapat dibaca."]
   },
   {
     version: "2.2.0",

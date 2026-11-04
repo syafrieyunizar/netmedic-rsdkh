@@ -63,12 +63,14 @@
   }
   async function settle() {
     await sleep(500);
-    await until(() => ![...document.querySelectorAll('.p-datatable-loading-overlay, .p-datatable-loading, .p-progress-spinner')].some(visible), "Daftar pasien masih memuat data.");
-    let last = "", stable = 0;
+    let last = null, stableSince = Date.now();
     await until(() => {
+      if (!sourceTable() || [...document.querySelectorAll('.p-datatable-loading-overlay, .p-progress-spinner')].some(visible)) {
+        last = null; stableSince = Date.now(); return false;
+      }
       const signature = rows().map((row) => `${row.medicalRecordNumber}:${row.room}`).join("|");
-      stable = signature === last ? stable + 1 : 0; last = signature;
-      return stable >= 3;
+      if (signature !== last) { last = signature; stableSince = Date.now(); }
+      return Date.now() - stableSince >= (signature ? 1000 : 4000);
     }, "Daftar pasien belum stabil.");
   }
   async function setPageSize() {
@@ -86,10 +88,12 @@
     option.click(); await settle();
   }
   async function prepare() {
-    for (const label of document.querySelectorAll("label")) {
-      if (!/^Hanya Pasien Dokter Saya$/i.test(clean(label.textContent))) continue;
-      const input = label.control || document.getElementById(label.htmlFor) || label.parentElement.querySelector('input[type=checkbox]');
-      if (input?.checked) input.click();
+    const label = [...document.querySelectorAll('label')].find((node) => visible(node) && /^Hanya Pasien Dokter Saya$/i.test(clean(node.textContent)));
+    const input = label?.parentElement.querySelector('input[type=checkbox]') || label?.control;
+    if (input?.checked) {
+      const control = input.closest('p-checkbox, .p-checkbox');
+      (control?.querySelector('.p-checkbox-box') || input).click();
+      await until(() => !input.checked, "Filter dokter belum berhasil dinonaktifkan.");
     }
     const search = [...document.querySelectorAll("button")].find((button) => visible(button) && clean(button.textContent) === "Cari");
     if (!search) throw new Error("Tombol Cari tidak ditemukan.");
@@ -111,7 +115,7 @@
       if (location.hash !== previousHash) {
         history.back();
         await until(() => location.hash === previousHash && sourceTable(), "Kembali ke daftar pasien gagal. Buka ulang daftar dan coba lagi.");
-        await settle(); await setPageSize();
+        await prepare();
         let currentPage = Number(clean(paginator()?.querySelector('.p-paginator-page.p-highlight, .p-paginator-page[aria-current="page"]')?.textContent)) || 1;
         if (currentPage > previousPage) { paginator()?.querySelector('.p-paginator-first')?.click(); await settle(); currentPage = 1; }
         while (currentPage < previousPage) {
@@ -133,8 +137,7 @@
       seenPages.add(pageKey);
       for (const source of pageRows) {
         status.textContent = `Mengambil ${source.name}…`;
-        const current = rows().find((row) => row.medicalRecordNumber === source.medicalRecordNumber && row.room === source.room);
-        if (!current) throw new Error("Filter ruangan atau halaman berubah saat mengambil pasien. Pilih ulang ruangan dan coba lagi.");
+        const current = await until(() => sourceTable() && rows().find((row) => row.medicalRecordNumber === source.medicalRecordNumber && row.room === source.room), "Pasien belum muncul kembali setelah daftar dimuat ulang. Coba ulang pengambilan visite.");
         const ermUrl = await resolveLink(current);
         patients.set(`${source.medicalRecordNumber}:${new URL(ermUrl).hash.split('/')[3]}`, { ...source, action: undefined, ermUrl });
       }
@@ -202,6 +205,7 @@
     if (!target) return;
     const anchor = target.closest("li") || target.closest("a,button") || target;
     const button = document.createElement("button"); button.id = "rsdkh-visite-button"; button.type = "button";
+    button.dataset.visiteBuild = "2.2.1-restore-filter";
     button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="3"/><path d="M2 21v-3a7 7 0 0 1 14 0v3M17 4a3 3 0 0 1 0 6m3 11v-3a7 7 0 0 0-3-6"/></svg><span>VISITE</span>';
     button.addEventListener("click", start); anchor.after(button);
   }

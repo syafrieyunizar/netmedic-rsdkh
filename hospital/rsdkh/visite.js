@@ -13,21 +13,29 @@
   function sourceTable() {
     return [...document.querySelectorAll("table")].find((table) => visible(table) && /Dokter Bersama/i.test(table.textContent) && /Nama Pasien/i.test(table.textContent));
   }
+  function cellText(cell) {
+    if (!cell) return "";
+    const copy = cell.cloneNode(true);
+    copy.querySelectorAll('.p-column-title, .p-sr-only, .sr-only, [aria-hidden="true"]').forEach((node) => node.remove());
+    return clean(copy.textContent);
+  }
   function rows() {
     const table = sourceTable();
     if (!table) throw new Error("Tabel pasien rawat inap belum tersedia.");
-    const headers = [...table.querySelectorAll("thead th")].map((node) => clean(node.textContent).toLowerCase().replace(/[^a-z0-9]/g, ""));
+    const headerRow = [...table.querySelectorAll("thead tr")].find((row) => row.closest("table") === table && /Nama Pasien/i.test(row.textContent) && /Dokter Bersama/i.test(row.textContent));
+    const headers = [...(headerRow?.children || [])].map((node) => cellText(node).toLowerCase().replace(/[^a-z0-9]/g, ""));
     const index = (...names) => headers.findIndex((header) => names.includes(header));
     const columns = { name: index("namapasien"), rm: index("norm", "norekammedis"), room: index("ruangan"), doctor: index("dokter"), shared: index("dokterbersama") };
     if (Object.values(columns).some((value) => value < 0)) throw new Error("Kolom nama, RM, ruangan, atau dokter tidak dikenali.");
-    return [...table.querySelectorAll("tbody tr")].flatMap((row) => {
-      const cells = [...row.children]; if (cells.length < headers.length) return [];
-      const read = (key) => clean(cells[columns[key]]?.textContent);
+    return [...table.querySelectorAll("tbody tr")].filter((row) => row.closest("table") === table).flatMap((row) => {
+      const cells = [...row.children].filter((cell) => cell.tagName === "TD");
+      if (cells.length <= Math.max(...Object.values(columns))) return [];
+      const read = (key) => cellText(cells[columns[key]]);
       const name = read("name"), medicalRecordNumber = read("rm"), room = read("room");
       if (!name || !/^\d{5,8}$/.test(medicalRecordNumber) || !room) return [];
       const doctorCell = cells[columns.doctor], sharedCell = cells[columns.shared];
       const doctors = (cell) => {
-        const text = cell.innerText || cell.textContent;
+        const text = cellText(cell);
         return text.split(/(?=\bdr\.?\s)/i).map(clean).filter((name) => /^dr\.?\s/i.test(name));
       };
       const icon = row.querySelector('[class*="stethoscope"]');
@@ -121,7 +129,12 @@
       if (!next || next.disabled || next.getAttribute("aria-disabled") === "true" || next.classList.contains("p-disabled")) break;
       next.click(); await settle();
     }
-    if (!patients.size) throw new Error("Tidak ada pasien. Pilih ruangan yang memiliki pasien terlebih dahulu.");
+    if (!patients.size) {
+      const sourceRows = [...(sourceTable()?.querySelectorAll('tbody tr') || [])].filter((row) => row.children.length > 1);
+      throw new Error(sourceRows.length
+        ? `Tabel berisi ${sourceRows.length} baris, tetapi kolom identitas pasien belum dapat dibaca. Muat ulang halaman setelah memperbarui extension.`
+        : "Tidak ada pasien. Pilih ruangan yang memiliki pasien terlebih dahulu.");
+    }
     return [...patients.values()];
   }
   async function start() {

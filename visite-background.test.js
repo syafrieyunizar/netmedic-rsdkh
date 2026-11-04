@@ -11,8 +11,8 @@ const context = vm.createContext({
     runtime: { onInstalled: event, onStartup: event, onMessage: event },
     tabs: {
       onActivated: event, onUpdated: event,
-      async create(options) { created.push(options); return { id: 10 }; },
-      async sendMessage(id, message) { assert.equal(id, 10); assert.equal(message.patient.registrationNumber, '2611000854'); return fail ? { ok: false, error: 'Patient not found' } : { ok: true, ermUrl: target }; },
+      async create(options) { created.push(options); return { id: 9 + created.length }; },
+      async sendMessage(id, message) { assert.ok(id >= 10); assert.equal(message.patient.registrationNumber, '2611000854'); return fail ? { ok: false, error: 'Patient not found' } : { ok: true, ermUrl: target }; },
       async get() { return { url: target }; },
       async remove(id) { removed.push(id); }
     }
@@ -28,9 +28,20 @@ vm.runInContext(fs.readFileSync('background.js', 'utf8'), context);
   assert.deepEqual(removed, [10]);
   fail = true;
   await assert.rejects(context.resolveVisiteLink(patient, sender), /Patient not found/);
-  assert.deepEqual(removed, [10, 10]);
+  assert.deepEqual(removed, [10, 11]);
   await assert.rejects(context.resolveVisiteLink(patient, { tab: { url: 'https://example.com/' } }), /daftar pasien/);
   await assert.rejects(context.resolveVisiteLink({ ...patient, registrationNumber: '' }, sender), /registrasi/);
   assert.equal(created.length, 2);
-  console.log('PASS background tab stays inactive, URL verified, cleanup on success/error, invalid requests rejected');
+  let release;
+  const barrier = new Promise((resolve) => { release = resolve; });
+  context.chrome.tabs.sendMessage = async () => { await barrier; return { ok: true, ermUrl: target }; };
+  const parallel = Array.from({ length: 3 }, () => context.resolveVisiteLink(patient, sender));
+  await assert.rejects(context.resolveVisiteLink(patient, sender), /Tiga tab/);
+  assert.equal(created.length, 5);
+  release();
+  await Promise.all(parallel);
+  assert.deepEqual(removed.slice(2).sort(), [12, 13, 14]);
+  await context.resolveVisiteLink(patient, sender);
+  assert.equal(created.length, 6, 'capacity available again after cleanup');
+  console.log('PASS inactive tabs, URL verification, cleanup on success/error, maximum three parallel tabs');
 })().catch((error) => { console.error(error); process.exit(1); });

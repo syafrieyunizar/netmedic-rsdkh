@@ -89,7 +89,7 @@
     const option = await until(() => [...document.querySelectorAll('[role=option], .p-dropdown-item')].find((node) => visible(node) && clean(node.textContent) === "100"), "Pilihan 100 baris tidak ditemukan.");
     option.click(); await settle();
   }
-  async function prepare() {
+  async function prepare(setHundredRows = true) {
     const label = [...document.querySelectorAll('label')].find((node) => visible(node) && /^Hanya Pasien Dokter Saya$/i.test(clean(node.textContent)));
     const input = label?.parentElement.querySelector('input[type=checkbox]') || label?.control;
     if (input?.checked) {
@@ -99,7 +99,8 @@
     }
     const search = [...document.querySelectorAll("button")].find((button) => visible(button) && clean(button.textContent) === "Cari");
     if (!search) throw new Error("Tombol Cari tidak ditemukan.");
-    search.click(); await settle(); await setPageSize();
+    search.click(); await settle();
+    if (setHundredRows) await setPageSize();
     const first = paginator()?.querySelector(".p-paginator-first");
     if (first && !first.disabled && first.getAttribute("aria-disabled") !== "true") { first.click(); await settle(); }
   }
@@ -112,7 +113,7 @@
       const field = document.querySelector(`input[placeholder="${placeholder}"]`);
       if (field) { field.value = value; field.dispatchEvent(new Event('input', { bubbles: true })); field.dispatchEvent(new Event('change', { bubbles: true })); }
     }
-    await prepare();
+    await prepare(false);
     const row = await until(() => sourceTable() && rows().find((item) => item.medicalRecordNumber === patient.medicalRecordNumber && item.registrationNumber === patient.registrationNumber && item.room === patient.room), 'Pasien dengan RM dan registrasi yang dipilih tidak ditemukan di tab pengambilan.');
     if (!row.action) throw new Error('Tombol stetoskop pasien tidak ditemukan.');
     row.action.click();
@@ -186,19 +187,15 @@
         try {
           const groups = selections.filter((item) => item.checkbox.checked).map(({ room, doctor, patients }) => ({ room, doctor, patients }));
           if (!groups.length) throw new Error("Pilih setidaknya satu dokter.");
-          const selectedPatients = new Map();
-          for (const group of groups) for (const patient of group.patients) selectedPatients.set(`${patient.medicalRecordNumber}:${patient.registrationNumber}`, patient);
-          let completed = 0;
-          for (const patient of selectedPatients.values()) {
-            status.textContent = `Mengambil link pasien terpilih ${++completed}/${selectedPatients.size}…`;
-            status.className = '';
-            const response = await chrome.runtime.sendMessage({ type: 'rsdkh:visite-resolve-link', patient, sourceUrl: location.href });
+          const resolvedGroups = await V.resolveSelectedLinks(groups, async (patient) => {
+            const response = await chrome.runtime.sendMessage({ type: 'rsdkh:visite-resolve-link', patient });
             if (!response?.ok) throw new Error(response?.error || 'Link pasien belum berhasil diambil.');
-            for (const group of groups) for (const item of group.patients) {
-              if (item.medicalRecordNumber === patient.medicalRecordNumber && item.registrationNumber === patient.registrationNumber) item.ermUrl = response.ermUrl;
-            }
-          }
-          const response = await chrome.runtime.sendMessage({ type: "rsdkh:visite-start", groups });
+            return response.ermUrl;
+          }, (completed, total) => {
+            status.textContent = `Mengambil link pasien terpilih ${completed}/${total} selesai · maksimal ${V.LINK_CONCURRENCY} pasien sekaligus…`;
+            status.className = '';
+          });
+          const response = await chrome.runtime.sendMessage({ type: "rsdkh:visite-start", groups: resolvedGroups });
           if (!response?.ok) throw new Error(response?.error || "Sesi visite gagal dibuat.");
           dialog.close(); dialog.remove();
         } catch (error) { status.textContent = error.message; status.className = "rsdkh-visite-error"; }
@@ -213,7 +210,7 @@
     if (!target) return;
     const anchor = target.closest("li") || target.closest("a,button") || target;
     const button = document.createElement("button"); button.id = "rsdkh-visite-button"; button.type = "button";
-    button.dataset.visiteBuild = "2.2.1-selected-background";
+    button.dataset.visiteBuild = "2.2.2-parallel-three";
     button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="7" r="3"/><path d="M2 21v-3a7 7 0 0 1 14 0v3M17 4a3 3 0 0 1 0 6m3 11v-3a7 7 0 0 0-3-6"/></svg><span>VISITE</span>';
     button.addEventListener("click", start); anchor.after(button);
   }

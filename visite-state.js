@@ -1,5 +1,6 @@
 ((root) => {
   const KEY = "rsdkhVisiteSession";
+  const LINK_CONCURRENCY = 3;
   const clean = (value) => String(value || "").replace(/\s+/g, " ").trim();
   const doctorKey = (value) => clean(value).toLocaleLowerCase("id-ID").replace(/[.,\s]+/g, "");
   const patientKey = (patient) => `${clean(patient.medicalRecordNumber)}:${clean(patient.visitId)}`;
@@ -37,7 +38,28 @@
     next.updatedAt = now;
     return next;
   }
-  const api = { KEY, clean, doctorKey, patientKey, cpptUrl, mergeSession };
+  async function resolveSelectedLinks(groups, resolveLink, onProgress = () => {}) {
+    const keyFor = (patient) => `${patient.medicalRecordNumber}:${patient.registrationNumber}`;
+    const selected = new Map();
+    for (const group of groups) for (const patient of group.patients) selected.set(keyFor(patient), patient);
+    const patients = [...selected.values()], links = new Map();
+    let cursor = 0, completed = 0, failure;
+    onProgress(completed, patients.length);
+    const workers = Array.from({ length: Math.min(LINK_CONCURRENCY, patients.length) }, async () => {
+      while (!failure && cursor < patients.length) {
+        const patient = patients[cursor++];
+        try {
+          const url = cpptUrl(await resolveLink(patient));
+          links.set(keyFor(patient), url);
+          onProgress(++completed, patients.length);
+        } catch (error) { failure = failure || error; }
+      }
+    });
+    await Promise.all(workers);
+    if (failure) throw failure;
+    return groups.map((group) => ({ ...group, patients: group.patients.map((patient) => ({ ...patient, ermUrl: links.get(keyFor(patient)) })) }));
+  }
+  const api = { KEY, LINK_CONCURRENCY, clean, doctorKey, patientKey, cpptUrl, mergeSession, resolveSelectedLinks };
   root.NetmedicVisite = api;
   if (typeof module !== "undefined") module.exports = api;
 })(globalThis);

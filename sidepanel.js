@@ -32,6 +32,11 @@ const PHOTO_AI_STAGES = ["Menganalisis foto klinis", "Menyusun temuan objektif",
 const KRONOLOGI_AI_STAGES = ["Membaca skenario kejadian", "Menyusun urutan kronologi", "Memeriksa konsistensi kronologi"];
 const UPDATE_LOG = [
   {
+    version: "2.2.2",
+    date: "4 November 2026",
+    changes: ["Pengambilan link VISITE dipercepat dengan maksimal tiga pasien secara paralel.", "Progres menampilkan jumlah pasien yang selesai. Tab sementara ditutup setelah berhasil atau gagal.", "Pencarian satu registrasi di tab sementara menghindari pemuatan 100 baris yang tidak diperlukan."]
+  },
+  {
     version: "2.2.1",
     date: "4 November 2026",
     changes: ["Dokter dipilih terlebih dahulu sebelum mengambil link eRM pasien.", "Link hanya diambil untuk pasien dokter terpilih melalui tab sementara di latar belakang; halaman daftar utama tetap terbuka.", "Pembacaan tabel VISITE mendukung header dan isi tabel PrimeNG terpisah serta menunggu pemuatan daftar pasien."]

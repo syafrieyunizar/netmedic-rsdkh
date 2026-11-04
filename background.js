@@ -6,14 +6,14 @@ const PATIENT_MEMORIES_KEY = "patientMemories";
 let shiftMutationQueue = Promise.resolve();
 let clipboardCopyRequest;
 let visiteQueue = Promise.resolve();
-let visiteLinkRunning = false;
+let visiteLinksRunning = 0;
 
 async function resolveVisiteLink(patient, sender) {
   const source = new URL(sender.tab?.url || '');
   if (!['rsudbalangan.com', '10.10.0.3'].includes(source.hostname) || !['http:', 'https:'].includes(source.protocol) || source.hash.split('?')[0] !== '#/daftar-pasien-dirawat') throw new Error('Buka pengambilan visite dari daftar pasien dirawat.');
   if (!/^\d{5,8}$/.test(String(patient?.medicalRecordNumber || '')) || !/^\d{9,11}$/.test(String(patient?.registrationNumber || '')) || !patient?.room) throw new Error('RM, registrasi, atau ruangan pasien belum lengkap.');
-  if (visiteLinkRunning) throw new Error('Pengambilan link visite lain masih berjalan.');
-  visiteLinkRunning = true;
+  if (visiteLinksRunning >= self.NetmedicVisite.LINK_CONCURRENCY) throw new Error('Tiga tab pengambilan visite masih berjalan. Tunggu lalu coba lagi.');
+  visiteLinksRunning++;
   let tabId, timer;
   try {
     const tab = await chrome.tabs.create({ url: source.href, active: false });
@@ -42,7 +42,7 @@ async function resolveVisiteLink(patient, sender) {
   } finally {
     clearTimeout(timer);
     if (tabId) await chrome.tabs.remove(tabId).catch(() => {});
-    visiteLinkRunning = false;
+    visiteLinksRunning--;
   }
 }
 

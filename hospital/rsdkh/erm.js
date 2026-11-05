@@ -11,7 +11,10 @@
   const ICD9_SLOT_ID = `${ICD9_BUTTON_ID}-slot`;
   const ICD9_UI_ID = `${ICD9_BUTTON_ID}-ui`;
   const IGD_EMR_ACTION = 'button[ptooltip="Pengkajian Medis/EMR"][icon="fa fa-stethoscope"]';
-  const IGD_LIST_TAB_TITLE = "DAFTAR PASIEN IGD";
+  const PATIENT_LIST_TAB_TITLES = new Map([
+    ["#/daftar-pasien-igd", "DAFTAR PASIEN IGD"],
+    ["#/daftar-pasien-dirawat", "DAFTAR PASIEN RAWAT INAP"]
+  ]);
   const AI_WAIT_NOTE = "Proses AI dapat membutuhkan waktu 30-180 detik. Tetap biarkan halaman terbuka.";
   const SOAP_PARSE_STAGES = ["Memproses anamnesis", "Memproses pemeriksaan fisik", "Menyelaraskan Assessment dan Planning", "Memeriksa konsistensi SOAP"];
   const ICD9_GROUPS = [
@@ -71,7 +74,8 @@
   let forcedTabTitle = "";
   let forcedPatientKey = "";
   let originalTabTitle = "";
-  let titleBeforeIgdList = null;
+  let titleBeforePatientList = null;
+  let activePatientListTitle = "";
   let lastAssessmentReport = "";
   let lastPatientReport = "";
   let patientReportTimer;
@@ -358,8 +362,8 @@
     const nextTitle = normalize(title);
     const previousTitle = forcedTabTitle;
     if (nextTitle && !previousTitle) {
-      originalTabTitle = document.title === IGD_LIST_TAB_TITLE
-        ? titleBeforeIgdList ?? document.title
+      originalTabTitle = document.title === activePatientListTitle
+        ? titleBeforePatientList ?? document.title
         : document.title;
     }
     forcedTabTitle = nextTitle;
@@ -382,17 +386,21 @@
     if (document.title !== forcedTabTitle) document.title = forcedTabTitle;
   }
 
-  function enforceIgdListTabTitle() {
-    if (isIgdList()) {
+  function enforcePatientListTabTitle() {
+    const listTitle = PATIENT_LIST_TAB_TITLES.get(location.hash.split("?")[0]);
+    if (listTitle) {
       if (forcedTabTitle) setForcedPatientTabTitle("", null);
-      if (document.title !== IGD_LIST_TAB_TITLE) {
-        titleBeforeIgdList = document.title;
-        document.title = IGD_LIST_TAB_TITLE;
+      if (document.title !== listTitle) {
+        if (document.title !== activePatientListTitle || titleBeforePatientList === null) {
+          titleBeforePatientList = document.title;
+        }
+        document.title = listTitle;
       }
-    } else if (titleBeforeIgdList !== null) {
-      if (document.title === IGD_LIST_TAB_TITLE) document.title = titleBeforeIgdList;
-      titleBeforeIgdList = null;
+    } else if (titleBeforePatientList !== null) {
+      if (document.title === activePatientListTitle) document.title = titleBeforePatientList;
+      titleBeforePatientList = null;
     }
+    activePatientListTitle = listTitle || "";
   }
 
   function identityFacts(value) {
@@ -1366,7 +1374,7 @@
   }
 
   function queueInject() {
-    enforceIgdListTabTitle();
+    enforcePatientListTabTitle();
     if (injectQueued) return;
     injectQueued = true;
     requestAnimationFrame(() => {
@@ -1481,6 +1489,6 @@
   document.addEventListener("change", queueInject, true);
   document.addEventListener("click", openIgdPatientFromList, true);
   addEventListener("hashchange", queueInject);
-  window.navigation?.addEventListener("currententrychange", enforceIgdListTabTitle);
+  window.navigation?.addEventListener("currententrychange", enforcePatientListTabTitle);
   queueInject();
 })();

@@ -1,12 +1,98 @@
 importScripts("hospital/rsdkh/ai.js", "shift.js", "visite-state.js");
 
 const SHIFT = self.NetmedicShift;
-const DASHBOARD_TAB_KEY = "netmedicDashboardTabId";
 const PATIENT_MEMORIES_KEY = "patientMemories";
+const SESSION_GROUPS = {
+  "dashboard.html": { title: "🩺 JAGA", color: "orange" },
+  "visite.html": { title: "🩺 Visite", color: "cyan" }
+};
 let shiftMutationQueue = Promise.resolve();
 let clipboardCopyRequest;
 let visiteQueue = Promise.resolve();
 let visiteLinksRunning = 0;
+let sessionTabQueue = Promise.resolve();
+
+function manageSessionTabs(action) {
+  const operation = sessionTabQueue.then(action);
+  sessionTabQueue = operation.catch(() => {});
+  return operation;
+}
+
+async function ensureDashboardGroup(dashboard, page, moveLeft = false) {
+  if (!chrome.tabs.group || !chrome.tabGroups) {
+    if (!dashboard.pinned) await chrome.tabs.update(dashboard.id, { pinned: true });
+    return null;
+  }
+
+  const style = SESSION_GROUPS[page];
+  const groups = await chrome.tabGroups.query({ windowId: dashboard.windowId, title: style.title });
+  const group = groups.find((item) => item.title === style.title && item.id === dashboard.groupId)
+    || groups.find((item) => item.title === style.title);
+  const alreadyGrouped = group && group.id === dashboard.groupId;
+  if (alreadyGrouped && !moveLeft) return group.id;
+
+  if (dashboard.pinned) await chrome.tabs.update(dashboard.id, { pinned: false });
+  const groupId = alreadyGrouped
+    ? group.id
+    : await chrome.tabs.group({ tabIds: dashboard.id, ...(group ? { groupId: group.id } : {}) });
+  if (!group) await chrome.tabGroups.update(groupId, style);
+
+  const members = await chrome.tabs.query({ windowId: dashboard.windowId, groupId });
+  const firstIndex = Math.min(...members.map((tab) => tab.index));
+  const current = members.find((tab) => tab.id === dashboard.id);
+  if (current && current.index > firstIndex) await chrome.tabs.move(dashboard.id, { index: firstIndex });
+  const pinned = await chrome.tabs.query({ windowId: dashboard.windowId, pinned: true });
+  if (firstIndex > pinned.length) await chrome.tabGroups.move(groupId, { index: pinned.length }).catch(() => {});
+  return groupId;
+}
+
+async function openSessionDashboard(page, windowId) {
+  const url = chrome.runtime.getURL(page);
+  const tabs = await chrome.tabs.query({});
+  const existing = tabs.find((tab) => (tab.pendingUrl || tab.url) === url && tab.windowId === windowId)
+    || tabs.find((tab) => (tab.pendingUrl || tab.url) === url);
+  const dashboard = existing || await chrome.tabs.create({ url, active: true, windowId });
+  await ensureDashboardGroup(dashboard, page, true).catch(() => {});
+  if (existing) {
+    await chrome.windows.update(dashboard.windowId, { focused: true });
+    await chrome.tabs.update(dashboard.id, { active: true });
+  }
+  return dashboard.id;
+}
+
+async function dashboardFromSender(sender, page) {
+  if (sender.url !== chrome.runtime.getURL(page) || !Number.isInteger(sender.tab?.id)) {
+    throw new Error("Buka pasien dari tab dashboard sesi.");
+  }
+  return chrome.tabs.get(sender.tab.id);
+}
+
+function canReusePatientTab(tab, dashboard, groupId) {
+  const ungrouped = !(tab.groupId >= 0);
+  if (groupId === null) return ungrouped;
+  return tab.windowId === dashboard.windowId && !tab.pinned && (tab.groupId === groupId || ungrouped);
+}
+
+async function showSessionPatient(dashboard, groupId, url, existing, update = {}) {
+  const tab = existing || await chrome.tabs.create({ url, active: false, windowId: dashboard.windowId });
+  if (groupId !== null && tab.groupId !== groupId) {
+    await chrome.tabs.group({ groupId, tabIds: tab.id }).catch(() => {});
+  }
+  if (tab.windowId !== dashboard.windowId) await chrome.windows.update(tab.windowId, { focused: true });
+  await chrome.tabs.update(tab.id, { ...update, active: true });
+  return tab.id;
+}
+
+async function releaseSessionPatientTabs(page) {
+  if (!chrome.tabGroups || !chrome.tabs.ungroup) return;
+  const { title } = SESSION_GROUPS[page];
+  const groups = await chrome.tabGroups.query({ title });
+  for (const group of groups.filter((item) => item.title === title)) {
+    const tabs = await chrome.tabs.query({ groupId: group.id });
+    const patientIds = tabs.filter((tab) => patientVisitUrl(tab.pendingUrl || tab.url)).map((tab) => tab.id);
+    if (patientIds.length) await chrome.tabs.ungroup(patientIds).catch(() => {});
+  }
+}
 
 async function resolveVisiteLink(patient, sender) {
   const source = new URL(sender.tab?.url || '');
@@ -46,43 +132,38 @@ async function resolveVisiteLink(patient, sender) {
   }
 }
 
-async function openVisiteDashboard() {
-  const url = chrome.runtime.getURL("visite.html");
-  const tabs = await chrome.tabs.query({});
-  const existing = tabs.find((tab) => tab.url === url);
-  if (existing) {
-    await chrome.windows.update(existing.windowId, { focused: true });
-    return chrome.tabs.update(existing.id, { active: true, pinned: true });
-  }
-  return chrome.tabs.create({ url, active: true, pinned: true });
-}
-
-function mutateVisite(groups) {
+function mutateVisite(groups, windowId) {
   const operation = visiteQueue.then(async () => {
     const V = self.NetmedicVisite;
-    if (groups === null) { await chrome.storage.local.remove(V.KEY); return; }
+    if (groups === null) {
+      await chrome.storage.local.remove(V.KEY);
+      await manageSessionTabs(() => releaseSessionPatientTabs("visite.html").catch(() => {}));
+      return;
+    }
     const saved = await chrome.storage.local.get(V.KEY);
     const session = V.mergeSession(saved[V.KEY], groups);
     await chrome.storage.local.set({ [V.KEY]: session });
-    await openVisiteDashboard();
+    await manageSessionTabs(() => openSessionDashboard("visite.html", windowId));
   });
   visiteQueue = operation.catch(() => {});
   return operation;
 }
 
-async function openVisitePatient(patient) {
+async function openVisitePatient(patient, sender) {
   const url = self.NetmedicVisite.cpptUrl(patient?.ermUrl);
-  const target = new URL(url);
-  const route = target.hash.replace(/\/cppt$/, "");
-  const tabs = await chrome.tabs.query({});
-  const existing = tabs.find((tab) => {
-    try { const current = new URL(tab.url); return current.origin === target.origin && (current.hash === route || current.hash.startsWith(`${route}/`)); } catch { return false; }
-  });
-  if (existing) {
-    await chrome.windows.update(existing.windowId, { focused: true });
-    return chrome.tabs.update(existing.id, { url, active: true });
-  }
-  return chrome.tabs.create({ url, active: true });
+  const dashboard = await dashboardFromSender(sender, "visite.html");
+  const groupId = await ensureDashboardGroup(dashboard, "visite.html").catch(() => null);
+  const tabs = await chrome.tabs.query(groupId === null ? {} : { windowId: dashboard.windowId });
+  const matches = tabs.filter((tab) =>
+    canReusePatientTab(tab, dashboard, groupId) && patientVisitUrl(tab.pendingUrl || tab.url) === url);
+  const existing = matches.find((tab) => tab.groupId === groupId) || matches[0];
+  const update = existing && (existing.pendingUrl || existing.url) !== url ? { url } : {};
+  return showSessionPatient(dashboard, groupId, url, existing, update);
+}
+
+function patientVisitUrl(url) {
+  try { return self.NetmedicVisite.cpptUrl(url); }
+  catch { return null; }
 }
 
 function enableSidePanel() {
@@ -159,44 +240,17 @@ function mutateShiftState(mutator) {
   return operation;
 }
 
-async function rememberedDashboardTab() {
-  try {
-    return (await chrome.storage.session.get(DASHBOARD_TAB_KEY))[DASHBOARD_TAB_KEY] || null;
-  } catch {
-    return null;
+async function focusPatientTab(patient, sender) {
+  const dashboard = await dashboardFromSender(sender, "dashboard.html");
+  const groupId = await ensureDashboardGroup(dashboard, "dashboard.html").catch(() => null);
+  const visitUrl = patientVisitUrl(patient?.ermUrl);
+  if (groupId !== null && visitUrl) {
+    const members = await chrome.tabs.query({ windowId: dashboard.windowId, groupId });
+    const existing = members.find((tab) => patientVisitUrl(tab.pendingUrl || tab.url) === visitUrl);
+    if (existing) return showSessionPatient(dashboard, groupId, null, existing);
   }
-}
 
-async function rememberDashboardTab(tabId) {
-  try {
-    await chrome.storage.session.set({ [DASHBOARD_TAB_KEY]: tabId });
-  } catch {
-    // The dashboard still works when session storage is unavailable.
-  }
-}
-
-async function openDashboard() {
-  const rememberedTabId = await rememberedDashboardTab();
-  if (rememberedTabId) {
-    try {
-      const tab = await chrome.tabs.get(rememberedTabId);
-      await chrome.windows.update(tab.windowId, { focused: true });
-      await chrome.tabs.update(tab.id, { active: true, pinned: true });
-      return tab.id;
-    } catch {
-      // Recreate a dashboard tab when the remembered tab was closed.
-    }
-  }
-  const tab = await chrome.tabs.create({
-    url: chrome.runtime.getURL("dashboard.html"),
-    active: true,
-    pinned: true
-  });
-  await rememberDashboardTab(tab.id);
-  return tab.id;
-}
-
-async function focusPatientTab(patient) {
+  let existing;
   if (Number.isInteger(patient?.tabId)) {
     try {
       const tab = await chrome.tabs.get(patient.tabId);
@@ -204,20 +258,18 @@ async function focusPatientTab(patient) {
       if (!response?.ok || SHIFT.patientKey(response.identity) !== SHIFT.patientKey(patient)) {
         throw new Error("Tab lama tidak lagi memuat pasien ini.");
       }
-      await chrome.windows.update(tab.windowId, { focused: true });
-      await chrome.tabs.update(tab.id, { active: true });
-      return tab.id;
+      if (canReusePatientTab(tab, dashboard, groupId)) existing = tab;
     } catch {
       // Fall back to the last local eRM URL when the original tab was closed.
     }
   }
+  if (existing) return showSessionPatient(dashboard, groupId, null, existing);
   if (!patient?.ermUrl) throw new Error("URL eRM pasien belum tersimpan.");
   const url = new URL(patient.ermUrl);
   if (!(["rsudbalangan.com", "10.10.0.3"].includes(url.hostname) && ["http:", "https:"].includes(url.protocol))) {
     throw new Error("URL eRM pasien tidak valid.");
   }
-  const tab = await chrome.tabs.create({ url: url.href, active: true });
-  return tab.id;
+  return showSessionPatient(dashboard, groupId, url.href);
 }
 
 function vitalSignUrlFor(patient) {
@@ -306,9 +358,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   const visiteAction = {
-    "rsdkh:visite-start": () => mutateVisite(message.groups),
+    "rsdkh:visite-start": () => mutateVisite(message.groups, sender.tab?.windowId),
     "rsdkh:visite-finish": () => mutateVisite(null),
-    "rsdkh:visite-open-patient": () => openVisitePatient(message.patient)
+    "rsdkh:visite-open-patient": () => manageSessionTabs(() => openVisitePatient(message.patient, sender))
   }[message?.type];
   if (visiteAction) {
     visiteAction().then(() => sendResponse({ ok: true })).catch((error) => sendResponse({ ok: false, error: error.message }));
@@ -348,25 +400,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   const shiftAction = {
     "rsdkh:shift-get": () => readShiftState(),
-    "rsdkh:shift-start": async () => {
+    "rsdkh:shift-start": () => manageSessionTabs(async () => {
       const state = await mutateShiftState((current) => SHIFT.startShift(current));
-      await openDashboard();
+      await openSessionDashboard("dashboard.html", sender.tab?.windowId);
       return state;
-    },
-    "rsdkh:shift-finish": () => mutateShiftState((current) => SHIFT.finishShift(current)),
+    }),
+    "rsdkh:shift-finish": () => manageSessionTabs(async () => {
+      const state = await mutateShiftState((current) => SHIFT.finishShift(current));
+      await releaseSessionPatientTabs("dashboard.html").catch(() => {});
+      return state;
+    }),
     "rsdkh:shift-delete": () => mutateShiftState((current) => SHIFT.deleteShift(current, message.shiftId)),
     "rsdkh:shift-upsert-patient": () => mutateShiftState((current) => SHIFT.upsertPatient(current, message.patient)),
     "rsdkh:shift-update-patient": () => mutateShiftState((current) => SHIFT.updatePatient(current, message.patientKey || message.medicalRecordNumber, message.patch)),
     "rsdkh:assessment-status-observed": () => mutateShiftState((current) => SHIFT.updatePatient(current, message.patientKey || message.medicalRecordNumber, { assessmentState: message.assessmentState })),
     "rsdkh:patient-bed-update": () => updatePatientBed(message.patient, message.bed),
-    "rsdkh:open-dashboard": async () => ({ tabId: await openDashboard() }),
-    "rsdkh:focus-patient": async () => ({ tabId: await focusPatientTab(message.patient) }),
-    "rsdkh:dashboard-ready": async () => {
-      if (!sender.tab?.id) throw new Error("Tab dashboard tidak ditemukan.");
-      await rememberDashboardTab(sender.tab.id);
-      await chrome.tabs.update(sender.tab.id, { pinned: true });
-      return { tabId: sender.tab.id };
-    }
+    "rsdkh:open-dashboard": () => manageSessionTabs(async () => ({ tabId: await openSessionDashboard("dashboard.html", sender.tab?.windowId) })),
+    "rsdkh:focus-patient": () => manageSessionTabs(async () => ({ tabId: await focusPatientTab(message.patient, sender) })),
+    "rsdkh:dashboard-ready": () => manageSessionTabs(async () => {
+      const page = sender.url === chrome.runtime.getURL("visite.html") ? "visite.html" : "dashboard.html";
+      const dashboard = await dashboardFromSender(sender, page);
+      await ensureDashboardGroup(dashboard, page).catch(() => {});
+      return { tabId: dashboard.id };
+    })
   }[message?.type];
   if (shiftAction) {
     shiftAction()

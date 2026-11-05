@@ -7,7 +7,7 @@ Repo ini adalah turunan RSDKH dari base `magic-soap`. Fitur core tetap mengikuti
 ## Fitur
 
 - Side Panel Chrome dengan 2 tab: Magic SOAP dan Kronologi.
-- Sesi `Jaga IGD` lokal dengan tombol Mulai Jaga, Selesai Jaga, dan pinned dashboard tunggal.
+- Sesi `Jaga IGD` lokal dengan tombol Mulai Jaga, Selesai Jaga, dan grup tab 🩺 JAGA.
 - Dashboard mengurutkan pasien berdasarkan BED, menyediakan pencarian dan status operasional, serta membuka kembali tab eRM pasien.
 - Dashboard menandai kelengkapan Pengkajian Dokter IGD dengan indikator hijau centang atau merah silang tanpa mengubah status disposisi pasien.
 - Riwayat sesi jaga dan riwayat hasil pasien dikelompokkan per tanggal, dengan retensi maksimal 60 hari.
@@ -149,7 +149,7 @@ node sidepanel.js
 
 Pada daftar pasien rawat inap, pilih ruangan lalu tekan VISITE di sebelah Pasien Pulang. Extension mematikan filter Hanya Pasien Dokter Saya, memuat 100 baris per halaman, dan mengambil halaman berikutnya jika tersedia. Pilih satu atau beberapa dokter per ruangan lalu Mulai Visite.
 
-Dashboard `visite.html` dibuka sebagai pinned tab. Pilih satu kapsul dokter untuk melihat pasien per ruangan; `(Raber)` menandakan dokter pada kolom Dokter Bersama. Klik nama pasien atau CPPT untuk membuka CPPT kunjungan tersebut. Penambahan ruangan/dokter digabung ke sesi aktif, dengan ruangan terbaru di atas dan tanpa duplikasi per dokter/kunjungan. Selesai Visite menghapus sesi lokal setelah konfirmasi, tanpa riwayat.
+Dashboard `visite.html` dibuka sebagai tab pertama grup 🩺 Visite. Pilih satu kapsul dokter untuk melihat pasien per ruangan; `(Raber)` menandakan dokter pada kolom Dokter Bersama. Klik nama pasien atau CPPT untuk membuka CPPT kunjungan tersebut di grup yang sama. Penambahan ruangan/dokter digabung ke sesi aktif, dengan ruangan terbaru di atas dan tanpa duplikasi per dokter/kunjungan. Selesai Visite menghapus sesi lokal setelah konfirmasi, tanpa riwayat.
 
 Pemilihan dokter dilakukan sebelum pengambilan link. Hanya pasien dokter terpilih yang dicari berdasarkan RM dan registrasi dalam tab sementara di latar belakang, lalu tombol stetoskop dijalankan untuk membaca URL kunjungan. Maksimal tiga pasien diproses secara paralel; progres menghitung pasien yang selesai. Pencarian satu registrasi tidak perlu mengubah jumlah baris di tab sementara. Tab sementara ditutup setelah selesai atau gagal. Jika pencarian atau pemuatan mengalami kegagalan sementara, seluruh proses paralel ditunggu selesai lalu pasien yang belum berhasil dicoba ulang satu per satu. Link yang berhasil tetap dipakai; error validasi dan URL tidak dicoba ulang otomatis. Halaman daftar utama tetap terbuka. Pasien rawat bersama cukup diambil link-nya sekali untuk digunakan pada kedua kelompok dokter. Fitur ini tidak mengirim data ke AI atau Supabase.
 

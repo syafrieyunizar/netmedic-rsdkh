@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Netmedic RSDKH",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Side panel mandiri RSDKH untuk Magic SOAP, Kronologi BPJS, dan modul khusus rumah sakit.",
-  "permissions": ["sidePanel", "storage", "clipboardWrite", "tabs"],
+  "permissions": ["sidePanel", "storage", "clipboardWrite", "tabs", "tabGroups"],
   "host_permissions": [
     "https://yvcqgwpfjoxhuyhxuiry.supabase.co/*",
     "https://rsudbalangan.com/*",

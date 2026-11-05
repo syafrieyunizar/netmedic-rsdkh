@@ -47,4 +47,5 @@ $("#finishVisite").addEventListener("click", async () => {
   catch (error) { notice(error.message); }
 });
 chrome.storage.onChanged.addListener((changes, area) => { if (area === "local" && changes[V.KEY]) { session = changes[V.KEY].newValue || null; render(); } });
+chrome.runtime.sendMessage({ type: "rsdkh:dashboard-ready" }).catch(() => {});
 chrome.storage.local.get(V.KEY).then((saved) => { session = saved[V.KEY] || null; render(); }).catch((error) => notice(error.message));

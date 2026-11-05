@@ -4,7 +4,20 @@
 <body>
   <header class="dashboard-header"><div class="brand"><img src="icons/icon-64.png" alt=""><div><strong>Netmedic RSDKH</strong><span>Dashboard Visite</span></div></div><span>Data lokal</span></header>
   <main>
-    <header class="visite-heading"><div><h1>VISITE</h1><p id="sessionMeta"></p></div><button id="finishVisite" class="button danger" type="button" hidden>Selesai Visite</button></header>
+    <header class="visite-heading">
+      <div><h1>VISITE</h1><p id="sessionMeta"></p></div>
+      <div class="shift-actions">
+        <button id="openInpatientList" class="button" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>
+          <span>Daftar Pasien Rawat Inap</span>
+        </button>
+        <button id="toggleDashboardPin" class="button" type="button" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m16 3 5 5-4 1-3 4v3l-2 2-6-6 2-2h3l4-3zM9 15l-5 5"/></svg>
+          <span>PIN Dashboard Visite</span>
+        </button>
+        <button id="finishVisite" class="button danger" type="button" hidden>Selesai Visite</button>
+      </div>
+    </header>
     <p id="emptyVisite">Belum ada sesi visite. Pilih ruangan dan tekan VISITE pada halaman Pasien Rawat Inap.</p>
     <nav id="doctorTabs" aria-label="Pilih dokter"></nav>
     <div id="roomList"></div>

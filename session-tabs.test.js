@@ -185,6 +185,35 @@ const igdFixture = `
     assert.notEqual(visit.shiftPatient.id, visit.cppt.id);
     assert.equal(visit.shiftPatient.pendingUrl || visit.shiftPatient.url, url);
 
+    const visitePage = browser.pages().find((page) => page.url().endsWith("/visite.html"));
+    assert.ok(visitePage);
+    const visitePin = visitePage.getByRole("button", { name: "PIN Dashboard Visite", exact: true });
+    const visiteUnpin = visitePage.getByRole("button", { name: "Unpin", exact: true });
+    await visitePin.click();
+    await visiteUnpin.waitFor();
+    await visitePage.reload();
+    await visiteUnpin.waitFor();
+    const pinnedVisite = await worker.evaluate((id) => chrome.tabs.get(id), visit.visite.id);
+    assert.equal(pinnedVisite.pinned, true);
+    assert.equal(pinnedVisite.groupId, -1);
+    const inpatientPagePromise = browser.waitForEvent("page");
+    await visitePage.getByRole("button", { name: "Daftar Pasien Rawat Inap", exact: true }).click();
+    const inpatientPage = await inpatientPagePromise;
+    const inpatientUrl = "http://10.10.0.3/#/daftar-pasien-dirawat";
+    await inpatientPage.waitForURL(inpatientUrl);
+    await visiteUnpin.click();
+    await visitePin.waitFor();
+    const visiteMembers = await worker.evaluate(async (id) => {
+      await sessionTabQueue;
+      const dashboard = await chrome.tabs.get(id);
+      return chrome.tabs.query({ groupId: dashboard.groupId });
+    }, visit.visite.id);
+    assert.equal(visiteMembers[0].id, visit.visite.id);
+    assert.equal(visiteMembers[0].pinned, false);
+    assert.ok(visiteMembers.some((tab) => tab.id === visit.cppt.id));
+    assert.ok(visiteMembers.some((tab) => (tab.pendingUrl || tab.url) === inpatientUrl));
+    await inpatientPage.close();
+
     const restored = await worker.evaluate(async (visiteId) => {
       await chrome.tabs.remove(visiteId);
       const id = await manageSessionTabs(() => openSessionDashboard("visite.html"));
@@ -205,7 +234,7 @@ const igdFixture = `
     }), { cpptId: visit.cppt.id, shiftPatientId: visit.shiftPatient.id });
     assert.equal(afterFinish.cppt.groupId, -1);
     assert.equal(afterFinish.shiftPatient.groupId, visit.shiftGroup.id);
-    console.log("PASS Jaga pin/unpin, public/internal lists, exact encounter in a background tab, native navigation outside Jaga, group ordering and session finish");
+    console.log("PASS Jaga and Visite pin/unpin, public/internal lists, exact encounter in a background tab, native navigation outside Jaga, group ordering and session finish");
   } finally {
     await browser?.close();
     proxy.close();

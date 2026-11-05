@@ -1,5 +1,6 @@
 const V = NetmedicVisite;
 let session = null;
+let dashboardTabId;
 const $ = (selector) => document.querySelector(selector);
 function notice(message) { $("#visiteNotice").textContent = message; $("#visiteNotice").hidden = false; }
 async function openPatient(patient, button) {
@@ -53,5 +54,38 @@ $("#finishVisite").addEventListener("click", async () => {
   catch (error) { notice(error.message); }
 });
 chrome.storage.onChanged.addListener((changes, area) => { if (area === "local" && changes[V.KEY]) { session = changes[V.KEY].newValue || null; render(); } });
-chrome.runtime.sendMessage({ type: "rsdkh:dashboard-ready" }).catch(() => {});
+
+$("#openInpatientList").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const response = await chrome.runtime.sendMessage({ type: "rsdkh:visite-open-patient-list" });
+    if (!response?.ok) throw new Error(response?.error || "Daftar Pasien Rawat Inap gagal dibuka.");
+  } catch (error) { notice(error.message); }
+  finally { button.disabled = false; }
+});
+
+const pinButton = $("#toggleDashboardPin");
+function renderDashboardPin(pinned) {
+  pinButton.dataset.pinned = String(Boolean(pinned));
+  pinButton.querySelector("span").textContent = pinned ? "Unpin" : "PIN Dashboard Visite";
+}
+pinButton.addEventListener("click", async () => {
+  pinButton.disabled = true;
+  try {
+    const response = await chrome.runtime.sendMessage({ type: "rsdkh:visite-toggle-dashboard-pin" });
+    if (!response?.ok) throw new Error(response?.error || "Pin Dashboard Visite gagal diubah.");
+    renderDashboardPin(response.result.pinned);
+  } catch (error) { notice(error.message); }
+  finally { pinButton.disabled = false; }
+});
+chrome.tabs.onUpdated.addListener((tabId, change) => {
+  if (tabId === dashboardTabId && typeof change.pinned === "boolean") renderDashboardPin(change.pinned);
+});
+chrome.runtime.sendMessage({ type: "rsdkh:dashboard-ready" }).then((response) => {
+  if (!response?.ok) throw new Error(response?.error || "Status pin Dashboard Visite belum tersedia.");
+  dashboardTabId = response.result.tabId;
+  renderDashboardPin(response.result.pinned);
+  pinButton.disabled = false;
+}).catch((error) => notice(error.message));
 chrome.storage.local.get(V.KEY).then((saved) => { session = saved[V.KEY] || null; render(); }).catch((error) => notice(error.message));

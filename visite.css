@@ -1,6 +1,7 @@
 html, body { min-width: 320px; }
 main { max-width: 1120px; margin: 0 auto; padding: 24px 16px; }
-.visite-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+.visite-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+.visite-heading .shift-actions { width: auto; }
 .visite-heading h1 { font-size: 22px; }
 #sessionMeta, #emptyVisite { color: var(--muted); }
 #doctorTabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }

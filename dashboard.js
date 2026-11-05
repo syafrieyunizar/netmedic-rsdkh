@@ -100,16 +100,94 @@ function editCustomTask(patient) {
   updateCustomTask(patient, { label, active: label ? patient.customTask.active : false });
 }
 
-async function updatePatientPlan(patient, plan) {
+async function updatePatientPlan(patient, patch) {
   try {
     shiftState = await extensionAction("rsdkh:shift-update-patient", {
       patientKey: SHIFT.patientKey(patient),
-      patch: { plan }
+      patch
     });
-    render();
   } catch (error) {
     showToast(error.message, "error");
   }
+  render();
+}
+
+function planDetailText(patient) {
+  if (patient.plan === "aps") {
+    if (patient.apsSignature) return `Lembar APS ${patient.apsSignature} ditandatangani`;
+    return "Status tanda tangan belum diisi";
+  }
+  if (patient.plan === "rujuk_rs") {
+    return patient.referralHospital ? `RS tujuan: ${patient.referralHospital}` : "RS tujuan belum diisi";
+  }
+  return "";
+}
+
+function createPlanSelect(text, options, selected) {
+  const label = document.createElement("label");
+  label.className = "patient-plan-field";
+  const caption = document.createElement("span");
+  caption.textContent = text;
+  const select = document.createElement("select");
+  for (const option of options) select.add(new Option(option.label, option.value));
+  select.value = selected;
+  label.append(caption, select);
+  return { label, select };
+}
+
+function createPatientPlan(patient) {
+  const plan = document.createElement("div");
+  plan.className = "patient-plan";
+  plan.dataset.patientKey = SHIFT.patientKey(patient);
+  const choice = createPlanSelect("Rencana?", SHIFT.PATIENT_PLANS, patient.plan);
+  choice.select.name = "plan";
+  choice.select.setAttribute("aria-label", `Rencana pelayanan ${patient.name}`);
+  choice.select.addEventListener("change", () => updatePatientPlan(patient, { plan: choice.select.value }));
+  plan.append(choice.label);
+
+  if (patient.plan === "aps") {
+    const signature = createPlanSelect("Apakah sudah tanda tangan lembar APS?", [
+      { value: "", label: "Pilih" },
+      { value: "sudah", label: "Sudah" },
+      { value: "belum", label: "Belum" }
+    ], patient.apsSignature);
+    signature.select.name = "apsSignature";
+    signature.select.addEventListener("change", () => updatePatientPlan(patient, { apsSignature: signature.select.value }));
+    plan.append(signature.label);
+  } else if (patient.plan === "rujuk_rs") {
+    const label = document.createElement("label");
+    label.className = "patient-plan-field";
+    const caption = document.createElement("span");
+    caption.textContent = "Rujuk ke RS mana?";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.name = "referralHospital";
+    input.maxLength = SHIFT.REFERRAL_HOSPITAL_MAX_LENGTH;
+    input.defaultValue = patient.referralHospital;
+    input.placeholder = "Nama RS tujuan";
+    const save = () => {
+      if (!input.isConnected || input.value === input.defaultValue) return;
+      input.defaultValue = input.value;
+      updatePatientPlan(patient, { referralHospital: input.value });
+    };
+    input.addEventListener("change", save);
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.isComposing) return;
+      event.preventDefault();
+      save();
+    });
+    label.append(caption, input);
+    plan.append(label);
+  }
+
+  const detail = planDetailText(patient);
+  if (detail) {
+    const summary = document.createElement("p");
+    summary.className = "patient-plan-summary";
+    summary.textContent = detail;
+    plan.append(summary);
+  }
+  return plan;
 }
 
 async function togglePatientCompleted(patient) {
@@ -241,27 +319,14 @@ function createPatientRow(patient) {
     : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>';
   completeButton.addEventListener("click", () => togglePatientCompleted(patient));
 
-  const plan = document.createElement("label");
-  plan.className = "patient-plan";
-  const planLabel = document.createElement("span");
-  planLabel.textContent = "Rencana?";
-  const planSelect = document.createElement("select");
-  planSelect.setAttribute("aria-label", `Rencana pelayanan ${patient.name}`);
-  SHIFT.PATIENT_PLANS.forEach(({ value, label }) => {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = label;
-    option.selected = patient.plan === value;
-    planSelect.append(option);
-  });
-  planSelect.addEventListener("change", () => updatePatientPlan(patient, planSelect.value));
-  plan.append(planLabel, planSelect);
-  completion.append(completeButton, plan);
+  completion.append(completeButton, createPatientPlan(patient));
   row.append(patientCell, actions, completion);
   return row;
 }
 
 function renderPatientList() {
+  const focused = document.activeElement;
+  const focusedPlan = focused?.closest(".patient-plan");
   const activeShift = SHIFT.getActiveShift(shiftState);
   const patients = SHIFT.sortPatients(activeShift?.patients).filter(patientMatchesSearch);
   const unfinished = patients.filter((patient) => !patient.completed);
@@ -270,6 +335,17 @@ function renderPatientList() {
   const completedList = $("#completedPatientList");
   activeList.replaceChildren(...unfinished.map(createPatientRow));
   completedList.replaceChildren(...completed.map(createPatientRow));
+  if (focusedPlan && focused.name) {
+    const key = CSS.escape(focusedPlan.dataset.patientKey);
+    const replacement = $(`.patient-plan[data-patient-key="${key}"] [name="${focused.name}"]`);
+    if (replacement) {
+      replacement.focus({ preventScroll: true });
+      if (focused instanceof HTMLInputElement) {
+        if (focused.value !== focused.defaultValue) replacement.value = focused.value;
+        replacement.setSelectionRange(focused.selectionStart, focused.selectionEnd);
+      }
+    }
+  }
   $("#activePatientEmpty").textContent = searchTerm ? "Tidak ada pasien yang cocok." : "Belum ada pasien pada sesi ini.";
   $("#activePatientEmpty").hidden = unfinished.length > 0;
   $("#unfinishedPatientCount").textContent = `${unfinished.length} pasien`;
@@ -290,7 +366,8 @@ function historyPatientRow(patient) {
     + Number(hasCustomTask && patient.customTask.active);
   const totalTasks = SHIFT.PATIENT_TASKS.length + Number(hasCustomTask);
   const planLabel = SHIFT.PATIENT_PLANS.find(({ value }) => value === patient.plan)?.label;
-  status.textContent = `${completedTasks}/${totalTasks} langkah${patient.completed ? " · Selesai" : ""}${patient.plan ? ` · ${planLabel}` : ""}`;
+  status.textContent = [`${completedTasks}/${totalTasks} langkah`, patient.completed && "Selesai",
+    patient.plan && planLabel, planDetailText(patient)].filter(Boolean).join(" · ");
   row.append(bed, name, status);
   return row;
 }

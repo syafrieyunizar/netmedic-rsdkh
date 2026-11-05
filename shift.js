@@ -19,8 +19,11 @@
   const PATIENT_PLANS = [
     { value: "", label: "Pilih" },
     { value: "rawat_inap", label: "Rawat inap" },
-    { value: "rawat_jalan", label: "Rawat jalan" }
+    { value: "rawat_jalan", label: "Rawat jalan" },
+    { value: "aps", label: "APS" },
+    { value: "rujuk_rs", label: "Rujuk ke RS" }
   ];
+  const REFERRAL_HOSPITAL_MAX_LENGTH = 100;
 
   const clean = (value) => String(value || "").trim().replace(/\s+/g, " ");
 
@@ -58,6 +61,7 @@
   function normalizePatient(patient) {
     const medicalRecordNumber = clean(patient?.medicalRecordNumber);
     if (!medicalRecordNumber) return null;
+    const plan = normalizePatientPlan(patient.plan);
     return {
       medicalRecordNumber,
       registrationNumber: clean(patient.registrationNumber),
@@ -68,7 +72,11 @@
       bed: clean(patient.bed),
       tasks: normalizePatientTasks(patient.tasks),
       customTask: normalizeCustomTask(patient.customTask),
-      plan: normalizePatientPlan(patient.plan),
+      plan,
+      apsSignature: plan === "aps" && ["sudah", "belum"].includes(patient.apsSignature) ? patient.apsSignature : "",
+      referralHospital: plan === "rujuk_rs" && typeof patient.referralHospital === "string"
+        ? clean(patient.referralHospital).slice(0, REFERRAL_HOSPITAL_MAX_LENGTH)
+        : "",
       completed: patient.completed === true,
       tabId: Number.isInteger(patient.tabId) ? patient.tabId : null,
       ermUrl: clean(patient.ermUrl),
@@ -157,7 +165,7 @@
   }
 
   function patientFieldsChanged(existing, incoming) {
-    return ["registrationNumber", "visitId", "name", "gender", "age", "bed", "tabId", "ermUrl", "plan", "completed"]
+    return ["registrationNumber", "visitId", "name", "gender", "age", "bed", "tabId", "ermUrl", "plan", "apsSignature", "referralHospital", "completed"]
       .some((field) => existing[field] !== incoming[field])
       || PATIENT_TASKS.some(({ key }) => existing.tasks[key] !== incoming.tasks[key])
       || existing.customTask.label !== incoming.customTask.label
@@ -180,6 +188,8 @@
       tasks: existing?.tasks || incoming.tasks,
       customTask: existing?.customTask || incoming.customTask,
       plan: existing ? existing.plan : incoming.plan,
+      apsSignature: existing ? existing.apsSignature : incoming.apsSignature,
+      referralHospital: existing ? existing.referralHospital : incoming.referralHospital,
       completed: existing?.completed ?? incoming.completed,
       arrivedAt: existing?.arrivedAt || timestamp
     };
@@ -227,6 +237,7 @@
     RETENTION_MS,
     PATIENT_TASKS,
     PATIENT_PLANS,
+    REFERRAL_HOSPITAL_MAX_LENGTH,
     patientKey,
     localDateKey,
     normalizePatientTasks,
@@ -273,6 +284,16 @@
     assert.equal(getActiveShift(state).patients["051462:visit-a"].completed, true);
     state = upsertPatient(state, { medicalRecordNumber: "051462", visitId: "visit-b", name: "SALIMUDDIN", bed: "9" }, started);
     assert.equal(Object.keys(getActiveShift(state).patients).length, 2);
+    const patients = () => getActiveShift(state).patients;
+    state = updatePatient(state, "051462:visit-a", { plan: "aps" }, started);
+    assert.equal(patients()["051462:visit-a"].apsSignature, "");
+    state = updatePatient(state, "051462:visit-a", { apsSignature: "sudah" }, started);
+    state = upsertPatient(state, { medicalRecordNumber: "051462", visitId: "visit-a", bed: "7" }, started);
+    assert.equal(patients()["051462:visit-a"].apsSignature, "sudah");
+    state = updatePatient(state, "051462:visit-b", { plan: "rujuk_rs", referralHospital: "  RS  Simulasi " }, started);
+    assert.equal(patients()["051462:visit-b"].referralHospital, "RS Simulasi");
+    state = updatePatient(state, "051462:visit-a", { plan: "rawat_jalan" }, started);
+    assert.equal(patients()["051462:visit-a"].apsSignature, "");
     let migrated = startShift({}, started);
     migrated = upsertPatient(migrated, { medicalRecordNumber: "090533", name: "ARNIYATI", bed: "2" }, started);
     migrated = upsertPatient(migrated, { medicalRecordNumber: "090533", visitId: "visit-new", name: "ARNIYATI", bed: "2" }, started);
@@ -280,6 +301,7 @@
     state = finishShift(state, new Date(2026, 7, 26, 7, 0));
     assert.equal(state.activeShiftId, "");
     assert.equal(state.shifts[0].dateKey, "2026-08-25");
+    assert.equal(state.shifts[0].patients["051462:visit-b"].referralHospital, "RS Simulasi");
     const completedShiftId = state.shifts[0].id;
     state = deleteShift(state, completedShiftId, new Date(2026, 7, 26, 7, 1));
     assert.equal(state.shifts.length, 0);

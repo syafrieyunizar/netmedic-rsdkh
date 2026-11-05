@@ -31,6 +31,7 @@ const SOAP_AI_STAGES = ["Memproses anamnesis", "Menyusun pemeriksaan fisik", "Me
 const PHOTO_AI_STAGES = ["Menganalisis foto klinis", "Menyusun temuan objektif", "Memeriksa deskripsi foto"];
 const KRONOLOGI_AI_STAGES = ["Membaca skenario kejadian", "Menyusun urutan kronologi", "Memeriksa konsistensi kronologi"];
 const UPDATE_LOG = [
+  { version: "2.3.0", date: "5 November 2026", changes: ["Tombol 👨‍⚕️ Konsul pada setiap entri CPPT menyalin format WhatsApp dengan S/O/A/P, identitas, dan hari perawatan dari CPPT paling bawah.", "Header konsul mencantumkan DPJP utama dan seluruh Raber yang tersedia pada sesi visite.", "Seluruh dokter yang menangani pasien terpilih otomatis memiliki kapsul visite; link pasien tetap diambil sekali."] },
   {
     version: "2.2.3",
     date: "4 November 2026",

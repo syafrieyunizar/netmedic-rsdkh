@@ -1,0 +1,9 @@
+.rsdkh-cppt-konsul-slot { display: block; margin-top: 4px; }
+button.rsdkh-cppt-konsul { width: 32px; height: 32px; padding: 0; border-radius: 50%; background: #006874; color: white; border: 1px solid #006874; font-size: 20px; display: inline-flex; justify-content: center; align-items: center; cursor: pointer; }
+button.rsdkh-cppt-konsul:hover { background: #005861; }
+button.rsdkh-cppt-konsul:focus-visible { outline: 2px solid #006874; outline-offset: 2px; }
+button.rsdkh-cppt-konsul:active { opacity: .75; }
+button.rsdkh-cppt-konsul:disabled { opacity: .55; cursor: wait; }
+#rsdkh-cppt-copy-toast { position: fixed; top: 20px; right: 20px; z-index: 2147483647; max-width: min(400px, calc(100vw - 40px)); padding: 12px 16px; background: #d5f6e6; color: #155c3b; border: 1px solid #217a56; border-radius: 8px; font: 14px/1.5 Arial, sans-serif; }
+#rsdkh-cppt-copy-toast[data-error=true] { background: #ffdad6; color: #930a0a; border-color: #ba1a1a; }
+#rsdkh-cppt-copy-toast[hidden] { display: none; }

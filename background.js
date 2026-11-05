@@ -290,6 +290,17 @@ async function updatePatientBed(patient, bed) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === 'rsdkh:cppt-copy-context') {
+    (async () => {
+      const url = new URL(sender.tab?.url || '');
+      if (!['rsudbalangan.com', '10.10.0.3'].includes(url.hostname) || !/\/cppt(?:$|\?)/.test(url.hash)) throw new Error('Buka halaman CPPT pasien terlebih dahulu.');
+      const result = await chrome.tabs.sendMessage(sender.tab.id, { type: 'rsdkh:get-current-patient-report-identity' });
+      if (!result?.ok || !result.identity?.medicalRecordNumber || result.identity.visitId !== url.hash.split('/')[3]) throw new Error('Identitas kunjungan CPPT belum tersedia.');
+      const V = self.NetmedicVisite, saved = await chrome.storage.local.get(V.KEY);
+      return { identity: result.identity, careTeam: V.careTeamFor(saved[V.KEY], result.identity) };
+    })().then((result) => sendResponse({ ok: true, ...result })).catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
   if (message?.type === 'rsdkh:visite-resolve-link') {
     resolveVisiteLink(message.patient, sender).then((result) => sendResponse({ ok: true, ...result })).catch((error) => sendResponse({ ok: false, error: error.message, retryable: /Pasien dengan RM dan registrasi|Daftar pasien (?:belum tersedia|belum stabil)|Tab pengambilan belum siap|melebihi 60 detik/.test(error.message) }));
     return true;

@@ -154,3 +154,13 @@ Dashboard `visite.html` dibuka sebagai pinned tab. Pilih satu kapsul dokter untu
 Pemilihan dokter dilakukan sebelum pengambilan link. Hanya pasien dokter terpilih yang dicari berdasarkan RM dan registrasi dalam tab sementara di latar belakang, lalu tombol stetoskop dijalankan untuk membaca URL kunjungan. Maksimal tiga pasien diproses secara paralel; progres menghitung pasien yang selesai. Pencarian satu registrasi tidak perlu mengubah jumlah baris di tab sementara. Tab sementara ditutup setelah selesai atau gagal. Jika pencarian atau pemuatan mengalami kegagalan sementara, seluruh proses paralel ditunggu selesai lalu pasien yang belum berhasil dicoba ulang satu per satu. Link yang berhasil tetap dipakai; error validasi dan URL tidak dicoba ulang otomatis. Halaman daftar utama tetap terbuka. Pasien rawat bersama cukup diambil link-nya sekali untuk digunakan pada kedua kelompok dokter. Fitur ini tidak mengirim data ke AI atau Supabase.
 
 Pemeriksaan logika: `node visite-state.test.js`.
+
+## Konsul CPPT dan dokter terkait (v2.3.0)
+
+Setiap entri SOAP pada halaman CPPT memiliki tombol bulat 👨‍⚕️ dengan tooltip Konsul di bawah tombol aksi. Tombol menyalin S/O/A/P entri tersebut, ruangan, nama/umur pasien, dan hari perawatan yang dihitung inklusif dari tanggal CPPT paling bawah untuk registrasi aktif, menggunakan hari kalender WITA. Riwayat registrasi lain tidak dihitung; tanggal registrasi tidak dijadikan pengganti. Baris baru sumber dipertahankan, tanpa AI atau penyimpanan CPPT ke server.
+
+Data DPJP utama dan seluruh Raber diambil dari metadata pasien pada sesi visite yang sama (RM dan ID kunjungan). Jika tidak tersedia, bagian dokter yang tidak diketahui dihilangkan. Ambil ulang pasien ke sesi visite untuk melengkapi data dokter pada sesi yang dibuat sebelum v2.3.0.
+
+Memilih satu dokter saat membuat visite juga menambahkan kapsul seluruh dokter utama dan Raber yang tercatat pada pasien terpilih. Kapsul tambahan hanya berisi pasien terpilih tersebut; pasien lain milik dokter itu tidak ikut diambil. Label Raber tetap mengikuti peran dokter, dan URL pasien cukup diambil sekali.
+
+Pemeriksaan: `node cppt-copy.test.js`. Uji DOM memakai Playwright: `node cppt-copy-dom.test.js`.

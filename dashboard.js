@@ -6,6 +6,7 @@ let shiftState = SHIFT.normalizeState({});
 let searchTerm = "";
 let dashboardView = "shift";
 let toastTimer;
+let dashboardTabId;
 
 function formatDate(value) {
   const date = new Date(value);
@@ -484,10 +485,45 @@ async function finishShift() {
 }
 
 async function initialize() {
-  await extensionAction("rsdkh:dashboard-ready");
+  const { tabId, pinned } = await extensionAction("rsdkh:dashboard-ready");
+  dashboardTabId = tabId;
+  renderDashboardPin(pinned);
   shiftState = await extensionAction("rsdkh:shift-get");
   render();
 }
+
+function renderDashboardPin(pinned) {
+  const button = $("#toggleDashboardPin");
+  button.dataset.pinned = String(Boolean(pinned));
+  button.querySelector("span").textContent = pinned ? "Unpin" : "PIN Dashboard Jaga";
+}
+
+$("#openIgdPatientList").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    await extensionAction("rsdkh:jaga-open-patient-list");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
+});
+$("#toggleDashboardPin").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const { pinned } = await extensionAction("rsdkh:jaga-toggle-dashboard-pin");
+    renderDashboardPin(pinned);
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    button.disabled = false;
+  }
+});
+chrome.tabs.onUpdated.addListener((tabId, change) => {
+  if (tabId === dashboardTabId && typeof change.pinned === "boolean") renderDashboardPin(change.pinned);
+});
 
 $("#startShift").addEventListener("click", startShift);
 $("#finishShift").addEventListener("click", finishShift);

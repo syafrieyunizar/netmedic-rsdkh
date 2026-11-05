@@ -11,16 +11,70 @@ const { chromium } = require("playwright");
   try {
     await browser.route("https://rsudbalangan.com:91/**", (route) =>
       route.fulfill({ contentType: "text/html", body: "<title>Test patient</title>" }));
+    await browser.route("http://10.10.0.3/**", (route) =>
+      route.fulfill({ contentType: "text/html", body: "<title>Test internal eRM</title>" }));
     const worker = browser.serviceWorkers()[0] || await browser.waitForEvent("serviceworker");
-    const dashboardId = await worker.evaluate(async () => {
+    const dashboardUrl = await worker.evaluate(async () => {
       const [tab] = await chrome.tabs.query({ active: true });
       await chrome.tabs.update(tab.id, { pinned: true });
       await chrome.tabs.create({ url: "about:blank", active: false });
-      const old = await chrome.tabs.create({ url: chrome.runtime.getURL("dashboard.html"), pinned: true });
-      const dashboardId = await manageSessionTabs(() => openSessionDashboard("dashboard.html"));
-      if (dashboardId !== old.id) throw new Error("Existing dashboard was duplicated.");
-      return dashboardId;
+      await mutateShiftState((state) => SHIFT.startShift(state));
+      return chrome.runtime.getURL("dashboard.html");
     });
+    const shiftPage = await browser.newPage();
+    await shiftPage.goto(dashboardUrl);
+    const pin = shiftPage.getByRole("button", { name: "PIN Dashboard Jaga", exact: true });
+    const unpin = shiftPage.getByRole("button", { name: "Unpin", exact: true });
+    const openList = shiftPage.getByRole("button", { name: "Daftar Pasien IGD", exact: true });
+    await pin.waitFor();
+    const dashboardId = await worker.evaluate(() => manageSessionTabs(() => openSessionDashboard("dashboard.html")));
+    assert.equal(browser.pages().filter((page) => page.url() === dashboardUrl).length, 1);
+
+    await pin.click();
+    await unpin.waitFor();
+    await shiftPage.reload();
+    await unpin.waitFor();
+    const pinnedDashboard = await worker.evaluate((id) => chrome.tabs.get(id), dashboardId);
+    assert.equal(pinnedDashboard.pinned, true);
+    assert.equal(pinnedDashboard.groupId, -1);
+    const publicList = "https://rsudbalangan.com:91/#/daftar-pasien-igd";
+    const firstList = browser.waitForEvent("page");
+    await openList.click();
+    await (await firstList).waitForURL(publicList);
+    const secondList = browser.waitForEvent("page");
+    await openList.click();
+    await (await secondList).waitForURL(publicList);
+    const publicTabs = await worker.evaluate(async (url) =>
+      (await chrome.tabs.query({})).filter((tab) => (tab.pendingUrl || tab.url) === url), publicList);
+    assert.equal(publicTabs.length, 2);
+    assert.ok(publicTabs[0].groupId >= 0);
+    assert.equal(publicTabs[0].groupId, publicTabs[1].groupId);
+
+    await unpin.click();
+    await pin.waitFor();
+    const unpinned = await worker.evaluate(async (id) => {
+      const tab = await chrome.tabs.get(id);
+      const members = await chrome.tabs.query({ groupId: tab.groupId });
+      return { tab, firstId: members[0]?.id };
+    }, dashboardId);
+    assert.equal(unpinned.tab.pinned, false);
+    assert.equal(unpinned.tab.groupId, publicTabs[0].groupId);
+    assert.equal(unpinned.firstId, dashboardId);
+    await worker.evaluate(async (ids) => {
+      await chrome.tabs.remove(ids);
+      const source = await chrome.tabs.create({ url: "http://10.10.0.3/#/daftar-registrasi-pasien" });
+      await manageSessionTabs(() => openSessionDashboard("dashboard.html", source.windowId));
+      await chrome.tabs.remove(source.id);
+    }, publicTabs.map((tab) => tab.id));
+
+    const internalList = "http://10.10.0.3/#/daftar-pasien-igd";
+    const internalPage = browser.waitForEvent("page");
+    await openList.click();
+    await (await internalPage).waitForURL(internalList);
+    const internalTab = await worker.evaluate(async (url) =>
+      (await chrome.tabs.query({})).find((tab) => (tab.pendingUrl || tab.url) === url), internalList);
+    assert.equal(internalTab.groupId, unpinned.tab.groupId);
+    await worker.evaluate((id) => chrome.tabs.remove(id), internalTab.id);
 
     const url = "https://rsudbalangan.com:91/#/rekam-medis/test-patient/test-visit";
     const visit = await worker.evaluate(async ({ dashboardId, url }) => {
@@ -85,7 +139,7 @@ const { chromium } = require("playwright");
     }), { cpptId: visit.cppt.id, shiftPatientId: visit.shiftPatient.id });
     assert.equal(afterFinish.cppt.groupId, -1);
     assert.equal(afterFinish.shiftPatient.groupId, visit.shiftGroup.id);
-    console.log("PASS native tab groups, pinned-tab migration, ordering, reuse, isolation, dashboard recovery and session finish");
+    console.log("PASS Dashboard Jaga pin/unpin, public/internal patient lists, tab group ordering, reuse, isolation, dashboard recovery and session finish");
   } finally {
     await browser.close();
   }

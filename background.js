@@ -2,6 +2,9 @@ importScripts("hospital/rsdkh/ai.js", "shift.js", "visite-state.js");
 
 const SHIFT = self.NetmedicShift;
 const PATIENT_MEMORIES_KEY = "patientMemories";
+const JAGA_ERM_CONTEXT_KEY = "jagaErmContext";
+const PUBLIC_ERM_ORIGIN = "https://rsudbalangan.com:91";
+const INTERNAL_ERM_ORIGIN = "http://10.10.0.3";
 const SESSION_GROUPS = {
   "dashboard.html": { title: "🩺 JAGA", color: "orange" },
   "visite.html": { title: "🩺 Visite", color: "cyan" }
@@ -18,9 +21,20 @@ function manageSessionTabs(action) {
   return operation;
 }
 
+async function createSessionGroup(tabId, page) {
+  const groupId = await chrome.tabs.group({ tabIds: tabId });
+  await chrome.tabGroups.update(groupId, SESSION_GROUPS[page]);
+  return groupId;
+}
+
+async function moveSessionGroupLeft(windowId, groupId, firstIndex) {
+  const pinned = await chrome.tabs.query({ windowId, pinned: true });
+  if (firstIndex > pinned.length) await chrome.tabGroups.move(groupId, { index: pinned.length }).catch(() => {});
+}
+
 async function ensureDashboardGroup(dashboard, page, moveLeft = false) {
   if (!chrome.tabs.group || !chrome.tabGroups) {
-    if (!dashboard.pinned) await chrome.tabs.update(dashboard.id, { pinned: true });
+    if (page === "visite.html" && !dashboard.pinned) await chrome.tabs.update(dashboard.id, { pinned: true });
     return null;
   }
 
@@ -28,22 +42,30 @@ async function ensureDashboardGroup(dashboard, page, moveLeft = false) {
   const groups = await chrome.tabGroups.query({ windowId: dashboard.windowId, title: style.title });
   const group = groups.find((item) => item.title === style.title && item.id === dashboard.groupId)
     || groups.find((item) => item.title === style.title);
+  if (page === "dashboard.html" && dashboard.pinned) return group?.id ?? null;
   const alreadyGrouped = group && group.id === dashboard.groupId;
   if (alreadyGrouped && !moveLeft) return group.id;
 
   if (dashboard.pinned) await chrome.tabs.update(dashboard.id, { pinned: false });
-  const groupId = alreadyGrouped
-    ? group.id
-    : await chrome.tabs.group({ tabIds: dashboard.id, ...(group ? { groupId: group.id } : {}) });
-  if (!group) await chrome.tabGroups.update(groupId, style);
+  let groupId = group?.id;
+  if (!group) groupId = await createSessionGroup(dashboard.id, page);
+  else if (!alreadyGrouped) await chrome.tabs.group({ tabIds: dashboard.id, groupId });
 
   const members = await chrome.tabs.query({ windowId: dashboard.windowId, groupId });
   const firstIndex = Math.min(...members.map((tab) => tab.index));
   const current = members.find((tab) => tab.id === dashboard.id);
   if (current && current.index > firstIndex) await chrome.tabs.move(dashboard.id, { index: firstIndex });
-  const pinned = await chrome.tabs.query({ windowId: dashboard.windowId, pinned: true });
-  if (firstIndex > pinned.length) await chrome.tabGroups.move(groupId, { index: pinned.length }).catch(() => {});
+  await moveSessionGroupLeft(dashboard.windowId, groupId, firstIndex);
   return groupId;
+}
+
+function jagaErmOrigin(value) {
+  try {
+    const { origin } = new URL(value);
+    return [PUBLIC_ERM_ORIGIN, INTERNAL_ERM_ORIGIN].includes(origin) ? origin : "";
+  } catch {
+    return "";
+  }
 }
 
 async function openSessionDashboard(page, windowId) {
@@ -51,7 +73,16 @@ async function openSessionDashboard(page, windowId) {
   const tabs = await chrome.tabs.query({});
   const existing = tabs.find((tab) => (tab.pendingUrl || tab.url) === url && tab.windowId === windowId)
     || tabs.find((tab) => (tab.pendingUrl || tab.url) === url);
+  let context;
+  if (page === "dashboard.html") {
+    const [source] = await chrome.tabs.query({ active: true, ...(windowId === undefined ? { lastFocusedWindow: true } : { windowId }) });
+    const origin = jagaErmOrigin(source?.pendingUrl || source?.url);
+    if (origin) context = { origin, accessedAt: Date.now() };
+  }
   const dashboard = existing || await chrome.tabs.create({ url, active: true, windowId });
+  if (context) {
+    await chrome.storage.session?.set({ [JAGA_ERM_CONTEXT_KEY]: { ...context, tabId: dashboard.id } }).catch(() => {});
+  }
   await ensureDashboardGroup(dashboard, page, true).catch(() => {});
   if (existing) {
     await chrome.windows.update(dashboard.windowId, { focused: true });
@@ -69,18 +100,53 @@ async function dashboardFromSender(sender, page) {
 
 function canReusePatientTab(tab, dashboard, groupId) {
   const ungrouped = !(tab.groupId >= 0);
-  if (groupId === null) return ungrouped;
+  if (groupId === null && (!dashboard.pinned || !chrome.tabGroups)) return ungrouped;
   return tab.windowId === dashboard.windowId && !tab.pinned && (tab.groupId === groupId || ungrouped);
 }
 
-async function showSessionPatient(dashboard, groupId, url, existing, update = {}) {
+async function showSessionTab(page, dashboard, groupId, url, existing, update = {}) {
   const tab = existing || await chrome.tabs.create({ url, active: false, windowId: dashboard.windowId });
   if (groupId !== null && tab.groupId !== groupId) {
     await chrome.tabs.group({ groupId, tabIds: tab.id }).catch(() => {});
+  } else if (groupId === null && page === "dashboard.html" && dashboard.pinned && chrome.tabs.group && chrome.tabGroups) {
+    const newGroupId = await createSessionGroup(tab.id, page).catch(() => null);
+    if (newGroupId !== null) await moveSessionGroupLeft(tab.windowId, newGroupId, tab.index);
   }
   if (tab.windowId !== dashboard.windowId) await chrome.windows.update(tab.windowId, { focused: true });
   await chrome.tabs.update(tab.id, { ...update, active: true });
   return tab.id;
+}
+
+async function openJagaPatientList(sender) {
+  const page = "dashboard.html";
+  const dashboard = await dashboardFromSender(sender, page);
+  const tabs = await chrome.tabs.query({ windowId: dashboard.windowId });
+  const ermTabs = tabs.map((tab) => ({
+    origin: jagaErmOrigin(tab.pendingUrl || tab.url),
+    lastAccessed: tab.lastAccessed || 0
+  })).filter((tab) => tab.origin).sort((left, right) => right.lastAccessed - left.lastAccessed);
+  const context = (await chrome.storage.session?.get(JAGA_ERM_CONTEXT_KEY).catch(() => null))?.[JAGA_ERM_CONTEXT_KEY];
+  const rememberedOrigin = context?.tabId === dashboard.id && jagaErmOrigin(context.origin);
+  const recent = ermTabs[0];
+  let origin = rememberedOrigin && context.accessedAt >= (recent?.lastAccessed || 0)
+    ? rememberedOrigin
+    : recent?.origin;
+  if (!origin) {
+    const shift = SHIFT.getActiveShift(await readShiftState());
+    origin = Object.values(shift?.patients || {})
+      .sort((left, right) => right.arrivedAt.localeCompare(left.arrivedAt))
+      .map((patient) => jagaErmOrigin(patient.ermUrl)).find(Boolean);
+  }
+  const groupId = await ensureDashboardGroup(dashboard, page).catch(() => null);
+  return showSessionTab(page, dashboard, groupId, `${origin || PUBLIC_ERM_ORIGIN}/#/daftar-pasien-igd`);
+}
+
+async function toggleJagaDashboardPin(sender) {
+  const page = "dashboard.html";
+  const dashboard = await dashboardFromSender(sender, page);
+  const tab = await chrome.tabs.update(dashboard.id, { pinned: !dashboard.pinned });
+  if (!tab.pinned) await ensureDashboardGroup(tab, page, true).catch(() => {});
+  return { pinned: tab.pinned };
 }
 
 async function releaseSessionPatientTabs(page) {
@@ -158,7 +224,7 @@ async function openVisitePatient(patient, sender) {
     canReusePatientTab(tab, dashboard, groupId) && patientVisitUrl(tab.pendingUrl || tab.url) === url);
   const existing = matches.find((tab) => tab.groupId === groupId) || matches[0];
   const update = existing && (existing.pendingUrl || existing.url) !== url ? { url } : {};
-  return showSessionPatient(dashboard, groupId, url, existing, update);
+  return showSessionTab("visite.html", dashboard, groupId, url, existing, update);
 }
 
 function patientVisitUrl(url) {
@@ -241,13 +307,14 @@ function mutateShiftState(mutator) {
 }
 
 async function focusPatientTab(patient, sender) {
-  const dashboard = await dashboardFromSender(sender, "dashboard.html");
-  const groupId = await ensureDashboardGroup(dashboard, "dashboard.html").catch(() => null);
+  const page = "dashboard.html";
+  const dashboard = await dashboardFromSender(sender, page);
+  const groupId = await ensureDashboardGroup(dashboard, page).catch(() => null);
   const visitUrl = patientVisitUrl(patient?.ermUrl);
   if (groupId !== null && visitUrl) {
     const members = await chrome.tabs.query({ windowId: dashboard.windowId, groupId });
     const existing = members.find((tab) => patientVisitUrl(tab.pendingUrl || tab.url) === visitUrl);
-    if (existing) return showSessionPatient(dashboard, groupId, null, existing);
+    if (existing) return showSessionTab(page, dashboard, groupId, null, existing);
   }
 
   let existing;
@@ -263,13 +330,13 @@ async function focusPatientTab(patient, sender) {
       // Fall back to the last local eRM URL when the original tab was closed.
     }
   }
-  if (existing) return showSessionPatient(dashboard, groupId, null, existing);
+  if (existing) return showSessionTab(page, dashboard, groupId, null, existing);
   if (!patient?.ermUrl) throw new Error("URL eRM pasien belum tersimpan.");
   const url = new URL(patient.ermUrl);
   if (!(["rsudbalangan.com", "10.10.0.3"].includes(url.hostname) && ["http:", "https:"].includes(url.protocol))) {
     throw new Error("URL eRM pasien tidak valid.");
   }
-  return showSessionPatient(dashboard, groupId, url.href);
+  return showSessionTab(page, dashboard, groupId, url.href);
 }
 
 function vitalSignUrlFor(patient) {
@@ -416,12 +483,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     "rsdkh:assessment-status-observed": () => mutateShiftState((current) => SHIFT.updatePatient(current, message.patientKey || message.medicalRecordNumber, { assessmentState: message.assessmentState })),
     "rsdkh:patient-bed-update": () => updatePatientBed(message.patient, message.bed),
     "rsdkh:open-dashboard": () => manageSessionTabs(async () => ({ tabId: await openSessionDashboard("dashboard.html", sender.tab?.windowId) })),
+    "rsdkh:jaga-open-patient-list": () => manageSessionTabs(() => openJagaPatientList(sender)),
+    "rsdkh:jaga-toggle-dashboard-pin": () => manageSessionTabs(() => toggleJagaDashboardPin(sender)),
     "rsdkh:focus-patient": () => manageSessionTabs(async () => ({ tabId: await focusPatientTab(message.patient, sender) })),
     "rsdkh:dashboard-ready": () => manageSessionTabs(async () => {
       const page = sender.url === chrome.runtime.getURL("visite.html") ? "visite.html" : "dashboard.html";
       const dashboard = await dashboardFromSender(sender, page);
       await ensureDashboardGroup(dashboard, page).catch(() => {});
-      return { tabId: dashboard.id };
+      return { tabId: dashboard.id, pinned: (await chrome.tabs.get(dashboard.id)).pinned };
     })
   }[message?.type];
   if (shiftAction) {

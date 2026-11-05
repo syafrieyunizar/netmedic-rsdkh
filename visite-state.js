@@ -67,6 +67,30 @@
     const sharedDoctors = uniqueDoctors(records.flatMap((patient) => patient.sharedDoctors || [])).filter((doctor) => !primaryDoctors.some((name) => doctorKey(name) === doctorKey(doctor)));
     return { primaryDoctors, sharedDoctors };
   }
+  function selectedDoctorFor(session) {
+    const doctors = session?.doctors || [];
+    return doctors.find((doctor) => doctorKey(doctor.name) === session?.selectedDoctor) || doctors[0];
+  }
+  function numberedRooms(doctor) {
+    let number = 0;
+    return doctor.rooms.map((room) => ({
+      ...room,
+      patients: room.patients.map((patient) => ({ patient, number: ++number }))
+    }));
+  }
+  function patientNumberFor(session, profile) {
+    const selected = selectedDoctorFor(session);
+    if (!selected) return undefined;
+    const key = patientKey(profile);
+    const doctors = [selected, ...session.doctors.filter((doctor) => doctor !== selected)];
+    for (const doctor of doctors) {
+      for (const room of numberedRooms(doctor)) {
+        const match = room.patients.find(({ patient }) => patientKey(patient) === key);
+        if (match) return match.number;
+      }
+    }
+    return undefined;
+  }
   async function resolveSelectedLinks(groups, resolveLink, onProgress = () => {}) {
     const keyFor = (patient) => `${patient.medicalRecordNumber}:${patient.registrationNumber}`;
     const selected = new Map();
@@ -97,7 +121,7 @@
     }
     return groups.map((group) => ({ ...group, patients: group.patients.map((patient) => ({ ...patient, ermUrl: links.get(keyFor(patient)) })) }));
   }
-  const api = { KEY, LINK_CONCURRENCY, clean, doctorKey, patientKey, cpptUrl, mergeSession, resolveSelectedLinks, expandCareTeams, careTeamFor };
+  const api = { KEY, LINK_CONCURRENCY, clean, doctorKey, patientKey, cpptUrl, mergeSession, resolveSelectedLinks, expandCareTeams, careTeamFor, selectedDoctorFor, numberedRooms, patientNumberFor };
   root.NetmedicVisite = api;
   if (typeof module !== "undefined") module.exports = api;
 })(globalThis);

@@ -1,5 +1,5 @@
 const V = NetmedicVisite;
-let session = null, selectedDoctor = "";
+let session = null;
 const $ = (selector) => document.querySelector(selector);
 function notice(message) { $("#visiteNotice").textContent = message; $("#visiteNotice").hidden = false; }
 async function openPatient(patient, button) {
@@ -15,23 +15,29 @@ function render() {
   $("#emptyVisite").hidden = doctors.length > 0;
   $("#finishVisite").hidden = !doctors.length;
   $("#sessionMeta").textContent = session ? `Mulai ${new Date(session.startedAt).toLocaleString("id-ID")} · ${doctors.length} dokter` : "";
-  if (!doctors.some((doctor) => V.doctorKey(doctor.name) === selectedDoctor)) selectedDoctor = V.doctorKey(doctors[0]?.name);
+  const selectedDoctor = V.selectedDoctorFor(session);
   $("#doctorTabs").replaceChildren(); $("#roomList").replaceChildren();
   for (const doctor of doctors) {
-    const active = V.doctorKey(doctor.name) === selectedDoctor;
+    const active = doctor === selectedDoctor;
     const button = document.createElement("button"); button.type = "button";
     button.textContent = `${active ? "✓ " : ""}${doctor.name}`;
     button.setAttribute("aria-pressed", String(active));
-    button.addEventListener("click", () => { selectedDoctor = V.doctorKey(doctor.name); render(); });
+    button.addEventListener("click", async () => {
+      if (active) return;
+      try {
+        const response = await chrome.runtime.sendMessage({ type: "rsdkh:visite-select-doctor", doctor: V.doctorKey(doctor.name) });
+        if (!response?.ok) throw new Error(response?.error || "Pilihan dokter gagal disimpan.");
+      } catch (error) { notice(error.message); }
+    });
     $("#doctorTabs").append(button);
     if (!active) continue;
-    for (const room of doctor.rooms) {
+    for (const room of V.numberedRooms(doctor)) {
       const section = document.createElement("section"), heading = document.createElement("h2");
       heading.textContent = `${room.name} · ${room.patients.length} pasien`; section.append(heading);
-      for (const patient of room.patients) {
+      for (const { patient, number } of room.patients) {
         const row = document.createElement("div"); row.className = "visite-patient";
         const name = document.createElement("button"); name.className = "visite-name"; name.type = "button";
-        name.textContent = `${patient.name}${patient.raber ? " (Raber)" : ""}`;
+        name.textContent = `${number}. ${patient.name}${patient.raber ? " (Raber)" : ""}`;
         const rm = document.createElement("small"); rm.textContent = `RM ${patient.medicalRecordNumber}`;
         const cppt = document.createElement("button"); cppt.className = "visite-cppt"; cppt.type = "button"; cppt.textContent = "CPPT"; cppt.setAttribute("aria-label", `Buka CPPT ${patient.name}`);
         for (const button of [name, cppt]) button.addEventListener("click", () => openPatient(patient, button));

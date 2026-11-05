@@ -20,8 +20,22 @@ for (const chosen of ['dr. Rahmat', 'dr. Akhmad', 'dr. Widya']) {
   assert.deepEqual(V.careTeamFor(session, { medicalRecordNumber: '156082', visitId: 'other' }), { primaryDoctors: [], sharedDoctors: [] });
 }
 const report = { identity: { name: 'Akhmad Yamani', age: '51 tahun 7 bln 24 hari', gender: 'Laki-laki' }, room: 'ROSE', firstDate: '03 Nov 2026 07:10', soap: { S: 'Keluhan', O: 'TD 100/63', A: 'Diagnosis', P: 'Terapi 1\nTerapi 2' }, now };
+const earlierVisit = { ...patient, name: 'Kunjungan sebelumnya', visitId: 'earlier' };
+const currentVisit = { ...patient, visitId: 'v' };
+const numberedSession = { doctors: [
+  { name: 'dr. Rahmat', rooms: [{ name: 'MELATI', patients: [earlierVisit] }, { name: 'ROSE', patients: [currentVisit] }] },
+  { name: 'dr. Akhmad', rooms: [{ name: 'ROSE', patients: [currentVisit] }] }
+] };
+assert.equal(V.patientNumberFor(numberedSession, currentVisit), 2);
+numberedSession.selectedDoctor = V.doctorKey('dr. Akhmad');
+assert.equal(V.patientNumberFor(numberedSession, currentVisit), 1);
+assert.equal(V.patientNumberFor(numberedSession, earlierVisit), 1);
+assert.equal(V.patientNumberFor(numberedSession, { ...patient, visitId: 'other' }), undefined);
+assert.equal(V.patientNumberFor(null, currentVisit), undefined);
+assert.match(F.formatReport(report), /^ROSE\n/);
+assert.match(F.formatReport({ ...report, visiteNumber: V.patientNumberFor(numberedSession, currentVisit) }), /^ROSE #1\n/);
 assert.match(F.formatReport(report), /\*Tn\. Akhmad Yamani \/ 51 thn 7 bln \/ Perawatan Hari ke-3\*/);
 assert.doesNotMatch(F.formatReport(report), /DPJP|Raber/);
 assert.match(F.formatReport(report), /P\)\nTerapi 1\nTerapi 2$/);
 assert.match(F.formatReport({ ...report, careTeam: { primaryDoctors: ['dr. Rahmat'], sharedDoctors: ['dr. Akhmad', 'dr. Widya'] } }), /DPJP Utama : dr\. Rahmat \/ Raber : dr\. Akhmad, dr\. Widya\*/);
-console.log('PASS CPPT date, WITA, WhatsApp format, care teams, no cross-encounter lookup');
+console.log('PASS CPPT date, WITA, WhatsApp format, care teams and Visite numbering by encounter');

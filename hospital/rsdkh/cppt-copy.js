@@ -23,12 +23,13 @@
     const shortAge = age.match(/\d+\s*thn\s+\d+\s*bln/i)?.[0] || age;
     return `${name} / ${shortAge}`;
   }
-  function formatReport({ identity, room, firstDate, soap, careTeam = {}, now }) {
+  function formatReport({ identity, room, firstDate, soap, careTeam = {}, visiteNumber, now }) {
     if (!identity?.name || !identity.age || !room) throw new Error('Nama, umur, atau ruangan pasien belum lengkap.');
     const fields = [patientLabel(identity), `Perawatan Hari ke-${careDay(firstDate, now)}`];
     if (careTeam.primaryDoctors?.length) fields.push(`DPJP Utama : ${careTeam.primaryDoctors.join(', ')}`);
     if (careTeam.sharedDoctors?.length) fields.push(`Raber : ${careTeam.sharedDoctors.join(', ')}`);
-    return `${room}\n*${fields.join(' / ')}*\n\n${['S', 'O', 'A', 'P'].map((key) => `${key})\n${String(soap[key] || '').trim()}`).join('\n\n')}`;
+    const heading = Number.isInteger(visiteNumber) && visiteNumber > 0 ? `${room} #${visiteNumber}` : room;
+    return `${heading}\n*${fields.join(' / ')}*\n\n${['S', 'O', 'A', 'P'].map((key) => `${key})\n${String(soap[key] || '').trim()}`).join('\n\n')}`;
   }
   function badgeText(badge) {
     const clone = badge.cloneNode(true);
@@ -78,7 +79,7 @@
       if (!registration || entry.registration !== registration) throw new Error('CPPT yang dipilih bukan kunjungan aktif pasien.');
       const entries = [...document.querySelectorAll('table.tb-custom')].filter((item) => item.querySelector('button[label="S"]') && clean(item.querySelector('.title-kelas')?.textContent) === registration);
       const firstDate = clean(entries.at(-1)?.querySelector('.koneng')?.textContent);
-      const text = formatReport({ identity: response.identity, room: entry.room, firstDate, soap: entry.soap, careTeam: response.careTeam });
+      const text = formatReport({ identity: response.identity, room: entry.room, firstDate, soap: entry.soap, careTeam: response.careTeam, visiteNumber: response.visiteNumber });
       if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(text);
       else {
         const textarea = document.createElement('textarea'); textarea.value = text; textarea.style.cssText = 'position:fixed;left:-9999px'; document.body.append(textarea); textarea.select();

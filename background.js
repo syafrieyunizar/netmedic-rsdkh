@@ -243,8 +243,14 @@ async function resolveVisiteLink(patient, sender) {
   }
 }
 
+function manageVisite(action) {
+  const operation = visiteQueue.then(action);
+  visiteQueue = operation.catch(() => {});
+  return operation;
+}
+
 function mutateVisite(groups, windowId) {
-  const operation = visiteQueue.then(async () => {
+  return manageVisite(async () => {
     const V = self.NetmedicVisite;
     if (groups === null) {
       await chrome.storage.local.remove(V.KEY);
@@ -256,8 +262,18 @@ function mutateVisite(groups, windowId) {
     await chrome.storage.local.set({ [V.KEY]: session });
     await manageSessionTabs(() => openSessionDashboard("visite.html", windowId));
   });
-  visiteQueue = operation.catch(() => {});
-  return operation;
+}
+
+function selectVisiteDoctor(doctorKey, sender) {
+  return manageVisite(async () => {
+    await dashboardFromSender(sender, "visite.html");
+    const V = self.NetmedicVisite;
+    const saved = await chrome.storage.local.get(V.KEY);
+    const session = saved[V.KEY];
+    if (session?.doctors?.some((doctor) => V.doctorKey(doctor.name) === doctorKey) && session.selectedDoctor !== doctorKey) {
+      await chrome.storage.local.set({ [V.KEY]: { ...session, selectedDoctor: doctorKey } });
+    }
+  });
 }
 
 async function openVisitePatient(patient, sender) {
@@ -467,7 +483,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const result = await chrome.tabs.sendMessage(sender.tab.id, { type: 'rsdkh:get-current-patient-report-identity' });
       if (!result?.ok || !result.identity?.medicalRecordNumber || result.identity.visitId !== url.hash.split('/')[3]) throw new Error('Identitas kunjungan CPPT belum tersedia.');
       const V = self.NetmedicVisite, saved = await chrome.storage.local.get(V.KEY);
-      return { identity: result.identity, careTeam: V.careTeamFor(saved[V.KEY], result.identity) };
+      const session = saved[V.KEY];
+      return {
+        identity: result.identity,
+        careTeam: V.careTeamFor(session, result.identity),
+        visiteNumber: V.patientNumberFor(session, result.identity)
+      };
     })().then((result) => sendResponse({ ok: true, ...result })).catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
@@ -478,6 +499,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const visiteAction = {
     "rsdkh:visite-start": () => mutateVisite(message.groups, sender.tab?.windowId),
     "rsdkh:visite-finish": () => mutateVisite(null),
+    "rsdkh:visite-select-doctor": () => selectVisiteDoctor(message.doctor, sender),
     "rsdkh:visite-open-patient": () => manageSessionTabs(() => openVisitePatient(message.patient, sender))
   }[message?.type];
   if (visiteAction) {

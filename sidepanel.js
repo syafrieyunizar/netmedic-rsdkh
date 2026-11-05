@@ -31,6 +31,7 @@ const SOAP_AI_STAGES = ["Memproses anamnesis", "Menyusun pemeriksaan fisik", "Me
 const PHOTO_AI_STAGES = ["Menganalisis foto klinis", "Menyusun temuan objektif", "Memeriksa deskripsi foto"];
 const KRONOLOGI_AI_STAGES = ["Membaca skenario kejadian", "Menyusun urutan kronologi", "Memeriksa konsistensi kronologi"];
 const UPDATE_LOG = [
+  { version: "2.3.5", date: "5 November 2026", changes: ["Tombol PIN Dashboard Jaga dan Unpin berwarna kuning. Tombol Daftar Pasien IGD berwarna hijau muda."] },
   { version: "2.3.4", date: "5 November 2026", changes: ["Tombol stetoskop pada Daftar Pasien IGD di grup 🩺 JAGA membuka rekam medis di tab latar belakang dalam grup yang sama. Daftar pasien tetap aktif."] },
   { version: "2.3.3", date: "5 November 2026", changes: ["Daftar Pasien IGD dibuka di tab baru dalam grup 🩺 JAGA dengan alamat eRM publik atau internal sesuai konteks browser.", "Dashboard Jaga bisa dipin dan dilepas. Saat dilepas, dashboard kembali ke awal grup 🩺 JAGA."] },
   { version: "2.3.2", date: "5 November 2026", changes: ["Dashboard Jaga menambahkan pilihan APS dengan status tanda tangan dan Rujuk ke RS dengan isian rumah sakit tujuan.", "Keterangan rencana disimpan per kunjungan dan ikut tampil di Riwayat Jaga."] },

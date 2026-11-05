@@ -149,6 +149,51 @@ async function toggleJagaDashboardPin(sender) {
   return { pinned: tab.pinned };
 }
 
+async function openIgdPatientInJaga(patient, sender) {
+  if (sender.frameId !== 0 || !Number.isInteger(sender.tab?.id) || !chrome.tabGroups) return { handled: false };
+  const source = await chrome.tabs.get(sender.tab.id);
+  if (!Number.isInteger(source.groupId) || source.groupId < 0 || !jagaErmOrigin(source.url)) return { handled: false };
+  const url = new URL(source.url);
+  if (url.hash.split("?")[0] !== "#/daftar-pasien-igd") return { handled: false };
+  const group = await chrome.tabGroups.get(source.groupId).catch(() => null);
+  if (group?.title !== SESSION_GROUPS["dashboard.html"].title) return { handled: false };
+  if (!/^\d{5,8}$/.test(patient?.medicalRecordNumber) || !/^\d{9,11}$/.test(patient?.registrationNumber)) {
+    throw new Error("RM atau nomor registrasi pasien IGD belum terbaca.");
+  }
+  const lookup = {
+    medicalRecordNumber: patient.medicalRecordNumber,
+    registrationNumber: patient.registrationNumber,
+    discharged: patient.discharged === true,
+    period: Array.isArray(patient.period) ? patient.period.slice(0, 2) : []
+  };
+  const tab = await chrome.tabs.create({ url: url.href, windowId: source.windowId, active: false, openerTabId: source.id });
+  let opened = false;
+  try {
+    let result;
+    const deadline = Date.now() + 15000;
+    while (Date.now() < deadline) {
+      try {
+        result = await chrome.tabs.sendMessage(tab.id, { type: "rsdkh:jaga-resolve-igd-patient", patient: lookup });
+        break;
+      } catch (error) {
+        if (!/receiving end does not exist|could not establish connection/i.test(error.message)) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+    }
+    if (!result?.ok) throw new Error(result?.error || "Tab latar belakang belum siap. Coba buka pasien lagi.");
+    const current = await chrome.tabs.get(tab.id);
+    const destination = new URL(result.ermUrl);
+    if (destination.origin !== url.origin || !patientVisitUrl(destination.href) || current.url !== destination.href) {
+      throw new Error("Tujuan eRM pasien IGD tidak dapat diverifikasi.");
+    }
+    if (current.groupId !== group.id) await chrome.tabs.group({ groupId: group.id, tabIds: tab.id });
+    opened = true;
+    return { handled: true };
+  } finally {
+    if (!opened) await chrome.tabs.remove(tab.id).catch(() => {});
+  }
+}
+
 async function releaseSessionPatientTabs(page) {
   if (!chrome.tabGroups || !chrome.tabs.ungroup) return;
   const { title } = SESSION_GROUPS[page];
@@ -409,6 +454,12 @@ async function updatePatientBed(patient, bed) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "rsdkh:jaga-open-igd-patient") {
+    openIgdPatientInJaga(message.patient, sender)
+      .then((result) => sendResponse({ ok: true, ...result }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
   if (message?.type === 'rsdkh:cppt-copy-context') {
     (async () => {
       const url = new URL(sender.tab?.url || '');

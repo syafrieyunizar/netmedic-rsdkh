@@ -1,18 +1,51 @@
 const assert = require("node:assert/strict");
+const http = require("node:http");
 const { chromium } = require("playwright");
 
+const igdFixture = `
+  <div class="filter-box">
+    <p-calendar><input value="2026-11-05 00:00"></p-calendar>
+    <p-calendar><input value="2026-11-05 23:59"></p-calendar>
+    <input placeholder="No. RM"><input placeholder="No. Reg"><button id="search">Cari</button>
+  </div>
+  <div class="p-datatable-scrollable-view">
+    <div class="p-datatable-scrollable-header"><table><thead><tr>
+      <th>Aksi</th><th>No Registrasi</th><th>No RM</th>
+    </tr></thead></table></div>
+    <div class="p-datatable-scrollable-body"><table><tbody id="patients"></tbody></table></div>
+  </div>
+  <script>
+    const body = document.querySelector("#patients");
+    function renderPatient(registration, visitId) {
+      body.innerHTML = '<tr><td><button ptooltip="Pengkajian Medis/EMR" icon="fa fa-stethoscope"><span>EMR</span></button></td>'
+        + '<td>' + registration + '</td><td>001234</td></tr>';
+      body.querySelector("button").onclick = () => history.pushState({}, "", "#/rekam-medis/test-igd/" + visitId);
+    }
+    renderPatient("2611000001", "older-visit");
+    document.querySelector("#search").onclick = () => {
+      const registration = document.querySelector('input[placeholder="No. Reg"]').value;
+      const start = document.querySelector("p-calendar input").value;
+      if (registration === "2611000002" && start === "2026-11-01 00:00") renderPatient(registration, "selected-visit");
+    };
+  </script>`;
+
 (async () => {
-  const browser = await chromium.launchPersistentContext("", {
-    channel: "chromium",
-    headless: true,
-    executablePath: process.env.VISITE_TEST_BROWSER,
-    args: [`--disable-extensions-except=${__dirname}`, `--load-extension=${__dirname}`]
+  const proxy = http.createServer((request, response) => {
+    response.writeHead(request.headers.host === "10.10.0.3" ? 200 : 404, { "Content-Type": "text/html" });
+    response.end(igdFixture);
   });
+  await new Promise((resolve, reject) => proxy.once("error", reject).listen(0, "127.0.0.1", resolve));
+  let browser;
   try {
+    browser = await chromium.launchPersistentContext("", {
+      channel: "chromium",
+      headless: true,
+      executablePath: process.env.VISITE_TEST_BROWSER,
+      proxy: { server: `http://127.0.0.1:${proxy.address().port}` },
+      args: [`--disable-extensions-except=${__dirname}`, `--load-extension=${__dirname}`]
+    });
     await browser.route("https://rsudbalangan.com:91/**", (route) =>
       route.fulfill({ contentType: "text/html", body: "<title>Test patient</title>" }));
-    await browser.route("http://10.10.0.3/**", (route) =>
-      route.fulfill({ contentType: "text/html", body: "<title>Test internal eRM</title>" }));
     const worker = browser.serviceWorkers()[0] || await browser.waitForEvent("serviceworker");
     const dashboardUrl = await worker.evaluate(async () => {
       const [tab] = await chrome.tabs.query({ active: true });
@@ -74,9 +107,42 @@ const { chromium } = require("playwright");
     const internalTab = await worker.evaluate(async (url) =>
       (await chrome.tabs.query({})).find((tab) => (tab.pendingUrl || tab.url) === url), internalList);
     assert.equal(internalTab.groupId, unpinned.tab.groupId);
+
+    const listPage = await internalPage;
+    await listPage.locator("p-calendar input").first().fill("2026-11-01 00:00");
+    await listPage.getByPlaceholder("No. Reg", { exact: true }).fill("2611000002");
+    await listPage.getByRole("button", { name: "Cari", exact: true }).click();
+    await listPage.getByText("2611000002", { exact: true }).waitFor();
+    const opening = browser.waitForEvent("page");
+    await listPage.getByRole("button", { name: "EMR", exact: true }).click();
+    const opened = await opening;
+    const openedUrl = "http://10.10.0.3/#/rekam-medis/test-igd/selected-visit";
+    await opened.waitForURL(openedUrl);
+    const openedTab = await worker.evaluate(async ({ url, groupId }) => {
+      for (let attempt = 0; attempt < 50; attempt++) {
+        const tab = (await chrome.tabs.query({ groupId })).find((tab) => tab.url === url);
+        if (tab) return tab;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }, { url: openedUrl, groupId: internalTab.groupId });
+    assert.ok(openedTab, "the patient tab joined the Jaga group");
+    assert.equal(openedTab.active, false);
+    const [activeList] = await worker.evaluate(() => chrome.tabs.query({ active: true, lastFocusedWindow: true }));
+    assert.equal(activeList.id, internalTab.id);
+    assert.equal(listPage.url(), internalList);
+    assert.equal(await listPage.getByPlaceholder("No. Reg", { exact: true }).inputValue(), "2611000002");
+    await opened.close();
+
+    const outsideGroup = await browser.newPage();
+    await outsideGroup.goto(internalList);
+    const countBefore = browser.pages().length;
+    await outsideGroup.getByRole("button", { name: "EMR", exact: true }).click();
+    await outsideGroup.waitForURL("http://10.10.0.3/#/rekam-medis/test-igd/older-visit");
+    assert.equal(browser.pages().length, countBefore);
+    await outsideGroup.close();
     await worker.evaluate((id) => chrome.tabs.remove(id), internalTab.id);
 
-    const url = "https://rsudbalangan.com:91/#/rekam-medis/test-patient/test-visit";
+    const url = "http://10.10.0.3/#/rekam-medis/test-patient/test-visit";
     const visit = await worker.evaluate(async ({ dashboardId, url }) => {
       const [pinned] = await chrome.tabs.query({ pinned: true });
       const shift = await chrome.tabs.get(dashboardId);
@@ -139,8 +205,9 @@ const { chromium } = require("playwright");
     }), { cpptId: visit.cppt.id, shiftPatientId: visit.shiftPatient.id });
     assert.equal(afterFinish.cppt.groupId, -1);
     assert.equal(afterFinish.shiftPatient.groupId, visit.shiftGroup.id);
-    console.log("PASS Dashboard Jaga pin/unpin, public/internal patient lists, tab group ordering, reuse, isolation, dashboard recovery and session finish");
+    console.log("PASS Jaga pin/unpin, public/internal lists, exact encounter in a background tab, native navigation outside Jaga, group ordering and session finish");
   } finally {
-    await browser.close();
+    await browser?.close();
+    proxy.close();
   }
 })().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -10,6 +10,7 @@
   const ICD9_BUTTON_ID = "netmedic-rsdkh-icd9-quick";
   const ICD9_SLOT_ID = `${ICD9_BUTTON_ID}-slot`;
   const ICD9_UI_ID = `${ICD9_BUTTON_ID}-ui`;
+  const IGD_EMR_ACTION = 'button[ptooltip="Pengkajian Medis/EMR"][icon="fa fa-stethoscope"]';
   const AI_WAIT_NOTE = "Proses AI dapat membutuhkan waktu 30-180 detik. Tetap biarkan halaman terbuka.";
   const SOAP_PARSE_STAGES = ["Memproses anamnesis", "Memproses pemeriksaan fisik", "Menyelaraskan Assessment dan Planning", "Memeriksa konsistensi SOAP"];
   const ICD9_GROUPS = [
@@ -98,6 +99,99 @@
 
   function isErmPage() {
     return location.hash.startsWith("#/rekam-medis/");
+  }
+
+  function isIgdList() {
+    return location.hash.split("?")[0] === "#/daftar-pasien-igd";
+  }
+
+  function igdPatientForAction(button) {
+    const row = button.closest("tr");
+    const table = row?.closest("table");
+    const header = table?.closest(".p-datatable-scrollable-view")
+      ?.querySelector(".p-datatable-scrollable-header thead") || table?.tHead;
+    const columns = [...(header?.rows[0]?.cells || [])]
+      .map((cell) => normalize(cell.textContent).toLowerCase().replace(/[^a-z]/g, ""));
+    const read = (...labels) => normalize(row?.cells[columns.findIndex((column) => labels.includes(column))]?.textContent);
+    const medicalRecordNumber = read("norm", "norekammedis");
+    const registrationNumber = read("noreg", "noregistrasi", "nomorregistrasi");
+    return isReportMedicalRecord(medicalRecordNumber) && /^\d{9,11}$/.test(registrationNumber)
+      ? { medicalRecordNumber, registrationNumber }
+      : null;
+  }
+
+  function igdListFilter() {
+    return document.querySelector('.filter-box:has(input[placeholder="No. Reg"])');
+  }
+
+  function igdListPeriod(filter) {
+    return [...(filter?.querySelectorAll("p-calendar input") || [])];
+  }
+
+  function igdDischargedTab() {
+    return [...document.querySelectorAll('[role="tab"]')]
+      .find((tab) => normalize(tab.textContent) === "Daftar Pasien Pulang");
+  }
+
+  async function resolveIgdPatientInTab(patient) {
+    if (!isIgdList()) throw new Error("Daftar Pasien IGD tidak tersedia di tab latar belakang.");
+    const filter = await waitFor(igdListFilter, "Filter Daftar Pasien IGD belum siap.");
+    if (patient.discharged) {
+      const tab = await waitFor(igdDischargedTab, "Daftar Pasien Pulang belum siap.");
+      if (tab.getAttribute("aria-selected") !== "true") tab.click();
+      await waitFor(() => tab.getAttribute("aria-selected") === "true", "Daftar Pasien Pulang tidak terbuka.");
+    }
+    const findAction = () => [...document.querySelectorAll(IGD_EMR_ACTION)].find((button) => {
+      if (!isVisible(button) || button.disabled) return false;
+      const row = igdPatientForAction(button);
+      return row?.medicalRecordNumber === patient.medicalRecordNumber && row.registrationNumber === patient.registrationNumber;
+    });
+    let action = findAction();
+    if (!action) {
+      const period = igdListPeriod(filter);
+      patient.period.forEach((value, index) => {
+        if (period[index] && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(value) && period[index].value !== value) {
+          setControlValue(period[index], value);
+        }
+      });
+      setControlValue(filter.querySelector('input[placeholder="No. RM"]'), patient.medicalRecordNumber);
+      setControlValue(filter.querySelector('input[placeholder="No. Reg"]'), patient.registrationNumber);
+      const search = [...filter.querySelectorAll("button")].find((button) => normalize(button.textContent) === "Cari");
+      if (!search || search.disabled) throw new Error("Tombol Cari di Daftar Pasien IGD belum tersedia.");
+      search.click();
+      action = await waitFor(findAction, "Pasien dengan RM dan registrasi tersebut tidak ditemukan di tab latar belakang.");
+    }
+    action.click();
+    await waitFor(() => encounterIdFromHash(location.hash), "eRM pasien belum terbuka di tab latar belakang.");
+    return { ok: true, ermUrl: location.href };
+  }
+
+  const openingIgdPatients = new WeakSet();
+  async function openIgdPatientFromList(event) {
+    if (!event.isTrusted || event.button !== 0 || event.altKey || event.shiftKey || !isIgdList() || !chrome.runtime.id) return;
+    const button = event.target.closest?.(IGD_EMR_ACTION);
+    if (!button || button.disabled) return;
+    const patient = igdPatientForAction(button);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (openingIgdPatients.has(button)) return;
+    openingIgdPatients.add(button);
+    try {
+      const result = await chrome.runtime.sendMessage({
+        type: "rsdkh:jaga-open-igd-patient",
+        patient: {
+          ...patient,
+          discharged: igdDischargedTab()?.getAttribute("aria-selected") === "true",
+          period: igdListPeriod(igdListFilter()).map((input) => input.value)
+        }
+      });
+      if (!result?.ok) throw new Error(result?.error || "Tab pasien gagal dibuka. Muat ulang daftar lalu coba lagi.");
+      if (!result.handled && button.isConnected && isIgdList()) button.dispatchEvent(new MouseEvent("click", event));
+    } catch (error) {
+      showToast(error.message, "error");
+    } finally {
+      openingIgdPatients.delete(button);
+    }
   }
 
   function isReportPatientAge(value) {
@@ -1318,6 +1412,11 @@
   }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message?.type === "rsdkh:jaga-resolve-igd-patient") {
+      resolveIgdPatientInTab(message.patient).then(sendResponse)
+        .catch((error) => sendResponse({ ok: false, error: error.message }));
+      return true;
+    }
     if (message?.type === "rsdkh:get-current-patient-identity") {
       const identity = getCurrentPatientIdentity();
       sendResponse(identity ? { ok: true, identity } : { ok: false });
@@ -1360,6 +1459,7 @@
   new MutationObserver(queueInject).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
   document.addEventListener("input", queueInject, true);
   document.addEventListener("change", queueInject, true);
+  document.addEventListener("click", openIgdPatientFromList, true);
   addEventListener("hashchange", queueInject);
   queueInject();
 })();

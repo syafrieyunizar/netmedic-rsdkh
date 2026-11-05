@@ -291,7 +291,7 @@ async function updatePatientBed(patient, bed) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'rsdkh:visite-resolve-link') {
-    resolveVisiteLink(message.patient, sender).then((result) => sendResponse({ ok: true, ...result })).catch((error) => sendResponse({ ok: false, error: error.message }));
+    resolveVisiteLink(message.patient, sender).then((result) => sendResponse({ ok: true, ...result })).catch((error) => sendResponse({ ok: false, error: error.message, retryable: /Pasien dengan RM dan registrasi|Daftar pasien (?:belum tersedia|belum stabil)|Tab pengambilan belum siap|melebihi 60 detik/.test(error.message) }));
     return true;
   }
   const visiteAction = {

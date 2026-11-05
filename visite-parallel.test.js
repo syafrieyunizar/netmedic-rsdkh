@@ -29,5 +29,23 @@ const groups = [{ doctor: 'dr. A', patients }, { doctor: 'dr. B', patients: [pat
   }), /test failure/);
   assert.equal(started, 3, 'failure stops new jobs');
   assert.equal(running, 0, 'all in-flight jobs finish before retry is allowed');
-  console.log('PASS 20-patient pool: concurrency 3, deduplication, completion progress, failure drains active jobs');
+  const attempts = new Map(), recoveryProgress = [];
+  let recoveryStarted = false, recoveryActive = 0;
+  const recovered = await V.resolveSelectedLinks(groups, async (item) => {
+    const count = (attempts.get(item.registrationNumber) || 0) + 1;
+    attempts.set(item.registrationNumber, count);
+    recoveryActive++;
+    if (recoveryStarted) assert.equal(recoveryActive, 1, 'retry is sequential after draining the parallel jobs');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    recoveryActive--;
+    if (item === patients[0] && count === 1) throw Object.assign(new Error('temporary patient lookup failure'), { retryable: true });
+    return `https://rsudbalangan.com:91/#/rekam-medis/p/${item.registrationNumber}`;
+  }, (done, total, phase) => { recoveryStarted = phase === 'serial-retry'; recoveryProgress.push(done); });
+  assert.equal(attempts.get(patients[0].registrationNumber), 2);
+  for (const item of patients.slice(1)) assert.equal(attempts.get(item.registrationNumber), 1, 'successful links are not fetched again');
+  assert.equal(recoveryProgress.at(-1), 20);
+  assert.equal(recoveryActive, 0);
+  assert.equal(recovered[0].patients.length, 20);
+  assert.equal(recovered[0].patients[0].ermUrl, recovered[1].patients[0].ermUrl);
+  console.log('PASS parallel pool, bounded concurrency, cleanup, serial recovery, successful links retained');
 })().catch((error) => { console.error(error); process.exit(1); });

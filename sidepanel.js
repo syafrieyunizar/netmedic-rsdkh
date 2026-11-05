@@ -34,7 +34,7 @@ const UPDATE_LOG = [
   {
     version: "2.2.3",
     date: "4 November 2026",
-    changes: ["Ikon tombol VISITE diganti menjadi emoji stetoskop agar lebih mudah dikenali."]
+    changes: ["Ikon tombol VISITE diganti menjadi emoji stetoskop agar lebih mudah dikenali.", "Jika pasien belum ditemukan saat pengambilan paralel, pasien yang belum selesai dicoba ulang satu per satu tanpa mengulang link yang berhasil."]
   },
   {
     version: "2.2.2",

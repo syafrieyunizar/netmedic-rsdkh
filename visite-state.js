@@ -52,11 +52,20 @@
           const url = cpptUrl(await resolveLink(patient));
           links.set(keyFor(patient), url);
           onProgress(++completed, patients.length);
-        } catch (error) { failure = failure || error; }
+        } catch (error) { if (!failure || !error.retryable) failure = error; }
       }
     });
     await Promise.all(workers);
-    if (failure) throw failure;
+    if (failure) {
+      if (!failure.retryable) throw failure;
+      onProgress(completed, patients.length, 'serial-retry');
+      for (const patient of patients) {
+        if (links.has(keyFor(patient))) continue;
+        const url = cpptUrl(await resolveLink(patient));
+        links.set(keyFor(patient), url);
+        onProgress(++completed, patients.length, 'serial-retry');
+      }
+    }
     return groups.map((group) => ({ ...group, patients: group.patients.map((patient) => ({ ...patient, ermUrl: links.get(keyFor(patient)) })) }));
   }
   const api = { KEY, LINK_CONCURRENCY, clean, doctorKey, patientKey, cpptUrl, mergeSession, resolveSelectedLinks };

@@ -114,7 +114,7 @@
       if (field) { field.value = value; field.dispatchEvent(new Event('input', { bubbles: true })); field.dispatchEvent(new Event('change', { bubbles: true })); }
     }
     await prepare(false);
-    const row = await until(() => sourceTable() && rows().find((item) => item.medicalRecordNumber === patient.medicalRecordNumber && item.registrationNumber === patient.registrationNumber && item.room === patient.room), 'Pasien dengan RM dan registrasi yang dipilih tidak ditemukan di tab pengambilan.');
+    const row = await until(() => sourceTable() && rows().find((item) => item.medicalRecordNumber === patient.medicalRecordNumber && item.registrationNumber === patient.registrationNumber && item.room === patient.room), 'Pasien dengan RM dan registrasi yang dipilih tidak ditemukan di tab pengambilan.', 30000);
     if (!row.action) throw new Error('Tombol stetoskop pasien tidak ditemukan.');
     row.action.click();
     await until(() => /^#\/rekam-medis\/[^/]+\/[^/]+/.test(location.hash), 'Link eRM pasien tidak terbaca.');
@@ -189,10 +189,12 @@
           if (!groups.length) throw new Error("Pilih setidaknya satu dokter.");
           const resolvedGroups = await V.resolveSelectedLinks(groups, async (patient) => {
             const response = await chrome.runtime.sendMessage({ type: 'rsdkh:visite-resolve-link', patient });
-            if (!response?.ok) throw new Error(response?.error || 'Link pasien belum berhasil diambil.');
+            if (!response?.ok) throw Object.assign(new Error(response?.error || 'Link pasien belum berhasil diambil.'), { retryable: Boolean(response?.retryable) });
             return response.ermUrl;
-          }, (completed, total) => {
-            status.textContent = `Mengambil link pasien terpilih ${completed}/${total} selesai · maksimal ${V.LINK_CONCURRENCY} pasien sekaligus…`;
+          }, (completed, total, phase) => {
+            status.textContent = phase === 'serial-retry'
+              ? `Mencoba ulang pasien yang belum selesai satu per satu · ${completed}/${total} selesai…`
+              : `Mengambil link pasien terpilih ${completed}/${total} selesai · maksimal ${V.LINK_CONCURRENCY} pasien sekaligus…`;
             status.className = '';
           });
           const response = await chrome.runtime.sendMessage({ type: "rsdkh:visite-start", groups: resolvedGroups });
@@ -210,7 +212,7 @@
     if (!target) return;
     const anchor = target.closest("li") || target.closest("a,button") || target;
     const button = document.createElement("button"); button.id = "rsdkh-visite-button"; button.type = "button";
-    button.dataset.visiteBuild = "2.2.2-parallel-three";
+    button.dataset.visiteBuild = "2.2.3-parallel-recovery";
     button.innerHTML = '<span class="rsdkh-visite-icon" aria-hidden="true">&#129658;</span><span>VISITE</span>';
     button.addEventListener("click", start); anchor.after(button);
   }

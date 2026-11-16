@@ -31,6 +31,7 @@ const SOAP_AI_STAGES = ["Memproses anamnesis", "Menyusun pemeriksaan fisik", "Me
 const PHOTO_AI_STAGES = ["Menganalisis foto klinis", "Menyusun temuan objektif", "Memeriksa deskripsi foto"];
 const KRONOLOGI_AI_STAGES = ["Membaca skenario kejadian", "Menyusun urutan kronologi", "Memeriksa konsistensi kronologi"];
 const UPDATE_LOG = [
+  { version: "2.3.6", date: "16 November 2026", changes: ["Token Bersama berkedip merah saat saldo negatif. Rincian menampilkan peringatan Fair Usage Policy dan penjelasan yang dapat dibuka."] },
   { version: "2.3.5", date: "5 November 2026", changes: ["Tombol PIN Dashboard Jaga dan Unpin berwarna kuning. Tombol Daftar Pasien IGD berwarna hijau muda.", "Judul tab eRM tampil sebagai DAFTAR PASIEN IGD atau DAFTAR PASIEN RAWAT INAP sesuai halaman.", "Dashboard Visite memberi nomor urut per dokter dan tombol Konsul CPPT menyalinnya pada baris ruangan.", "Dashboard Visite memiliki tombol PIN, Unpin, dan Daftar Pasien Rawat Inap."] },
   { version: "2.3.4", date: "5 November 2026", changes: ["Tombol stetoskop pada Daftar Pasien IGD di grup 🩺 JAGA membuka rekam medis di tab latar belakang dalam grup yang sama. Daftar pasien tetap aktif."] },
   { version: "2.3.3", date: "5 November 2026", changes: ["Daftar Pasien IGD dibuka di tab baru dalam grup 🩺 JAGA dengan alamat eRM publik atau internal sesuai konteks browser.", "Dashboard Jaga bisa dipin dan dilepas. Saat dilepas, dashboard kembali ke awal grup 🩺 JAGA."] },
@@ -912,6 +913,10 @@ function renderSharedToken(snapshot = sharedTokenSnapshot) {
   if (!snapshot) return;
   $("#sharedTokenAmount").textContent = formatRupiah(snapshot.value);
   $("#sharedTokenDialogAmount").textContent = formatRupiah(snapshot.value);
+  const depleted = snapshot.value < 0;
+  $("#sharedToken").classList.toggle("is-depleted", depleted);
+  $(".shared-token-balance").classList.toggle("is-depleted", depleted);
+  $("#sharedTokenWarning").hidden = !depleted;
   $("#sharedTokenTotalUsage").textContent = formatRupiah(snapshot.totalCost);
   const snapshotAt = Date.parse(snapshot.snapshotAt || "");
   const expiresAt = Date.parse(snapshot.expiresAt || "");
@@ -4545,6 +4550,8 @@ if (typeof module !== "undefined") {
     assert.equal(isValidTokenPeriod("2026-11-01", "2026-11-01"), true);
     assert.equal(isValidTokenPeriod("2026-11-30", "2026-11-01"), false);
     assert.equal(normalizeSharedTokenSummary({ sharedToken: -12500, inputChars: 1234 }).sharedToken, -12500);
+    assert.equal(normalizeSharedTokenSnapshot({ sharedToken: -1 }).value < 0, true);
+    assert.equal(normalizeSharedTokenSnapshot({ sharedToken: 0 }).value < 0, false);
     assert.equal(safeAiErrorMessage("https://provider.test?key=secret&x=1"), "https://provider.test?key=[disensor]&x=1");
     assert.equal(adminAccessErrorMessage(Object.assign(new Error("Unauthorized"), { status: 401 }), "login"), "Username/password kamu salah. Silakan hubungi dr. M. Syafrie Yunizar untuk mendapatkan akses login.");
     assert.equal(adminAccessErrorMessage(new TypeError("Failed to fetch")), "AI belum dapat diaktifkan. Periksa koneksi lalu coba lagi.");

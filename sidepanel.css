@@ -210,6 +210,12 @@ h2 {
   cursor: pointer;
 }
 
+@keyframes shared-token-alert {
+  0%, 100% { background: transparent; color: var(--on-surface-variant); border-color: var(--outline-variant); }
+  50% { background: var(--error); color: #fff; border-color: var(--error); }
+}
+.shared-token.is-depleted { animation: shared-token-alert 1s ease-in-out infinite; }
+.shared-token.is-depleted strong { color: inherit; }
 .shared-token[hidden] {
   display: none;
 }
@@ -1685,6 +1691,32 @@ dialog::backdrop {
   border-radius: var(--radius-md);
 }
 
+.shared-token-balance.is-depleted {
+  color: var(--error);
+  background: var(--error-container);
+  border-color: var(--error);
+}
+.shared-token-warning { margin: 0; color: var(--error); font-size: 11px; line-height: 1.5; }
+.shared-token-policy { display: inline-block; position: relative; }
+.shared-token-policy summary { display: inline; border-bottom: 1px dashed currentColor; cursor: pointer; }
+.shared-token-policy summary::marker { content: ""; }
+.shared-token-policy-tip {
+  display: none;
+  position: absolute;
+  z-index: 1;
+  right: 0;
+  top: 100%;
+  width: min(260px, 70vw);
+  padding: 8px;
+  color: var(--on-surface);
+  background: var(--surface-lowest);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-dialog);
+}
+.shared-token-policy:hover .shared-token-policy-tip,
+.shared-token-policy:focus-within .shared-token-policy-tip,
+.shared-token-policy[open] .shared-token-policy-tip { display: block; }
 .shared-token-balance span,
 .shared-token-details dt,
 .shared-token-details small,

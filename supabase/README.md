@@ -1,6 +1,12 @@
-# Magic SOAP Admin API
+# Netmedic RSDKH Admin API
 
-The extension uses the existing shared Supabase Edge Function `knowledge-admin` with:
+The extension uses the shared Supabase Edge Function `knowledge-admin`. Its canonical source, migrations, tests, and deployment instructions live at:
+
+`https://github.com/syafrieyunizar/shared-knowledge-admin`
+
+This repository contains the application client and historical migration snapshots only. Do not deploy or maintain the shared function from this repository.
+
+The application uses:
 
 ```text
 app_id: netmedic-rsdkh
@@ -10,15 +16,7 @@ The function routes configuration, user sessions, AI generation, and the shared 
 
 ## Database Setup
 
-Apply these migrations to the same Supabase project used by the related medical extensions:
-
-- `migrations/20260812000300_add_magic_soap_admin_ai.sql`
-- `migrations/20261006000100_add_shared_product_catalog.sql`
-- `migrations/20261019000100_add_rsdkh_shared_tokens.sql`
-- `migrations/20261019000200_add_rsdkh_token_snapshots.sql`
-- `migrations/20261101000100_add_rsdkh_manual_token_period.sql`
-
-Deploy the updated shared `knowledge-admin` Edge Function from the `resume-medis-reviewer` repository after applying the migrations. The shared-token migration adds only RSDKH-specific objects and reads the existing `app_usage_logs` table without changing it.
+Apply migrations and deploy `knowledge-admin` only from the canonical `shared-knowledge-admin` repository. Keep the exact `app_id: netmedic-rsdkh` boundary and smoke-test the RSDKH catalog, AI response, and shared-token summary after a shared deployment.
 
 After deployment, open **Pengaturan AI > Konfigurasi khusus admin**, enter the main admin credentials, then validate and save the provider key. Registered users can select **API admin** and log in without seeing the provider key.
 

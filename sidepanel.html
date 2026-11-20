@@ -191,7 +191,7 @@
 
   <footer class="app-footer">
     <span><span class="footer-dot" aria-hidden="true"></span>Siap digunakan</span>
-    <span id="appVersion">v2.3.6</span>
+    <span id="appVersion">v2.3.7</span>
   </footer>
 
   <dialog id="sharedTokenDialog" class="compact-dialog shared-token-dialog" aria-labelledby="sharedTokenTitle">
@@ -585,11 +585,14 @@
               <span class="settings-menu-copy"><strong>Kamus Produk RSDKH</strong><small id="settingsAliasSummary">Memuat kamus produk...</small></span>
               <svg class="settings-menu-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </button>
-            <button class="settings-menu-item" type="button" data-settings-target="admin">
-              <span class="settings-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></span>
-              <span class="settings-menu-copy"><strong>Panel Admin</strong><small id="settingsAdminSummary">Kelola API, pengguna, katalog, dan token</small></span>
-              <svg class="settings-menu-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
-            </button>
+            <details id="settingsDeveloperOptions">
+              <summary>Opsi developer</summary>
+              <button class="settings-menu-item" type="button" data-settings-target="admin">
+                <span class="settings-menu-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></svg></span>
+                <span class="settings-menu-copy"><strong>Panel Admin</strong><small id="settingsAdminSummary">Kelola API, pengguna, katalog, dan token</small></span>
+                <svg class="settings-menu-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </details>
           </nav>
         </section>
 
@@ -722,6 +725,7 @@
               <label>Password<input id="ownerPassword" type="password" autocomplete="current-password" placeholder="Password admin"></label>
               <button id="loginOwnerAdmin" class="button primary" type="button"><span>Login Panel Admin</span></button>
               <div id="ownerLoginStatus" class="status" data-state="ready" role="status" aria-live="polite" hidden><span class="status-dot" aria-hidden="true"></span><span class="status-text"></span></div>
+              <button id="openAiLoginFromAdmin" class="button" type="button" hidden>Login di Koneksi AI</button>
             </div>
             <div id="ownerAdminPanel" class="owner-admin-panel" hidden>
               <div class="owner-panel-header">

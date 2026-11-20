@@ -16,6 +16,7 @@ let shiftMutationQueue = Promise.resolve();
 let clipboardCopyRequest;
 let visiteQueue = Promise.resolve();
 let visiteLinksRunning = 0;
+let visiteTabStartup = Promise.resolve();
 let sessionTabQueue = Promise.resolve();
 
 function manageSessionTabs(action) {
@@ -210,33 +211,36 @@ async function resolveVisiteLink(patient, sender) {
   const source = new URL(sender.tab?.url || '');
   if (!['rsudbalangan.com', '10.10.0.3'].includes(source.hostname) || !['http:', 'https:'].includes(source.protocol) || source.hash.split('?')[0] !== '#/daftar-pasien-dirawat') throw new Error('Buka pengambilan visite dari daftar pasien dirawat.');
   if (!/^\d{5,8}$/.test(String(patient?.medicalRecordNumber || '')) || !/^\d{9,11}$/.test(String(patient?.registrationNumber || '')) || !patient?.room) throw new Error('RM, registrasi, atau ruangan pasien belum lengkap.');
-  if (visiteLinksRunning >= self.NetmedicVisite.LINK_CONCURRENCY) throw new Error('Tiga tab pengambilan visite masih berjalan. Tunggu lalu coba lagi.');
+  if (visiteLinksRunning >= self.NetmedicVisite.LINK_CONCURRENCY) throw new Error('Dua tab pengambilan visite masih berjalan. Tunggu lalu coba lagi.');
   visiteLinksRunning++;
   let tabId, timer;
   try {
-    const tab = await chrome.tabs.create({ url: source.href, active: false });
-    tabId = tab.id;
-    const result = await Promise.race([
+    const startup = visiteTabStartup.then(async () => {
+      const tab = await chrome.tabs.create({ url: source.href, active: false });
+      tabId = tab.id;
+      const deadline = Date.now() + 20000;
+      while (Date.now() < deadline) {
+        const ready = await chrome.tabs.sendMessage(tabId, { type: "rsdkh:visite-ready" }).catch((error) => {
+          if (!/receiving end does not exist|could not establish connection/i.test(error.message)) throw error;
+        });
+        if (ready?.ok) return;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      throw new Error("Tab pengambilan belum siap. Coba ulang.");
+    });
+    visiteTabStartup = startup.catch(() => {});
+    await startup;
+    return await Promise.race([
       (async () => {
-        const deadline = Date.now() + 20000;
-        while (Date.now() < deadline) {
-          try {
-            const result = await chrome.tabs.sendMessage(tabId, { type: 'rsdkh:visite-resolve-patient', patient });
-            if (!result?.ok) throw new Error(result?.error || 'Link pasien tidak ditemukan.');
-            const current = await chrome.tabs.get(tabId);
-            const ermUrl = self.NetmedicVisite.cpptUrl(result.ermUrl);
-            if (new URL(ermUrl).origin !== source.origin || self.NetmedicVisite.cpptUrl(current.url) !== ermUrl) throw new Error('Tujuan eRM pasien tidak dapat diverifikasi.');
-            return { ermUrl };
-          } catch (error) {
-            if (!/receiving end does not exist|could not establish connection/i.test(error.message)) throw error;
-            await new Promise((resolve) => setTimeout(resolve, 500));
-          }
-        }
-        throw new Error('Tab pengambilan belum siap. Coba ulang.');
+        const result = await chrome.tabs.sendMessage(tabId, { type: "rsdkh:visite-resolve-patient", patient });
+        if (!result?.ok) throw new Error(result?.error || "Link pasien tidak ditemukan.");
+        const current = await chrome.tabs.get(tabId);
+        const ermUrl = self.NetmedicVisite.cpptUrl(result.ermUrl);
+        if (new URL(ermUrl).origin !== source.origin || self.NetmedicVisite.cpptUrl(current.url) !== ermUrl) throw new Error("Tujuan eRM pasien tidak dapat diverifikasi.");
+        return { ermUrl };
       })(),
-      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Pengambilan link pasien melebihi 60 detik. Coba ulang.')), 60000); })
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("Pengambilan link pasien melebihi 60 detik. Coba ulang.")), 60000); })
     ]);
-    return result;
   } finally {
     clearTimeout(timer);
     if (tabId) await chrome.tabs.remove(tabId).catch(() => {});
@@ -277,13 +281,19 @@ function selectVisiteDoctor(doctorKey, sender) {
   });
 }
 
-async function openVisitePatient(patient, sender) {
-  const url = self.NetmedicVisite.cpptUrl(patient?.ermUrl);
+async function openVisitePatient(patient, sender, resume = false) {
+  const cppt = self.NetmedicVisite.cpptUrl(patient?.ermUrl);
+  const url = resume ? cppt.replace(/\/cppt$/, "/resume-new") : cppt;
   const dashboard = await dashboardFromSender(sender, "visite.html");
   const groupId = await ensureDashboardGroup(dashboard, "visite.html").catch(() => null);
   const tabs = await chrome.tabs.query(groupId === null ? {} : { windowId: dashboard.windowId });
-  const matches = tabs.filter((tab) =>
-    canReusePatientTab(tab, dashboard, groupId) && patientVisitUrl(tab.pendingUrl || tab.url) === url);
+  const matches = tabs.filter((tab) => {
+    if (!canReusePatientTab(tab, dashboard, groupId)) return false;
+    const current = tab.pendingUrl || tab.url;
+    if (resume) return current === url;
+    // Keep an open resume form available while the doctor checks CPPT.
+    return !/\/resume-new(?:$|\?)/.test(current || "") && patientVisitUrl(current) === cppt;
+  });
   const existing = matches.find((tab) => tab.groupId === groupId) || matches[0];
   const update = existing && (existing.pendingUrl || existing.url) !== url ? { url } : {};
   return showSessionTab("visite.html", dashboard, groupId, url, existing, update);
@@ -494,14 +504,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message?.type === 'rsdkh:visite-resolve-link') {
-    resolveVisiteLink(message.patient, sender).then((result) => sendResponse({ ok: true, ...result })).catch((error) => sendResponse({ ok: false, error: error.message, retryable: /Pasien dengan RM dan registrasi|Daftar pasien (?:belum tersedia|belum stabil)|Tab pengambilan belum siap|melebihi 60 detik/.test(error.message) }));
+    resolveVisiteLink(message.patient, sender).then((result) => sendResponse({ ok: true, ...result })).catch((error) => {
+      const stages = [
+        [/Tab pengambilan belum siap|Daftar pasien belum tersedia/, "memuat daftar pasien"],
+        [/Pasien dengan RM dan registrasi|Daftar pasien belum stabil/, "mencari pasien"],
+        [/Link eRM pasien tidak terbaca/, "membuka rekam medis"],
+        [/melebihi 60 detik/, "mengambil tautan CPPT"]
+      ];
+      const stage = stages.find(([pattern]) => pattern.test(error.message))?.[1];
+      sendResponse({ ok: false, error: error.message, stage });
+    });
     return true;
   }
   const visiteAction = {
     "rsdkh:visite-start": () => mutateVisite(message.groups, sender.tab?.windowId),
     "rsdkh:visite-finish": () => mutateVisite(null),
     "rsdkh:visite-select-doctor": () => selectVisiteDoctor(message.doctor, sender),
-    "rsdkh:visite-open-patient": () => manageSessionTabs(() => openVisitePatient(message.patient, sender))
+    "rsdkh:visite-open-patient": () => manageSessionTabs(() => openVisitePatient(message.patient, sender, message.resume === true))
   }[message?.type];
   if (visiteAction) {
     visiteAction().then(() => sendResponse({ ok: true })).catch((error) => sendResponse({ ok: false, error: error.message }));

@@ -31,6 +31,7 @@ const SOAP_AI_STAGES = ["Memproses anamnesis", "Menyusun pemeriksaan fisik", "Me
 const PHOTO_AI_STAGES = ["Menganalisis foto klinis", "Menyusun temuan objektif", "Memeriksa deskripsi foto"];
 const KRONOLOGI_AI_STAGES = ["Membaca skenario kejadian", "Menyusun urutan kronologi", "Memeriksa konsistensi kronologi"];
 const UPDATE_LOG = [
+  { version: "2.3.7", date: "20 November 2026", changes: ["VISITE membuka maksimal dua tab secara bertahap dan mencoba ulang pasien yang gagal.", "Tombol Isi Resume membuka formulir resume pasien dari Dashboard Visite.", "Panel Admin ada di Opsi developer dan menyediakan jalan pintas ke Koneksi AI ketika login gagal."] },
   { version: "2.3.6", date: "16 November 2026", changes: ["Token Bersama berkedip merah saat saldo negatif. Rincian menampilkan peringatan Fair Usage Policy dan penjelasan yang dapat dibuka."] },
   { version: "2.3.5", date: "5 November 2026", changes: ["Tombol PIN Dashboard Jaga dan Unpin berwarna kuning. Tombol Daftar Pasien IGD berwarna hijau muda.", "Judul tab eRM tampil sebagai DAFTAR PASIEN IGD atau DAFTAR PASIEN RAWAT INAP sesuai halaman.", "Dashboard Visite memberi nomor urut per dokter dan tombol Konsul CPPT menyalinnya pada baris ruangan.", "Dashboard Visite memiliki tombol PIN, Unpin, dan Daftar Pasien Rawat Inap."] },
   { version: "2.3.4", date: "5 November 2026", changes: ["Tombol stetoskop pada Daftar Pasien IGD di grup 🩺 JAGA membuka rekam medis di tab latar belakang dalam grup yang sama. Daftar pasien tetap aktif."] },
@@ -3540,6 +3541,7 @@ function openSettingsDialog(page = "home") {
   fillSettingsForm();
   const dialog = $("#settingsDialog");
   clearTimeout(settingsCloseTimer);
+  if (!dialog.open) $("#settingsDeveloperOptions").open = false;
   showSettingsPage(page);
   if (!dialog.open) dialog.showModal();
   requestAnimationFrame(() => dialog.classList.add("is-visible"));
@@ -3795,6 +3797,7 @@ function exitOwnerAdminMode() {
   $("#ownerAdminLogin").hidden = false;
   $("#ownerAdminStatus").hidden = true;
   $("#ownerLoginStatus").hidden = true;
+  $("#openAiLoginFromAdmin").hidden = true;
   $("#ownerTokenStatus").hidden = true;
   $("#adminUserList").textContent = "";
   activateOwnerAdminTab("apikey");
@@ -3805,6 +3808,8 @@ async function loginOwnerAdmin() {
   const username = $("#ownerUsername").value.trim();
   const password = $("#ownerPassword").value;
   const status = $("#ownerLoginStatus");
+  const aiLogin = $("#openAiLoginFromAdmin");
+  aiLogin.hidden = true;
   status.hidden = false;
   if (!username || !password) {
     setStatus(status, "error", "Username dan password wajib diisi.");
@@ -3829,7 +3834,8 @@ async function loginOwnerAdmin() {
     updateSettingsSummaries();
   } catch (error) {
     ownerAdminAuth = null;
-    setStatus(status, "error", `Login gagal: ${error.message}`);
+    setStatus(status, "error", "Ini adalah PANEL untuk DEVELOPER, Jika kamu adalah pengguna, Klik tombol ini untuk login :");
+    aiLogin.hidden = false;
   } finally {
     $("#loginOwnerAdmin").disabled = false;
     $("#loginOwnerAdmin span").textContent = "Login Panel Admin";
@@ -4284,6 +4290,10 @@ if (typeof document !== "undefined") {
   });
   $("#ownerProvider").addEventListener("change", () => syncOwnerProviderFields(true));
   $("#loginOwnerAdmin").addEventListener("click", loginOwnerAdmin);
+  $("#openAiLoginFromAdmin").addEventListener("click", () => {
+    $("#ownerPassword").value = "";
+    showSettingsPage("connection");
+  });
   $("#exitOwnerAdmin").addEventListener("click", exitOwnerAdminMode);
   ["ownerUsername", "ownerPassword"].forEach((id) => {
     $(`#${id}`).addEventListener("keydown", (event) => {

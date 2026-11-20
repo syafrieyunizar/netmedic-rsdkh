@@ -3,6 +3,7 @@ main { max-width: 1120px; margin: 0 auto; padding: 24px 16px; }
 .visite-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
 .visite-heading .shift-actions { width: auto; }
 .visite-heading h1 { font-size: 22px; }
+#toggleResume[aria-pressed="true"] { color: var(--green); background: var(--green-soft); border-color: var(--green); }
 #sessionMeta, #emptyVisite { color: var(--muted); }
 #doctorTabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
 #doctorTabs button { padding: 10px 16px; min-height: 44px; border: 1px solid var(--outline); border-radius: 999px; color: var(--text); background: var(--surface-lowest); }

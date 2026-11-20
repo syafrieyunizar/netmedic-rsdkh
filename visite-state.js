@@ -1,6 +1,6 @@
 ((root) => {
   const KEY = "rsdkhVisiteSession";
-  const LINK_CONCURRENCY = 3;
+  const LINK_CONCURRENCY = 2;
   const clean = (value) => String(value || "").replace(/\s+/g, " ").trim();
   const doctorKey = (value) => clean(value).toLocaleLowerCase("id-ID").replace(/[.,\s]+/g, "");
   const patientKey = (patient) => `${clean(patient.medicalRecordNumber)}:${clean(patient.visitId)}`;
@@ -95,30 +95,39 @@
     const keyFor = (patient) => `${patient.medicalRecordNumber}:${patient.registrationNumber}`;
     const selected = new Map();
     for (const group of groups) for (const patient of group.patients) selected.set(keyFor(patient), patient);
-    const patients = [...selected.values()], links = new Map();
-    let cursor = 0, completed = 0, failure;
-    onProgress(completed, patients.length);
-    const workers = Array.from({ length: Math.min(LINK_CONCURRENCY, patients.length) }, async () => {
+    const patients = [...selected.values()], links = new Map(), retried = new Set();
+    let cursor = 0, completed = 0, failure, lastStage, serialStage;
+    onProgress(completed, selected.size);
+    async function work(primary) {
       while (!failure && cursor < patients.length) {
+        if (serialStage) {
+          if (!primary) return;
+          await secondary;
+          if (failure || cursor >= patients.length) return;
+        }
         const patient = patients[cursor++];
+        const key = keyFor(patient);
         try {
-          const url = cpptUrl(await resolveLink(patient));
-          links.set(keyFor(patient), url);
-          onProgress(++completed, patients.length);
-        } catch (error) { if (!failure || !error.retryable) failure = error; }
-      }
-    });
-    await Promise.all(workers);
-    if (failure) {
-      if (!failure.retryable) throw failure;
-      onProgress(completed, patients.length, 'serial-retry');
-      for (const patient of patients) {
-        if (links.has(keyFor(patient))) continue;
-        const url = cpptUrl(await resolveLink(patient));
-        links.set(keyFor(patient), url);
-        onProgress(++completed, patients.length, 'serial-retry');
+          links.set(key, cpptUrl(await resolveLink(patient)));
+          lastStage = undefined;
+          onProgress(++completed, selected.size, serialStage && "serial", serialStage);
+        } catch (error) {
+          if (!error.stage || retried.has(key)) {
+            failure ??= error;
+            continue;
+          }
+          retried.add(key);
+          patients.push(patient);
+          if (lastStage === error.stage) serialStage ??= error.stage;
+          lastStage = error.stage;
+          onProgress(completed, selected.size, serialStage ? "serial" : "retry", serialStage || error.stage);
+        }
       }
     }
+    const primary = Promise.resolve().then(() => work(true));
+    const secondary = Promise.resolve().then(() => work(false));
+    await Promise.all([primary, secondary]);
+    if (failure) throw failure;
     return groups.map((group) => ({ ...group, patients: group.patients.map((patient) => ({ ...patient, ermUrl: links.get(keyFor(patient)) })) }));
   }
   const api = { KEY, LINK_CONCURRENCY, clean, doctorKey, patientKey, cpptUrl, mergeSession, resolveSelectedLinks, expandCareTeams, careTeamFor, selectedDoctorFor, numberedRooms, patientNumberFor };

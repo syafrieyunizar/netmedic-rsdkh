@@ -121,6 +121,10 @@
     return V.cpptUrl(location.href);
   }
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message?.type === "rsdkh:visite-ready") {
+      sendResponse({ ok: onList() && Boolean(sourceTable()) });
+      return false;
+    }
     if (message?.type !== 'rsdkh:visite-resolve-patient') return false;
     resolveBackgroundPatient(message.patient).then((ermUrl) => sendResponse({ ok: true, ermUrl })).catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
@@ -189,12 +193,15 @@
           if (!groups.length) throw new Error("Pilih setidaknya satu dokter.");
           const resolvedGroups = await V.resolveSelectedLinks(groups, async (patient) => {
             const response = await chrome.runtime.sendMessage({ type: 'rsdkh:visite-resolve-link', patient });
-            if (!response?.ok) throw Object.assign(new Error(response?.error || 'Link pasien belum berhasil diambil.'), { retryable: Boolean(response?.retryable) });
+            if (!response?.ok) throw Object.assign(new Error(response?.error || 'Link pasien belum berhasil diambil.'), { stage: response?.stage });
             return response.ermUrl;
-          }, (completed, total, phase) => {
-            status.textContent = phase === 'serial-retry'
-              ? `Mencoba ulang pasien yang belum selesai satu per satu · ${completed}/${total} selesai…`
-              : `Mengambil link pasien terpilih ${completed}/${total} selesai · maksimal ${V.LINK_CONCURRENCY} pasien sekaligus…`;
+          }, (completed, total, phase, stage) => {
+            const progress = completed + "/" + total + " pasien selesai…";
+            status.textContent = phase === "serial"
+              ? "Melanjutkan dengan satu tab setelah kendala " + stage + " · " + progress
+              : phase === "retry"
+                ? "Menjadwalkan ulang pasien setelah kendala " + stage + " · " + progress
+                : "Mengambil tautan CPPT · " + progress;
             status.className = '';
           });
           const response = await chrome.runtime.sendMessage({ type: "rsdkh:visite-start", groups: resolvedGroups });

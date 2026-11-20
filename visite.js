@@ -1,13 +1,14 @@
 const V = NetmedicVisite;
 let session = null;
+let showResume = false;
 let dashboardTabId;
 const $ = (selector) => document.querySelector(selector);
 function notice(message) { $("#visiteNotice").textContent = message; $("#visiteNotice").hidden = false; }
-async function openPatient(patient, button) {
+async function openPatient(patient, button, resume = false) {
   button.disabled = true;
   try {
-    const response = await chrome.runtime.sendMessage({ type: "rsdkh:visite-open-patient", patient });
-    if (!response?.ok) throw new Error(response?.error || "CPPT gagal dibuka.");
+    const response = await chrome.runtime.sendMessage({ type: "rsdkh:visite-open-patient", patient, resume });
+    if (!response?.ok) throw new Error(response?.error || (resume ? "Resume gagal dibuka." : "CPPT gagal dibuka."));
   } catch (error) { notice(error.message); }
   finally { button.disabled = false; }
 }
@@ -15,6 +16,9 @@ function render() {
   const doctors = session?.doctors || [];
   $("#emptyVisite").hidden = doctors.length > 0;
   $("#finishVisite").hidden = !doctors.length;
+  if (!doctors.length) showResume = false;
+  $("#toggleResume").hidden = !doctors.length;
+  $("#toggleResume").setAttribute("aria-pressed", String(showResume));
   $("#sessionMeta").textContent = session ? `Mulai ${new Date(session.startedAt).toLocaleString("id-ID")} · ${doctors.length} dokter` : "";
   const selectedDoctor = V.selectedDoctorFor(session);
   $("#doctorTabs").replaceChildren(); $("#roomList").replaceChildren();
@@ -42,12 +46,26 @@ function render() {
         const rm = document.createElement("small"); rm.textContent = `RM ${patient.medicalRecordNumber}`;
         const cppt = document.createElement("button"); cppt.className = "visite-cppt"; cppt.type = "button"; cppt.textContent = "CPPT"; cppt.setAttribute("aria-label", `Buka CPPT ${patient.name}`);
         for (const button of [name, cppt]) button.addEventListener("click", () => openPatient(patient, button));
-        row.append(name, rm, cppt); section.append(row);
+        row.append(name, rm, cppt);
+        if (showResume) {
+          const resume = document.createElement("button");
+          resume.className = "visite-cppt";
+          resume.type = "button";
+          resume.textContent = "RESUME";
+          resume.setAttribute("aria-label", "Buka RESUME " + patient.name);
+          resume.addEventListener("click", () => openPatient(patient, resume, true));
+          row.append(resume);
+        }
+        section.append(row);
       }
       $("#roomList").append(section);
     }
   }
 }
+$("#toggleResume").addEventListener("click", () => {
+  showResume = !showResume;
+  render();
+});
 $("#finishVisite").addEventListener("click", async () => {
   if (!confirm("Selesaikan visite? Seluruh daftar pasien dalam sesi ini akan dihapus tanpa riwayat.")) return;
   try { const response = await chrome.runtime.sendMessage({ type: "rsdkh:visite-finish" }); if (!response?.ok) throw new Error(response?.error); }

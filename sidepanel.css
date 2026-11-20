@@ -2652,6 +2652,12 @@ dialog::backdrop {
   border-top: 1px solid var(--outline-variant);
 }
 
+#settingsDeveloperOptions > summary {
+  padding: var(--space-2);
+  color: var(--on-surface-variant);
+  cursor: pointer;
+}
+
 .settings-menu-item {
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr) 20px;
